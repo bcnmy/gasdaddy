@@ -17,8 +17,8 @@ const config: HardhatUserConfig = {
     },
   },
   docgen: {
-    projectName: "Biconomy",
-    projectDescription: "Sc-Template Description",
+    projectName: "Biconomy Paymasters",
+    projectDescription: "Account Abstraction (v0.7.0) Paymasters",
   },
 };
 

@@ -29,6 +29,8 @@
     "ethers": "^6.11.1",
     "forge-std": "github:foundry-rs/forge-std#v1.7.6",
     "modulekit": "github:rhinestonewtf/modulekit",
+    "solady": "github:vectorized/solady",
+    "account-abstraction": "github:eth-infinitism/account-abstraction#develop",
     "hardhat-gas-reporter": "^1.0.10",
     "hardhat-storage-layout": "^0.1.7",
     "prettier": "^3.2.5",

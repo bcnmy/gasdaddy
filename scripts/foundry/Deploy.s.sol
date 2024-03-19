@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.23 <0.9.0;
 
-import { Foo } from "../../contracts/Foo.sol";
+import { Foo } from "../../contracts/test/Foo.sol";
 
 import { BaseScript } from "./Base.s.sol";
 

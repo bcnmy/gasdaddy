@@ -2,7 +2,7 @@
 pragma solidity >=0.8.24 <0.9.0;
 
 import { PRBTest } from "@prb/test/src/PRBTest.sol";
-import { Lock } from "../../contracts/Lock.sol";
+import { Lock } from "../../contracts/test/Lock.sol";
 import { StdCheats } from "forge-std/src/StdCheats.sol";
 
 contract LockTest is PRBTest, StdCheats {
