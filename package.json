@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Biconomy Paymasters",
+  "description": "Account abstraction ERC4337 paymaster contracts",
   "version": "1.0.0",
   "author": {
     "name": "Biconomy",
