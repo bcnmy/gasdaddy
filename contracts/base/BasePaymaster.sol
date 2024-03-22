@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /* solhint-disable reason-string */
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IPaymaster } from "account-abstraction/contracts/interfaces/IPaymaster.sol";
 import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
@@ -13,14 +13,14 @@ import "account-abstraction/contracts/core/UserOperationLib.sol";
  * provides helper methods for staking.
  * Validates that the postOp is called only by the entryPoint.
  */
-abstract contract BasePaymaster is IPaymaster, Ownable {
+abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     IEntryPoint public immutable entryPoint;
 
     uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
     uint256 internal constant PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
     uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
-    constructor(IEntryPoint _entryPoint) Ownable(msg.sender) {
+    constructor(address _owner, IEntryPoint _entryPoint) SoladyOwnable(_owner) {
         _validateEntryPointInterface(_entryPoint);
         entryPoint = _entryPoint;
     }

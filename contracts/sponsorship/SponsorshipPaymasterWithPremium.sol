@@ -14,9 +14,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "solady/src/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
-// possiblity (conflicts with BasePaymaster which is also Ownbale) // either make BasePaymaster SoladyOwnable
-// import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
-
 /**
  * @title BiconomySponsorshipPaymaster
  * @author livingrockrises<chirag@biconomy.io>
@@ -43,18 +40,13 @@ contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, Biconom
     // note: could rename to PAYMASTER_ID_OFFSET
     uint256 private constant VALID_PND_OFFSET = PAYMASTER_DATA_OFFSET;
 
-    // temp
-    // paymasterAndData: paymaster address + paymaster gas limits + paymasterData
-    // paymasterData: concat of [paymasterId(20 bytes), validUntil(6 bytes), validAfter(6 bytes), priceMarkup(4 bytes), signature]
-
     mapping(address => uint256) public paymasterIdBalances;
 
-    constructor(address _owner, IEntryPoint _entryPoint, address _verifyingSigner, address _feeCollector) BasePaymaster(_entryPoint) {
+    constructor(address _owner, IEntryPoint _entryPoint, address _verifyingSigner, address _feeCollector) BasePaymaster(_owner, _entryPoint) {
         // TODO
         // Check for zero address
         verifyingSigner = _verifyingSigner;
         feeCollector = _feeCollector;
-        _transferOwnership(_owner);
     }
 
     /**
