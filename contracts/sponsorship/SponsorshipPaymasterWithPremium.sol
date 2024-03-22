@@ -31,7 +31,7 @@ import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshi
 
 // @Todo: Add more methods in interface
 
-abstract contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, BiconomySponsorshipPaymasterErrors, IBiconomySponsorshipPaymaster {
+contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, BiconomySponsorshipPaymasterErrors, IBiconomySponsorshipPaymaster {
     using UserOperationLib for PackedUserOperation;
     using SignatureCheckerLib for address;
 
