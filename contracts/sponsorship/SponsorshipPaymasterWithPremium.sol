@@ -206,7 +206,7 @@ contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, Biconom
 
         bool validSig = verifyingSigner.isValidSignatureNow(
             ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
-            userOp.signature
+            signature
         );
 
         //don't revert on signature failure: return SIG_VALIDATION_FAILED

@@ -123,9 +123,11 @@ describe("EntryPoint with Biconomy Sponsorship Paymaster", function () {
         await paymaster.depositFor(paymasterDepositorId, { value: parseEther("1") });
         
         await entryPoint.depositTo(paymasterAddress, { value: parseEther("1") });
+
+        await deployer.sendTransaction({to: expected, value: parseEther("1"), data: '0x'});
     }); 
     
-    describe("#validatePaymasterUserOp and #sendSponsoredTx", () => {
+    describe("Deployed Account : #validatePaymasterUserOp and #sendEmptySponsoredTx", () => {
         it("succeed with valid signature", async () => {
           const nonceKey = ethers.zeroPadBytes(await ecdsaModule.getAddress(), 24);
           const userOp1 = await fillAndSign({
@@ -137,7 +139,8 @@ describe("EntryPoint with Biconomy Sponsorship Paymaster", function () {
               ethers.zeroPadValue(toBeHex(MOCK_VALID_AFTER), 6),
               ethers.zeroPadValue(toBeHex(MARKUP), 4),
               '0x' + '00'.repeat(65)
-            ])
+            ]),
+            paymasterPostOpGasLimit: 40_000,
           }, walletOwner, entryPoint, 'getNonce', nonceKey)
           const hash = await paymaster.getHash(packUserOp(userOp1), paymasterDepositorId, MOCK_VALID_UNTIL, MOCK_VALID_AFTER, MARKUP)
           const sig = await offchainSigner.signMessage(ethers.getBytes(hash))
@@ -150,9 +153,10 @@ describe("EntryPoint with Biconomy Sponsorship Paymaster", function () {
               ethers.zeroPadValue(toBeHex(MOCK_VALID_AFTER), 6),
               ethers.zeroPadValue(toBeHex(MARKUP), 4),
               sig
-            ])
+            ]),
+            paymasterPostOpGasLimit: 40_000,
           }, walletOwner, entryPoint, 'getNonce', nonceKey)
-          console.log("userOp: ", userOp);
+          // const parsedPnD = await paymaster.parsePaymasterAndData(userOp.paymasterAndData)
           const res = await simulateValidation(userOp, await entryPoint.getAddress())
           const validationData = parseValidationData(res.returnInfo.paymasterValidationData)
           expect(validationData).to.eql({
@@ -160,6 +164,8 @@ describe("EntryPoint with Biconomy Sponsorship Paymaster", function () {
             validAfter: parseInt(MOCK_VALID_AFTER),
             validUntil: parseInt(MOCK_VALID_UNTIL)
           })
+          
+          await entryPoint.handleOps([userOp], await deployer.getAddress())
         });
     });
 })
