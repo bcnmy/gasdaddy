@@ -1,0 +1,3 @@
+[submodule "lib/nexus"]
+	path = lib/nexus
+	url = https://github.com/bcnmy/nexus
