@@ -1,3 +1,3 @@
-[submodule "lib/nexus"]
-	path = lib/nexus
-	url = https://github.com/bcnmy/nexus
+[submodule "lib/nexus.git"]
+	path = lib/nexus.git
+	url = https://github.com/bcnmy/nexus.git

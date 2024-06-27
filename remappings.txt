@@ -1,5 +1,6 @@
 @openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
 @prb/test/=node_modules/@prb/test/
+@nexus/=lib/nexus.git/
 forge-std/=node_modules/forge-std/
 account-abstraction=node_modules/account-abstraction/
 modulekit/=node_modules/modulekit/src/

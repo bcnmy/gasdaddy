@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.24;
-import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
-import { Test } from "forge-std/src/Test.sol";
-import { StdCheats } from "forge-std/src/StdCheats.sol";
+pragma solidity ^0.8.26;
 
-contract SponsorshipPaymasterWithPremiumTest is Test {
-    
+import { Test } from "forge-std/src/Test.sol";
+import { Vm } from "forge-std/src/Vm.sol";
+
+import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
+import { NexusTestBase } from "./base/NexusTestBase.sol";
+
+contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
+    function setUp() public virtual override {
+        super.setUp();
+
+        
+    }
 }
