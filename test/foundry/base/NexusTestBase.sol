@@ -38,6 +38,9 @@ import { EventsAndErrors } from "@nexus/test/foundry/utils/EventsAndErrors.sol";
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 
 abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
+    // Events
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+
     // -----------------------------------------
     // State Variables
     // -----------------------------------------

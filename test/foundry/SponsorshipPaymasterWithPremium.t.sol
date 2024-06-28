@@ -5,6 +5,7 @@ import { console2 } from "forge-std/src/Console2.sol";
 
 import { NexusTestBase } from "./base/NexusTestBase.sol";
 
+import { IBiconomySponsorshipPaymaster } from "./../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 
 contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
@@ -35,6 +36,8 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
     function test_OwnershipTransfer() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.owner(), ALICE_ADDRESS);
+        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
+        emit OwnershipTransferred(ALICE_ADDRESS, DAN_ADDRESS);
         bicoPaymaster.transferOwnership(DAN_ADDRESS);
         assertEq(bicoPaymaster.owner(), DAN_ADDRESS);
         vm.stopPrank();
@@ -59,6 +62,8 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
     function test_SetVerifyingSigner() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.VerifyingSignerChanged(BOB_ADDRESS, DAN_ADDRESS, ALICE_ADDRESS);
         bicoPaymaster.setSigner(DAN_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), DAN_ADDRESS);
         vm.stopPrank();
@@ -83,6 +88,8 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
     function test_SetFeeCollector() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.FeeCollectorChanged(CHARLIE_ADDRESS, DAN_ADDRESS, ALICE_ADDRESS);
         bicoPaymaster.setFeeCollector(DAN_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), DAN_ADDRESS);
         vm.stopPrank();
@@ -108,6 +115,8 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         uint256 dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
         uint256 depositAmount = 10 ether;
         assertEq(dappBalance, 0 ether);
+        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasDeposited(DAPP_PAYMASTER.addr, depositAmount);
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_PAYMASTER.addr);
         dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
         assertEq(dappBalance, depositAmount);
