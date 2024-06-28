@@ -93,7 +93,7 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("FeeCollectorCannotBeZero()"));
-        bicoPaymaster.setFeeCollector(DAN_ADDRESS);
+        bicoPaymaster.setFeeCollector(address(0));
         vm.stopPrank();
 
         vm.startPrank(DAN_ADDRESS);
