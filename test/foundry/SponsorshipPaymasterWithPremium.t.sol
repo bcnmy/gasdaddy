@@ -112,14 +112,14 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
     }
 
     function test_DepositFor() external {
-        uint256 dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
+        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
         uint256 depositAmount = 10 ether;
-        assertEq(dappBalance, 0 ether);
+        assertEq(dappPaymasterBalance, 0 ether);
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasDeposited(DAPP_PAYMASTER.addr, depositAmount);
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_PAYMASTER.addr);
-        dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
-        assertEq(dappBalance, depositAmount);
+        dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
+        assertEq(dappPaymasterBalance, depositAmount);
     }
 
     function test_RevertIf_DepositForZeroAddress() external {
@@ -135,5 +135,35 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
     function test_RevertIf_DepositCalled() external {
         vm.expectRevert("Use depositFor() instead");
         bicoPaymaster.deposit{ value: 1 ether }();
+    }
+
+    function test_WithdrawTo() external {
+        uint256 depositAmount = 10 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_PAYMASTER.addr);
+        uint256 danInitialBalance = DAN_ADDRESS.balance;
+
+        vm.startPrank(DAPP_PAYMASTER.addr);
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_PAYMASTER.addr, DAN_ADDRESS, depositAmount);
+        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), depositAmount);
+        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
+        assertEq(dappPaymasterBalance, 0 ether);
+        uint256 expectedDanBalance = danInitialBalance + depositAmount;
+        assertEq(DAN_ADDRESS.balance, expectedDanBalance);
+        vm.stopPrank();
+    }
+
+    function test_RevertIf_WithdrawToZeroAddress() external {
+        vm.startPrank(DAPP_PAYMASTER.addr);
+        vm.expectRevert(abi.encodeWithSignature("CanNotWithdrawToZeroAddress()"));
+        bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
+        vm.stopPrank();
+    }
+
+    function test_RevertIf_WithdrawToExceedsBalance() external {
+        vm.startPrank(DAPP_PAYMASTER.addr);
+        vm.expectRevert("Sponsorship Paymaster: Insufficient funds to withdraw from gas tank");
+        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
+        vm.stopPrank();
     }
 }
