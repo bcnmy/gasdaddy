@@ -14,11 +14,6 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         setupTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(ALICE_ADDRESS, ENTRYPOINT, BOB_ADDRESS, CHARLIE_ADDRESS);
-
-        // Deposit funds for paymaster id
-        vm.startPrank(CHARLIE_ADDRESS);
-        ENTRYPOINT.depositTo{ value: 10 ether }(address(bicoPaymaster));
-        vm.stopPrank();
     }
 
     function testDeploy() external {
@@ -101,5 +96,27 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.expectRevert(abi.encodeWithSignature("Unauthorized()"));
         bicoPaymaster.setFeeCollector(DAN_ADDRESS);
         vm.stopPrank();
+    }
+
+    function testDepositFor() external {
+        uint256 dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
+        uint256 depositAmount = 10 ether;
+        assertEq(dappBalance, 0 ether);
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_PAYMASTER.addr);
+        dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
+        assertEq(dappBalance, depositAmount);
+    }
+
+    function testInvalidDepositFor() external {
+        vm.expectRevert(abi.encodeWithSignature("PaymasterIdCannotBeZero()"));
+        bicoPaymaster.depositFor{ value: 1 ether }(address(0));
+
+        vm.expectRevert(abi.encodeWithSignature("DepositCanNotBeZero()"));
+        bicoPaymaster.depositFor{ value: 0 ether }(DAPP_PAYMASTER.addr);
+    }
+
+    function testInvalidDeposit() external {
+        vm.expectRevert("Use depositFor() instead");
+        bicoPaymaster.deposit{ value: 1 ether }();
     }
 }

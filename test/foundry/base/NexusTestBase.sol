@@ -49,6 +49,7 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     Vm.Wallet internal DAN;
     Vm.Wallet internal EMMA;
     Vm.Wallet internal BUNDLER;
+    Vm.Wallet internal DAPP_PAYMASTER;
     Vm.Wallet internal FACTORY_OWNER;
 
     address internal BOB_ADDRESS;
@@ -107,6 +108,7 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         DAN_ADDRESS = DAN.addr;
         EMMA_ADDRESS = EMMA.addr;
 
+        DAPP_PAYMASTER = createAndFundWallet("DAPP_PAYMASTER", 1000 ether);
         FACTORY_OWNER = createAndFundWallet("FACTORY_OWNER", 1000 ether);
     }
 
