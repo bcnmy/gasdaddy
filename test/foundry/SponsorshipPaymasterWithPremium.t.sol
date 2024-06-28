@@ -16,7 +16,7 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         bicoPaymaster = new BiconomySponsorshipPaymaster(ALICE_ADDRESS, ENTRYPOINT, BOB_ADDRESS, CHARLIE_ADDRESS);
     }
 
-    function testDeploy() external {
+    function test_Deploy() external {
         BiconomySponsorshipPaymaster testArtifact =
             new BiconomySponsorshipPaymaster(ALICE_ADDRESS, ENTRYPOINT, BOB_ADDRESS, CHARLIE_ADDRESS);
         assertEq(testArtifact.owner(), ALICE_ADDRESS);
@@ -25,14 +25,14 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         assertEq(testArtifact.feeCollector(), CHARLIE_ADDRESS);
     }
 
-    function testCheckStates() external {
+    function test_CheckStates() external {
         assertEq(bicoPaymaster.owner(), ALICE_ADDRESS);
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
     }
 
-    function testOwnershipTransfer() external {
+    function test_OwnershipTransfer() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.owner(), ALICE_ADDRESS);
         bicoPaymaster.transferOwnership(DAN_ADDRESS);
@@ -40,13 +40,15 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testInvalidOwnershipTransfer() external {
+    function test_RevertIf_OwnershipTransferToZeroAddress() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.owner(), ALICE_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("NewOwnerIsZeroAddress()"));
         bicoPaymaster.transferOwnership(address(0));
         vm.stopPrank();
+    }
 
+    function test_RevertIf_UnauthorizedOwnershipTransfer() external {
         vm.startPrank(DAN_ADDRESS);
         assertEq(bicoPaymaster.owner(), ALICE_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("Unauthorized()"));
@@ -54,7 +56,7 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testChangingVerifyingSigner() external {
+    function test_SetVerifyingSigner() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
         bicoPaymaster.setSigner(DAN_ADDRESS);
@@ -62,13 +64,15 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testInvalidChangingVerifyingSigner() external {
+    function test_RevertIf_SetVerifyingSignerToZeroAddress() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("VerifyingSignerCannotBeZero()"));
         bicoPaymaster.setSigner(address(0));
         vm.stopPrank();
+    }
 
+    function test_RevertIf_UnauthorizedSetVerifyingSigner() external {
         vm.startPrank(DAN_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("Unauthorized()"));
@@ -76,7 +80,7 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testChangingFeeCollector() external {
+    function test_SetFeeCollector() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
         bicoPaymaster.setFeeCollector(DAN_ADDRESS);
@@ -84,13 +88,15 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testInvalidChangingFeeCollector() external {
+    function test_RevertIf_SetFeeCollectorToZeroAddress() external {
         vm.startPrank(ALICE_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("FeeCollectorCannotBeZero()"));
         bicoPaymaster.setFeeCollector(address(0));
         vm.stopPrank();
+    }
 
+    function test_RevertIf_UnauthorizedSetFeeCollector() external {
         vm.startPrank(DAN_ADDRESS);
         assertEq(bicoPaymaster.feeCollector(), CHARLIE_ADDRESS);
         vm.expectRevert(abi.encodeWithSignature("Unauthorized()"));
@@ -98,7 +104,7 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         vm.stopPrank();
     }
 
-    function testDepositFor() external {
+    function test_DepositFor() external {
         uint256 dappBalance = bicoPaymaster.getBalance(DAPP_PAYMASTER.addr);
         uint256 depositAmount = 10 ether;
         assertEq(dappBalance, 0 ether);
@@ -107,15 +113,17 @@ contract SponsorshipPaymasterWithPremiumTest is NexusTestBase {
         assertEq(dappBalance, depositAmount);
     }
 
-    function testInvalidDepositFor() external {
+    function test_RevertIf_DepositForZeroAddress() external {
         vm.expectRevert(abi.encodeWithSignature("PaymasterIdCannotBeZero()"));
         bicoPaymaster.depositFor{ value: 1 ether }(address(0));
+    }
 
+    function test_RevertIf_DepositForZeroValue() external {
         vm.expectRevert(abi.encodeWithSignature("DepositCanNotBeZero()"));
         bicoPaymaster.depositFor{ value: 0 ether }(DAPP_PAYMASTER.addr);
     }
 
-    function testInvalidDeposit() external {
+    function test_RevertIf_DepositCalled() external {
         vm.expectRevert("Use depositFor() instead");
         bicoPaymaster.deposit{ value: 1 ether }();
     }
