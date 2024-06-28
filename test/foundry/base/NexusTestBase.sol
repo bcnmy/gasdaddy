@@ -20,15 +20,22 @@ import { MockHook } from "@nexus/contracts/mocks/MockHook.sol";
 // import { MockExecutor } from "@nexus/contracts/mocks/MockExecutor.sol";
 import { MockHandler } from "@nexus/contracts/mocks/MockHandler.sol";
 import { BootstrapLib } from "@nexus/contracts/lib/BootstrapLib.sol";
-import { ModeLib, ExecutionMode, ExecType, CallType, CALLTYPE_BATCH, CALLTYPE_SINGLE, EXECTYPE_DEFAULT, EXECTYPE_TRY } from "@nexus/contracts/lib/ModeLib.sol";
+import {
+    ModeLib,
+    ExecutionMode,
+    ExecType,
+    CallType,
+    CALLTYPE_BATCH,
+    CALLTYPE_SINGLE,
+    EXECTYPE_DEFAULT,
+    EXECTYPE_TRY
+} from "@nexus/contracts/lib/ModeLib.sol";
 // import { ExecLib, Execution } from "@nexus/contracts/lib/ExecLib.sol";
 import { Bootstrap, BootstrapConfig } from "@nexus/contracts/utils/Bootstrap.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
 import { EventsAndErrors } from "@nexus/test/foundry/utils/EventsAndErrors.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
-
-
 
 abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     // -----------------------------------------
@@ -39,23 +46,28 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     Vm.Wallet internal BOB;
     Vm.Wallet internal ALICE;
     Vm.Wallet internal CHARLIE;
+    Vm.Wallet internal DAN;
+    Vm.Wallet internal EMMA;
     Vm.Wallet internal BUNDLER;
     Vm.Wallet internal FACTORY_OWNER;
-
-    address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
 
     address internal BOB_ADDRESS;
     address internal ALICE_ADDRESS;
     address internal CHARLIE_ADDRESS;
+    address internal DAN_ADDRESS;
+    address internal EMMA_ADDRESS;
 
     Nexus internal BOB_ACCOUNT;
     Nexus internal ALICE_ACCOUNT;
     Nexus internal CHARLIE_ACCOUNT;
+    Nexus internal DAN_ACCOUNT;
+    Nexus internal EMMA_ACCOUNT;
 
+    address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
     IEntryPoint internal ENTRYPOINT;
+
     NexusAccountFactory internal FACTORY;
     BiconomyMetaFactory internal META_FACTORY;
-    MockHook internal HOOK_MODULE;
     MockHandler internal HANDLER_MODULE;
     // MockExecutor internal EXECUTOR_MODULE;
     MockValidator internal VALIDATOR_MODULE;
@@ -83,14 +95,17 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     function setupPredefinedWallets() internal {
         DEPLOYER = createAndFundWallet("DEPLOYER", 1000 ether);
 
-        BOB = createAndFundWallet("BOB", 1000 ether);
-        BOB_ADDRESS = BOB.addr;
-
         ALICE = createAndFundWallet("ALICE", 1000 ether);
+        BOB = createAndFundWallet("BOB", 1000 ether);
         CHARLIE = createAndFundWallet("CHARLIE", 1000 ether);
+        DAN = createAndFundWallet("DAN", 1000 ether);
+        EMMA = createAndFundWallet("EMMA", 1000 ether);
 
         ALICE_ADDRESS = ALICE.addr;
+        BOB_ADDRESS = BOB.addr;
         CHARLIE_ADDRESS = CHARLIE.addr;
+        DAN_ADDRESS = DAN.addr;
+        EMMA_ADDRESS = EMMA.addr;
 
         FACTORY_OWNER = createAndFundWallet("FACTORY_OWNER", 1000 ether);
     }
@@ -104,7 +119,6 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         META_FACTORY = new BiconomyMetaFactory(address(FACTORY_OWNER.addr));
         vm.prank(FACTORY_OWNER.addr);
         META_FACTORY.addFactoryToWhitelist(address(FACTORY));
-        HOOK_MODULE = new MockHook();
         HANDLER_MODULE = new MockHandler();
         // EXECUTOR_MODULE = new MockExecutor();
         VALIDATOR_MODULE = new MockValidator();
@@ -140,6 +154,10 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         vm.label(address(ALICE_ACCOUNT), "ALICE_ACCOUNT");
         CHARLIE_ACCOUNT = deployNexus(CHARLIE, 100 ether, address(VALIDATOR_MODULE));
         vm.label(address(CHARLIE_ACCOUNT), "CHARLIE_ACCOUNT");
+        DAN_ACCOUNT = deployNexus(DAN, 100 ether, address(VALIDATOR_MODULE));
+        vm.label(address(DAN_ACCOUNT), "DAN_ACCOUNT");
+        EMMA_ACCOUNT = deployNexus(EMMA, 100 ether, address(VALIDATOR_MODULE));
+        vm.label(address(EMMA_ACCOUNT), "EMMA_ACCOUNT");
     }
     // -----------------------------------------
     // Utility Functions
@@ -599,7 +617,8 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     }
 
     // /// @notice Generates and signs the paymaster data for a user operation.
-    // /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
+    // /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct
+    // signature.
     // /// @param userOp The user operation to be signed.
     // /// @param signer The wallet that will sign the paymaster hash.
     // /// @param paymaster The paymaster contract.
