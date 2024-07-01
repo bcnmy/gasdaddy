@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/src/Test.sol";
 import { Vm } from "forge-std/src/Vm.sol";
+import { console2 } from "forge-std/src/console2.sol";
 
 import "solady/src/utils/ECDSA.sol";
 
@@ -46,23 +47,26 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
     // -----------------------------------------
 
     Vm.Wallet internal DEPLOYER;
-    Vm.Wallet internal BOB;
     Vm.Wallet internal ALICE;
+    Vm.Wallet internal BOB;
     Vm.Wallet internal CHARLIE;
     Vm.Wallet internal DAN;
     Vm.Wallet internal EMMA;
     Vm.Wallet internal BUNDLER;
-    Vm.Wallet internal DAPP_PAYMASTER;
+    Vm.Wallet internal PAYMASTER_OWNER;
+    Vm.Wallet internal PAYMASTER_SIGNER;
+    Vm.Wallet internal PAYMASTER_FEE_COLLECTOR;
+    Vm.Wallet internal DAPP_ACCOUNT;
     Vm.Wallet internal FACTORY_OWNER;
 
-    address internal BOB_ADDRESS;
     address internal ALICE_ADDRESS;
+    address internal BOB_ADDRESS;
     address internal CHARLIE_ADDRESS;
     address internal DAN_ADDRESS;
     address internal EMMA_ADDRESS;
 
-    Nexus internal BOB_ACCOUNT;
     Nexus internal ALICE_ACCOUNT;
+    Nexus internal BOB_ACCOUNT;
     Nexus internal CHARLIE_ACCOUNT;
     Nexus internal DAN_ACCOUNT;
     Nexus internal EMMA_ACCOUNT;
@@ -98,6 +102,7 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
 
     function setupPredefinedWallets() internal {
         DEPLOYER = createAndFundWallet("DEPLOYER", 1000 ether);
+        BUNDLER = createAndFundWallet("BUNDLER", 1000 ether);
 
         ALICE = createAndFundWallet("ALICE", 1000 ether);
         BOB = createAndFundWallet("BOB", 1000 ether);
@@ -111,7 +116,10 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         DAN_ADDRESS = DAN.addr;
         EMMA_ADDRESS = EMMA.addr;
 
-        DAPP_PAYMASTER = createAndFundWallet("DAPP_PAYMASTER", 1000 ether);
+        PAYMASTER_OWNER = createAndFundWallet("PAYMASTER_OWNER", 1000 ether);
+        PAYMASTER_SIGNER = createAndFundWallet("PAYMASTER_SIGNER", 1000 ether);
+        PAYMASTER_FEE_COLLECTOR = createAndFundWallet("PAYMASTER_FEE_COLLECTOR", 1000 ether);
+        DAPP_ACCOUNT = createAndFundWallet("DAPP_ACCOUNT", 1000 ether);
         FACTORY_OWNER = createAndFundWallet("FACTORY_OWNER", 1000 ether);
     }
 
@@ -330,136 +338,6 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         signature = abi.encodePacked(r, s, v);
     }
 
-    // /// @notice Prepares a packed user operation with specified parameters
-    // /// @param signer The wallet to sign the operation
-    // /// @param account The Nexus account
-    // /// @param execType The execution type
-    // /// @param executions The executions to include
-    // /// @param validator The validator address
-    // /// @return userOps The prepared packed user operations
-    // function buildPackedUserOperation(
-    //     Vm.Wallet memory signer,
-    //     Nexus account,
-    //     ExecType execType,
-    //     Execution[] memory executions,
-    //     address validator
-    // )
-    //     internal
-    //     view
-    //     returns (PackedUserOperation[] memory userOps)
-    // {
-    //     // Validate execType
-    //     require(execType == EXECTYPE_DEFAULT || execType == EXECTYPE_TRY, "Invalid ExecType");
-
-    //     // Determine mode and calldata based on callType and executions length
-    //     ExecutionMode mode;
-    //     bytes memory executionCalldata;
-    //     uint256 length = executions.length;
-
-    //     if (length == 1) {
-    //         mode = (execType == EXECTYPE_DEFAULT) ? ModeLib.encodeSimpleSingle() : ModeLib.encodeTrySingle();
-    //         executionCalldata = abi.encodeCall(
-    //             Nexus.execute,
-    //             (mode, ExecLib.encodeSingle(executions[0].target, executions[0].value, executions[0].callData))
-    //         );
-    //     } else if (length > 1) {
-    //         mode = (execType == EXECTYPE_DEFAULT) ? ModeLib.encodeSimpleBatch() : ModeLib.encodeTryBatch();
-    //         executionCalldata = abi.encodeCall(Nexus.execute, (mode, ExecLib.encodeBatch(executions)));
-    //     } else {
-    //         revert("Executions array cannot be empty");
-    //     }
-
-    //     // Initialize the userOps array with one operation
-    //     userOps = new PackedUserOperation[](1);
-
-    //     // Build the UserOperation
-    //     userOps[0] = buildPackedUserOp(address(account), getNonce(address(account), validator));
-    //     userOps[0].callData = executionCalldata;
-
-    //     // Sign the operation
-    //     bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOps[0]);
-    //     userOps[0].signature = signMessage(signer, userOpHash);
-
-    //     return userOps;
-    // }
-
-    /// @dev Returns a random non-zero address.
-    /// @notice Returns a random non-zero address
-    /// @return result A random non-zero address
-    function randomNonZeroAddress() internal returns (address result) {
-        do {
-            result = address(uint160(random()));
-        } while (result == address(0));
-    }
-
-    /// @notice Checks if an address is a contract
-    /// @param account The address to check
-    /// @return True if the address is a contract, false otherwise
-    function isContract(address account) internal view returns (bool) {
-        uint256 size;
-        assembly {
-            size := extcodesize(account)
-        }
-        return size > 0;
-    }
-
-    /// @dev credits: vectorized || solady
-    /// @dev Returns a pseudorandom random number from [0 .. 2**256 - 1] (inclusive).
-    /// For usage in fuzz tests, please ensure that the function has an unnamed uint256 argument.
-    /// e.g. `testSomething(uint256) public`.
-    function random() internal returns (uint256 r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            // This is the keccak256 of a very long string I randomly mashed on my keyboard.
-            let sSlot := 0xd715531fe383f818c5f158c342925dcf01b954d24678ada4d07c36af0f20e1ee
-            let sValue := sload(sSlot)
-
-            mstore(0x20, sValue)
-            r := keccak256(0x20, 0x40)
-
-            // If the storage is uninitialized, initialize it to the keccak256 of the calldata.
-            if iszero(sValue) {
-                sValue := sSlot
-                let m := mload(0x40)
-                calldatacopy(m, 0, calldatasize())
-                r := keccak256(m, calldatasize())
-            }
-            sstore(sSlot, add(r, 1))
-
-            // Do some biased sampling for more robust tests.
-            // prettier-ignore
-            for { } 1 { } {
-                let d := byte(0, r)
-                // With a 1/256 chance, randomly set `r` to any of 0,1,2.
-                if iszero(d) {
-                    r := and(r, 3)
-                    break
-                }
-                // With a 1/2 chance, set `r` to near a random power of 2.
-                if iszero(and(2, d)) {
-                    // Set `t` either `not(0)` or `xor(sValue, r)`.
-                    let t := xor(not(0), mul(iszero(and(4, d)), not(xor(sValue, r))))
-                    // Set `r` to `t` shifted left or right by a random multiple of 8.
-                    switch and(8, d)
-                    case 0 {
-                        if iszero(and(16, d)) { t := 1 }
-                        r := add(shl(shl(3, and(byte(3, r), 0x1f)), t), sub(and(r, 7), 3))
-                    }
-                    default {
-                        if iszero(and(16, d)) { t := shl(255, 1) }
-                        r := add(shr(shl(3, and(byte(3, r), 0x1f)), t), sub(and(r, 7), 3))
-                    }
-                    // With a 1/2 chance, negate `r`.
-                    if iszero(and(0x20, d)) { r := not(r) }
-                    break
-                }
-                // Otherwise, just set `r` to `xor(sValue, r)`.
-                r := xor(sValue, r)
-                break
-            }
-        }
-    }
-
     /// @notice Pre-funds a smart account and asserts success
     /// @param sa The smart account address
     /// @param prefundAmount The amount to pre-fund
@@ -467,76 +345,6 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         (bool res,) = sa.call{ value: prefundAmount }(""); // Pre-funding the account contract
         assertTrue(res, "Pre-funding account should succeed");
     }
-
-    // /// @notice Prepares a single execution
-    // /// @param to The target address
-    // /// @param value The value to send
-    // /// @param data The call data
-    // /// @return execution The prepared execution array
-    // function prepareSingleExecution(
-    //     address to,
-    //     uint256 value,
-    //     bytes memory data
-    // )
-    //     internal
-    //     pure
-    //     returns (Execution[] memory execution)
-    // {
-    //     execution = new Execution[](1);
-    //     execution[0] = Execution(to, value, data);
-    // }
-
-    // /// @notice Prepares several identical executions
-    // /// @param execution The execution to duplicate
-    // /// @param executionsNumber The number of executions to prepare
-    // /// @return executions The prepared executions array
-    // function prepareSeveralIdenticalExecutions(
-    //     Execution memory execution,
-    //     uint256 executionsNumber
-    // )
-    //     internal
-    //     pure
-    //     returns (Execution[] memory)
-    // {
-    //     Execution[] memory executions = new Execution[](executionsNumber);
-    //     for (uint256 i = 0; i < executionsNumber; i++) {
-    //         executions[i] = execution;
-    //     }
-    //     return executions;
-    // }
-
-    // /// @notice Helper function to execute a single operation.
-    // function executeSingle(
-    //     Vm.Wallet memory user,
-    //     Nexus userAccount,
-    //     address target,
-    //     uint256 value,
-    //     bytes memory callData,
-    //     ExecType execType
-    // )
-    //     internal
-    // {
-    //     Execution[] memory executions = new Execution[](1);
-    //     executions[0] = Execution({ target: target, value: value, callData: callData });
-
-    //     PackedUserOperation[] memory userOps =
-    //         buildPackedUserOperation(user, userAccount, execType, executions, address(VALIDATOR_MODULE));
-    //     ENTRYPOINT.handleOps(userOps, payable(user.addr));
-    // }
-
-    // /// @notice Helper function to execute a batch of operations.
-    // function executeBatch(
-    //     Vm.Wallet memory user,
-    //     Nexus userAccount,
-    //     Execution[] memory executions,
-    //     ExecType execType
-    // )
-    //     internal
-    // {
-    //     PackedUserOperation[] memory userOps =
-    //         buildPackedUserOperation(user, userAccount, execType, executions, address(VALIDATOR_MODULE));
-    //     ENTRYPOINT.handleOps(userOps, payable(user.addr));
-    // }
 
     /// @notice Calculates the gas cost of the calldata
     /// @param data The calldata
@@ -621,54 +429,68 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         gasUsed = gasStart - gasleft();
     }
 
-    // /// @notice Generates and signs the paymaster data for a user operation.
-    // /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct
-    // signature.
-    // /// @param userOp The user operation to be signed.
-    // /// @param signer The wallet that will sign the paymaster hash.
-    // /// @param paymaster The paymaster contract.
-    // /// @return Updated `PackedUserOperation` with `paymasterAndData` field correctly set.
-    // function generateAndSignPaymasterData(
-    //     PackedUserOperation memory userOp,
-    //     Vm.Wallet memory signer,
-    //     BiconomySponsorshipPaymaster paymaster
-    // )
-    //     internal
-    //     view
-    //     returns (bytes memory)
-    // {
-    //     // Validity timestamps
-    //     uint48 validUntil = uint48(block.timestamp + 1 days);
-    //     uint48 validAfter = uint48(block.timestamp);
+    /// @notice Generates and signs the paymaster data for a user operation.
+    /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
+    /// @param userOp The user operation to be signed.
+    /// @param signer The wallet that will sign the paymaster hash.
+    /// @param paymaster The paymaster contract.
+    /// @return Updated `PackedUserOperation` with `paymasterAndData` field correctly set.
+    function generateAndSignPaymasterData(
+        PackedUserOperation memory userOp,
+        Vm.Wallet memory signer,
+        BiconomySponsorshipPaymaster paymaster,
+        address paymasterId,
+        uint48 validUntil,
+        uint48 validAfter,
+        uint32 priceMarkup
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        // Initial paymaster data with zero signature
+        bytes memory initialPmData = abi.encodePacked(
+            address(paymaster),
+            uint128(3e6),
+            uint128(3e6),
+            paymasterId,
+            validUntil,
+            validAfter,
+            priceMarkup,
+            new bytes(65) // Zero signature
+        );
 
-    //     // Initial paymaster data with zero signature
-    //     bytes memory initialPmData = abi.encodePacked(
-    //         address(paymaster),
-    //         uint128(3e6), // Verification gas limit
-    //         uint128(0), // Post-operation gas limit
-    //         abi.encode(validUntil, validAfter),
-    //         new bytes(65) // Zero signature
-    //     );
+        // Update user operation with initial paymaster data
+        userOp.paymasterAndData = initialPmData;
 
-    //     // Update user operation with initial paymaster data
-    //     userOp.paymasterAndData = initialPmData;
+        // Generate hash to be signed
+        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup);
 
-    //     // Generate hash to be signed
-    //     bytes32 paymasterHash = paymaster.getHash(userOp, validUntil, validAfter);
+        // Sign the hash
+        bytes memory paymasterSignature = signMessage(signer, paymasterHash);
+        require(paymasterSignature.length == 65, "Invalid Paymaster Signature length");
 
-    //     // Sign the hash
-    //     bytes memory paymasterSignature = signMessage(signer, paymasterHash);
-    //     require(paymasterSignature.length == 65, "Invalid Paymaster Signature length");
+        // Final paymaster data with the actual signature
+        bytes memory finalPmData = abi.encodePacked(
+            address(paymaster),
+            uint128(3e6),
+            uint128(3e6),
+            paymasterId,
+            validUntil,
+            validAfter,
+            priceMarkup,
+            paymasterSignature
+        );
 
-    //     // Final paymaster data with the actual signature
-    //     bytes memory finalPmData = abi.encodePacked(
-    //         address(paymaster),
-    //         uint128(3e6), // Verification gas limit
-    //         uint128(0), // Post-operation gas limit
-    //         abi.encode(validUntil, validAfter),
-    //         paymasterSignature
-    //     );
+        return finalPmData;
+    }
 
-    //     return finalPmData;
-    // }
+    function excludeLastNBytes(bytes memory data, uint256 n) internal pure returns (bytes memory) {
+        require(data.length > n, "Input data is too short");
+        bytes memory result = new bytes(data.length - n);
+        for (uint256 i = 0; i < data.length - n; i++) {
+            result[i] = data[i];
+        }
+        return result;
+    }
 }
