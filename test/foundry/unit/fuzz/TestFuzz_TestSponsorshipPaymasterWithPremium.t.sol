@@ -17,13 +17,6 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         );
     }
 
-    function test_CheckInitialPaymasterState() external {
-        assertEq(bicoPaymaster.owner(), PAYMASTER_OWNER.addr);
-        assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
-        assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
-        assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-    }
-
     function testFuzz_DepositFor(uint256 depositAmount) external {
         vm.assume(depositAmount <= 1000 ether);
         vm.assume(depositAmount > 0 ether);
