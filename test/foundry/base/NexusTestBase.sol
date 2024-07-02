@@ -13,14 +13,14 @@ import { EntryPoint } from "account-abstraction/contracts/core/EntryPoint.sol";
 import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
-import { Nexus } from "@nexus/contracts/Nexus.sol";
-import { NexusAccountFactory } from "@nexus/contracts/factory/NexusAccountFactory.sol";
-import { BiconomyMetaFactory } from "@nexus/contracts/factory/BiconomyMetaFactory.sol";
-import { MockValidator } from "@nexus/contracts/mocks/MockValidator.sol";
-import { MockHook } from "@nexus/contracts/mocks/MockHook.sol";
-// import { MockExecutor } from "@nexus/contracts/mocks/MockExecutor.sol";
-import { MockHandler } from "@nexus/contracts/mocks/MockHandler.sol";
-import { BootstrapLib } from "@nexus/contracts/lib/BootstrapLib.sol";
+import { Nexus } from "nexus/contracts/Nexus.sol";
+import { NexusAccountFactory } from "nexus/contracts/factory/NexusAccountFactory.sol";
+import { BiconomyMetaFactory } from "nexus/contracts/factory/BiconomyMetaFactory.sol";
+import { MockValidator } from "nexus/contracts/mocks/MockValidator.sol";
+import { MockHook } from "nexus/contracts/mocks/MockHook.sol";
+// import { MockExecutor } from "nexus/contracts/mocks/MockExecutor.sol";
+import { MockHandler } from "nexus/contracts/mocks/MockHandler.sol";
+import { BootstrapLib } from "nexus/contracts/lib/BootstrapLib.sol";
 import {
     ModeLib,
     ExecutionMode,
@@ -30,11 +30,11 @@ import {
     CALLTYPE_SINGLE,
     EXECTYPE_DEFAULT,
     EXECTYPE_TRY
-} from "@nexus/contracts/lib/ModeLib.sol";
-// import { ExecLib, Execution } from "@nexus/contracts/lib/ExecLib.sol";
-import { Bootstrap, BootstrapConfig } from "@nexus/contracts/utils/Bootstrap.sol";
-import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
-import { EventsAndErrors } from "@nexus/test/foundry/utils/EventsAndErrors.sol";
+} from "nexus/contracts/lib/ModeLib.sol";
+// import { ExecLib, Execution } from "nexus/contracts/lib/ExecLib.sol";
+import { Bootstrap, BootstrapConfig } from "nexus/contracts/utils/Bootstrap.sol";
+import { CheatCodes } from "nexus/test/foundry/utils/CheatCodes.sol";
+import { EventsAndErrors } from "nexus/test/foundry/utils/EventsAndErrors.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 

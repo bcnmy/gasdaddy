@@ -1,6 +1,6 @@
-[submodule "lib/nexus.git"]
-	path = lib/nexus.git
-	url = https://github.com/bcnmy/nexus.git
 [submodule "lib/nexus"]
 	path = lib/nexus
 	url = https://github.com/bcnmy/nexus
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
