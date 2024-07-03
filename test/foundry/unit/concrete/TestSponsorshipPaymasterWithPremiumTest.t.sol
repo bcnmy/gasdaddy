@@ -28,7 +28,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
     }
 
-    function test_CheckInitialPaymasterState() external {
+    function test_CheckInitialPaymasterState() external view {
         assertEq(bicoPaymaster.owner(), PAYMASTER_OWNER.addr);
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
