@@ -54,7 +54,7 @@ contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, Biconom
      * @param paymasterId dapp identifier for which deposit is being made
      */
     function depositFor(address paymasterId) external payable nonReentrant {
-        if (paymasterId == address(0)) revert PaymasterIdCannotBeZero();
+        if (paymasterId == address(0)) revert PaymasterIdCanNotBeZero();
         if (msg.value == 0) revert DepositCanNotBeZero();
         paymasterIdBalances[paymasterId] += msg.value;
         entryPoint.depositTo{value: msg.value}(address(this));
@@ -73,9 +73,9 @@ contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, Biconom
     ) external payable onlyOwner {
         uint256 size;
         assembly { size := extcodesize(_newVerifyingSigner) }
-        if(size > 0) revert VerifyingSignerCannotBeContract();
+        if(size > 0) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0))
-            revert VerifyingSignerCannotBeZero();
+            revert VerifyingSignerCanNotBeZero();
         address oldSigner = verifyingSigner;
         assembly {
             sstore(verifyingSigner.slot, _newVerifyingSigner)
@@ -93,7 +93,7 @@ contract BiconomySponsorshipPaymaster is BasePaymaster, ReentrancyGuard, Biconom
     function setFeeCollector(
         address _newFeeCollector
     ) external payable onlyOwner {
-        if (_newFeeCollector == address(0)) revert FeeCollectorCannotBeZero();
+        if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
         assembly {
             sstore(feeCollector.slot, _newFeeCollector)

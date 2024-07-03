@@ -21,55 +21,58 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         vm.assume(depositAmount <= 1000 ether);
         vm.assume(depositAmount > 0 ether);
         vm.deal(DAPP_ACCOUNT.addr, depositAmount);
+
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertEq(dappPaymasterBalance, 0 ether);
+
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasDeposited(DAPP_ACCOUNT.addr, depositAmount);
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+
         dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertEq(dappPaymasterBalance, depositAmount);
     }
 
-    function testFuzz_WithdrawTo(uint256 withdrawAmount) external {
+    function testFuzz_WithdrawTo(uint256 withdrawAmount) external prankModifier(DAPP_ACCOUNT.addr) {
         vm.assume(withdrawAmount <= 1000 ether);
         vm.assume(withdrawAmount > 0 ether);
         vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
+
         bicoPaymaster.depositFor{ value: withdrawAmount }(DAPP_ACCOUNT.addr);
         uint256 danInitialBalance = DAN_ADDRESS.balance;
 
-        vm.startPrank(DAPP_ACCOUNT.addr);
         vm.expectEmit(true, true, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, DAN_ADDRESS, withdrawAmount);
         bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), withdrawAmount);
+
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertEq(dappPaymasterBalance, 0 ether);
         uint256 expectedDanBalance = danInitialBalance + withdrawAmount;
         assertEq(DAN_ADDRESS.balance, expectedDanBalance);
-        vm.stopPrank();
     }
 
-    function testFuzz_Receive(uint256 ethAmount) external {
+    function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {
         vm.assume(ethAmount <= 1000 ether);
         vm.assume(ethAmount > 0 ether);
         uint256 initialPaymasterBalance = address(bicoPaymaster).balance;
-        vm.startPrank(ALICE_ADDRESS);
+
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.Received(ALICE_ADDRESS, ethAmount);
         (bool success,) = address(bicoPaymaster).call{ value: ethAmount }("");
-        vm.stopPrank();
+
         assert(success);
         uint256 resultingPaymasterBalance = address(bicoPaymaster).balance;
         assertEq(resultingPaymasterBalance, initialPaymasterBalance + ethAmount);
     }
 
-    function testFuzz_WithdrawEth(uint256 ethAmount) external {
+    function testFuzz_WithdrawEth(uint256 ethAmount) external prankModifier(PAYMASTER_OWNER.addr) {
         vm.assume(ethAmount <= 1000 ether);
         vm.assume(ethAmount > 0 ether);
-        uint256 initialAliceBalance = ALICE_ADDRESS.balance;
         vm.deal(address(bicoPaymaster), ethAmount);
-        vm.startPrank(PAYMASTER_OWNER.addr);
+        uint256 initialAliceBalance = ALICE_ADDRESS.balance;
+
         bicoPaymaster.withdrawEth(payable(ALICE_ADDRESS), ethAmount);
-        vm.stopPrank();
+
         assertEq(ALICE_ADDRESS.balance, initialAliceBalance + ethAmount);
         assertEq(address(bicoPaymaster).balance, 0 ether);
     }
