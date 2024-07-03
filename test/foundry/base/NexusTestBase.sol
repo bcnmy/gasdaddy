@@ -3,11 +3,8 @@ pragma solidity ^0.8.26;
 
 import { Test } from "forge-std/src/Test.sol";
 import { Vm } from "forge-std/src/Vm.sol";
-import { console2 } from "forge-std/src/console2.sol";
 
 import "solady/src/utils/ECDSA.sol";
-
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { EntryPoint } from "account-abstraction/contracts/core/EntryPoint.sol";
 import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
@@ -17,31 +14,14 @@ import { Nexus } from "nexus/contracts/Nexus.sol";
 import { NexusAccountFactory } from "nexus/contracts/factory/NexusAccountFactory.sol";
 import { BiconomyMetaFactory } from "nexus/contracts/factory/BiconomyMetaFactory.sol";
 import { MockValidator } from "nexus/contracts/mocks/MockValidator.sol";
-import { MockHook } from "nexus/contracts/mocks/MockHook.sol";
-// import { MockExecutor } from "nexus/contracts/mocks/MockExecutor.sol";
-import { MockHandler } from "nexus/contracts/mocks/MockHandler.sol";
 import { BootstrapLib } from "nexus/contracts/lib/BootstrapLib.sol";
-import {
-    ModeLib,
-    ExecutionMode,
-    ExecType,
-    CallType,
-    CALLTYPE_BATCH,
-    CALLTYPE_SINGLE,
-    EXECTYPE_DEFAULT,
-    EXECTYPE_TRY
-} from "nexus/contracts/lib/ModeLib.sol";
-// import { ExecLib, Execution } from "nexus/contracts/lib/ExecLib.sol";
 import { Bootstrap, BootstrapConfig } from "nexus/contracts/utils/Bootstrap.sol";
 import { CheatCodes } from "nexus/test/foundry/utils/CheatCodes.sol";
-import { EventsAndErrors } from "nexus/test/foundry/utils/EventsAndErrors.sol";
+import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 
-abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
-    // Events
-    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
-
+abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
     // -----------------------------------------
     // State Variables
     // -----------------------------------------
@@ -76,12 +56,19 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
 
     NexusAccountFactory internal FACTORY;
     BiconomyMetaFactory internal META_FACTORY;
-    MockHandler internal HANDLER_MODULE;
-    // MockExecutor internal EXECUTOR_MODULE;
     MockValidator internal VALIDATOR_MODULE;
     Nexus internal ACCOUNT_IMPLEMENTATION;
 
     Bootstrap internal BOOTSTRAPPER;
+
+    // -----------------------------------------
+    // Modifiers
+    // -----------------------------------------
+    modifier prankModifier(address pranker) {
+        startPrank(pranker);
+        _;
+        stopPrank();
+    }
 
     // -----------------------------------------
     // Setup Functions
@@ -132,8 +119,6 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         META_FACTORY = new BiconomyMetaFactory(address(FACTORY_OWNER.addr));
         vm.prank(FACTORY_OWNER.addr);
         META_FACTORY.addFactoryToWhitelist(address(FACTORY));
-        HANDLER_MODULE = new MockHandler();
-        // EXECUTOR_MODULE = new MockExecutor();
         VALIDATOR_MODULE = new MockValidator();
         BOOTSTRAPPER = new Bootstrap();
     }
@@ -273,11 +258,11 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         bytes memory signature = signUserOp(wallet, userOp);
         userOp.signature = signature;
     }
+
     /// @notice Retrieves the nonce for a given account and validator
     /// @param account The account address
     /// @param validator The validator address
     /// @return nonce The retrieved nonce
-
     function getNonce(address account, address validator) internal view returns (uint256 nonce) {
         uint192 key = uint192(bytes24(bytes20(address(validator))));
         nonce = ENTRYPOINT.getNonce(address(account), key);
@@ -439,6 +424,8 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         PackedUserOperation memory userOp,
         Vm.Wallet memory signer,
         BiconomySponsorshipPaymaster paymaster,
+        uint128 paymasterValGasLimit,
+        uint128 paymasterPostOpGasLimit,
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
@@ -451,8 +438,8 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         // Initial paymaster data with zero signature
         bytes memory initialPmData = abi.encodePacked(
             address(paymaster),
-            uint128(3e6),
-            uint128(3e6),
+            paymasterValGasLimit,
+            paymasterPostOpGasLimit,
             paymasterId,
             validUntil,
             validAfter,
@@ -473,8 +460,8 @@ abstract contract NexusTestBase is CheatCodes, EventsAndErrors {
         // Final paymaster data with the actual signature
         bytes memory finalPmData = abi.encodePacked(
             address(paymaster),
-            uint128(3e6),
-            uint128(3e6),
+            paymasterValGasLimit,
+            paymasterPostOpGasLimit,
             paymasterId,
             validUntil,
             validAfter,

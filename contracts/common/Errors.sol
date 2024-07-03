@@ -2,11 +2,10 @@
 pragma solidity ^0.8.26;
 
 contract BiconomySponsorshipPaymasterErrors {
-
     /**
      * @notice Throws when the paymaster address provided is address(0)
      */
-    error PaymasterIdCannotBeZero();
+    error PaymasterIdCanNotBeZero();
 
     /**
      * @notice Throws when the 0 has been provided as deposit
@@ -16,26 +15,25 @@ contract BiconomySponsorshipPaymasterErrors {
     /**
      * @notice Throws when the verifiying signer address provided is address(0)
      */
-    error VerifyingSignerCannotBeZero();
+    error VerifyingSignerCanNotBeZero();
 
     /**
      * @notice Throws when the fee collector address provided is address(0)
      */
-    error FeeCollectorCannotBeZero();
+    error FeeCollectorCanNotBeZero();
 
     /**
      * @notice Throws when the fee collector address provided is a deployed contract
      */
-    error FeeCollectorCannotBeContract();
+    error FeeCollectorCanNotBeContract();
 
     /**
      * @notice Throws when the fee collector address provided is a deployed contract
      */
-    error VerifyingSignerCannotBeContract();
+    error VerifyingSignerCanNotBeContract();
 
     /**
      * @notice Throws when trying to withdraw to address(0)
      */
     error CanNotWithdrawToZeroAddress();
-
 }
