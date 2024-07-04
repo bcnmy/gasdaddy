@@ -5,7 +5,7 @@ import { console2 } from "forge-std/src/Console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
-import { MockToken } from "./../../../../lib/nexus.git/contracts/mocks/MockToken.sol";
+import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
 
 
 contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {

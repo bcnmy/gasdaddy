@@ -5,7 +5,7 @@ import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/core/UserOperationLib.sol";
-import { MockToken } from "./../../../../lib/nexus.git/contracts/mocks/MockToken.sol";
+import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
 
 contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
