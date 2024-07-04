@@ -39,7 +39,6 @@ contract BiconomySponsorshipPaymaster is
 
     address public verifyingSigner;
     address public feeCollector;
-    uint48 public postopCost;
     uint32 private constant PRICE_DENOMINATOR = 1e6;
 
     // note: could rename to PAYMASTER_ID_OFFSET
@@ -55,8 +54,11 @@ contract BiconomySponsorshipPaymaster is
     )
         BasePaymaster(_owner, _entryPoint)
     {
-        // TODO
-        // Check for zero address
+        if (_verifyingSigner == address(0)) {
+            revert VerifyingSignerCanNotBeZero();
+        } else if (_feeCollector == address(0)) {
+            revert FeeCollectorCanNotBeZero();
+        }
         verifyingSigner = _verifyingSigner;
         feeCollector = _feeCollector;
     }
@@ -118,22 +120,10 @@ contract BiconomySponsorshipPaymaster is
     }
 
     /**
-     * @dev Set a new unaccountedEPGasOverhead value.
-     * @param value The new value to be set as the unaccountedEPGasOverhead.
-     * @notice only to be called by the owner of the contract.
-     */
-    function setPostopCost(uint48 value) external payable onlyOwner {
-        require(value <= 200_000, "Gas overhead too high");
-        uint256 oldValue = postopCost;
-        postopCost = value;
-        emit PostopCostChanged(oldValue, value);
-    }
-
-    /**
      * @dev Override the default implementation.
      */
     function deposit() external payable virtual override {
-        revert("Use depositFor() instead");
+        revert UseDepositForInstead();
     }
 
     /**
@@ -155,15 +145,19 @@ contract BiconomySponsorshipPaymaster is
     function withdrawTo(address payable withdrawAddress, uint256 amount) external override nonReentrant {
         if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
         uint256 currentBalance = paymasterIdBalances[msg.sender];
-        require(amount <= currentBalance, "Sponsorship Paymaster: Insufficient funds to withdraw from gas tank");
+        if (amount > currentBalance) {
+            revert InsufficientFundsInGasTank();
+        }
         paymasterIdBalances[msg.sender] = currentBalance - amount;
         entryPoint.withdrawTo(withdrawAddress, amount);
         emit GasWithdrawn(msg.sender, withdrawAddress, amount);
     }
 
-    function withdrawEth(address payable recipient, uint256 amount) external onlyOwner {
+    function withdrawEth(address payable recipient, uint256 amount) external onlyOwner nonReentrant {
         (bool success,) = recipient.call{ value: amount }("");
-        require(success, "withdraw failed");
+        if (!success) {
+            revert WithdrawalFailed();
+        }
     }
 
     /**
@@ -225,11 +219,13 @@ contract BiconomySponsorshipPaymaster is
             bytes calldata signature
         )
     {
-        paymasterId = address(bytes20(paymasterAndData[VALID_PND_OFFSET:VALID_PND_OFFSET + 20]));
-        validUntil = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 20:VALID_PND_OFFSET + 26]));
-        validAfter = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 26:VALID_PND_OFFSET + 32]));
-        priceMarkup = uint32(bytes4(paymasterAndData[VALID_PND_OFFSET + 32:VALID_PND_OFFSET + 36]));
-        signature = paymasterAndData[VALID_PND_OFFSET + 36:];
+        unchecked {
+            paymasterId = address(bytes20(paymasterAndData[VALID_PND_OFFSET:VALID_PND_OFFSET + 20]));
+            validUntil = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 20:VALID_PND_OFFSET + 26]));
+            validAfter = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 26:VALID_PND_OFFSET + 32]));
+            priceMarkup = uint32(bytes4(paymasterAndData[VALID_PND_OFFSET + 32:VALID_PND_OFFSET + 36]));
+            signature = paymasterAndData[VALID_PND_OFFSET + 36:];
+        }
     }
 
     /// @notice Performs post-operation tasks, such as deducting the sponsored gas cost from the paymasterId's balance
@@ -252,14 +248,12 @@ contract BiconomySponsorshipPaymaster is
             (address paymasterId, uint32 dynamicMarkup, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
-            uint256 balToDeduct = actualGasCost + postopCost * actualUserOpFeePerGas;
-
-            uint256 costIncludingPremium = (balToDeduct * dynamicMarkup) / PRICE_DENOMINATOR;
+            uint256 costIncludingPremium = (actualGasCost * dynamicMarkup) / PRICE_DENOMINATOR;
 
             // deduct with premium
             paymasterIdBalances[paymasterId] -= costIncludingPremium;
 
-            uint256 actualPremium = costIncludingPremium - balToDeduct;
+            uint256 actualPremium = costIncludingPremium - actualGasCost;
             // "collect" premium
             paymasterIdBalances[feeCollector] += actualPremium;
 
@@ -294,10 +288,9 @@ contract BiconomySponsorshipPaymaster is
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
         // not "ECDSA"
-        require(
-            signature.length == 64 || signature.length == 65,
-            "VerifyingPaymaster: invalid signature length in paymasterAndData"
-        );
+        if(signature.length != 64 && signature.length != 65){
+            revert InvalidSignatureLength();
+        }
 
         bool validSig = verifyingSigner.isValidSignatureNow(
             ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
@@ -309,18 +302,19 @@ contract BiconomySponsorshipPaymaster is
             return ("", _packValidationData(true, validUntil, validAfter));
         }
 
-        require(priceMarkup <= 2e6 && priceMarkup > 0, "Sponsorship Paymaster: Invalid markup %");
+        if (priceMarkup > 2e6 || priceMarkup == 0) {
+            revert InvalidPriceMarkup();
+        }
 
         uint256 maxFeePerGas = userOp.unpackMaxFeePerGas();
 
         // Send 1e6 for No markup
         // Send between 0 and 1e6 for discount
-        uint256 effectiveCost = ((requiredPreFund + (postopCost * maxFeePerGas)) * priceMarkup) / PRICE_DENOMINATOR;
+        uint256 effectiveCost = (requiredPreFund * priceMarkup) / PRICE_DENOMINATOR;
 
-        require(
-            effectiveCost <= paymasterIdBalances[paymasterId],
-            "Sponsorship Paymaster: paymasterId does not have enough deposit"
-        );
+        if (effectiveCost > paymasterIdBalances[paymasterId]) {
+            revert InsufficientFundsForPaymasterId();
+        }
 
         context = abi.encode(paymasterId, priceMarkup, userOpHash);
 

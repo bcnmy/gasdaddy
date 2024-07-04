@@ -26,7 +26,6 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(testArtifact.postopCost(), 0 wei);
     }
 
     function test_CheckInitialPaymasterState() external view {
@@ -34,7 +33,6 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(bicoPaymaster.postopCost(), 0 wei);
     }
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -121,7 +119,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     }
 
     function test_RevertIf_DepositCalled() external {
-        vm.expectRevert("Use depositFor() instead");
+        vm.expectRevert(abi.encodeWithSelector(UseDepositForInstead.selector));
         bicoPaymaster.deposit{ value: 1 ether }();
     }
 
@@ -146,7 +144,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     }
 
     function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert("Sponsorship Paymaster: Insufficient funds to withdraw from gas tank");
+        vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
         bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
     }
 
@@ -261,30 +259,8 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
 
     function test_RevertIf_WithdrawEthExceedsBalance() external prankModifier(PAYMASTER_OWNER.addr) {
         uint256 ethAmount = 10 ether;
-        vm.expectRevert("withdraw failed");
+        vm.expectRevert(abi.encodeWithSelector(WithdrawalFailed.selector));
         bicoPaymaster.withdrawEth(payable(ALICE_ADDRESS), ethAmount);
-    }
-
-    function test_SetPostopCost() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = initialPostopCost + 1 wei;
-
-        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
-        bicoPaymaster.setPostopCost(newPostopCost);
-
-        uint48 resultingPostopCost = bicoPaymaster.postopCost();
-        assertEq(resultingPostopCost, newPostopCost);
-    }
-
-    function test_RevertIf_SetPostopCostToHigh() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = initialPostopCost + 200_001 wei;
-
-        vm.expectRevert("Gas overhead too high");
-        bicoPaymaster.setPostopCost(newPostopCost);
     }
 
     function test_WithdrawErc20() external prankModifier(PAYMASTER_OWNER.addr) {

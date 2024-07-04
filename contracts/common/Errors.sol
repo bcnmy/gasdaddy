@@ -33,6 +33,36 @@ contract BiconomySponsorshipPaymasterErrors {
     error VerifyingSignerCanNotBeContract();
 
     /**
+     * @notice Throws when ETH withdrawal fails
+     */
+    error WithdrawalFailed();
+
+    /**
+     * @notice Throws when insufficient funds to withdraw
+     */
+    error InsufficientFundsInGasTank();
+
+    /**
+     * @notice Throws when invalid signature length in paymasterAndData
+     */
+    error InvalidSignatureLength();
+
+    /**
+     * @notice Throws when invalid signature length in paymasterAndData
+     */
+    error InvalidPriceMarkup();
+
+    /**
+     * @notice Throws when insufficient funds for paymasterid
+     */
+    error InsufficientFundsForPaymasterId();
+
+    /**
+     * @notice Throws when calling deposit()
+     */
+    error UseDepositForInstead();
+
+    /**
      * @notice Throws when trying to withdraw to address(0)
      */
     error CanNotWithdrawToZeroAddress();
