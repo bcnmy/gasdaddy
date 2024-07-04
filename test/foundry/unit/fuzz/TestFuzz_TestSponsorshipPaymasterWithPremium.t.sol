@@ -76,4 +76,18 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(ALICE_ADDRESS.balance, initialAliceBalance + ethAmount);
         assertEq(address(bicoPaymaster).balance, 0 ether);
     }
+
+    function testFuzz_SetPostopCost(uint48 value) external prankModifier(PAYMASTER_OWNER.addr) {
+        vm.assume(value <= 200_000 wei);
+        uint48 initialPostopCost = bicoPaymaster.postopCost();
+        assertEq(initialPostopCost, 0 wei);
+        uint48 newPostopCost = value;
+
+        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
+        bicoPaymaster.setPostopCost(newPostopCost);
+
+        uint48 resultingPostopCost = bicoPaymaster.postopCost();
+        assertEq(resultingPostopCost, newPostopCost);
+    }
 }
