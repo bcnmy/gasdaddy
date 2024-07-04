@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
-import { console2 } from "forge-std/src/console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/core/UserOperationLib.sol";
+import { MockToken } from "./../../../../lib/nexus.git/contracts/mocks/MockToken.sol";
 
 contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
@@ -285,5 +285,32 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
 
         vm.expectRevert("Gas overhead too high");
         bicoPaymaster.setPostopCost(newPostopCost);
+    }
+
+    function test_WithdrawErc20() external prankModifier(PAYMASTER_OWNER.addr) {
+        MockToken token = new MockToken("Token", "TKN");
+        uint256 mintAmount = 10 * (10 ** token.decimals());
+        token.mint(address(bicoPaymaster), mintAmount);
+
+        assertEq(token.balanceOf(address(bicoPaymaster)), mintAmount);
+        assertEq(token.balanceOf(ALICE_ADDRESS), 0);
+
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.TokensWithdrawn(
+            address(token), ALICE_ADDRESS, mintAmount, PAYMASTER_OWNER.addr
+        );
+        bicoPaymaster.withdrawERC20(token, ALICE_ADDRESS, mintAmount);
+
+        assertEq(token.balanceOf(address(bicoPaymaster)), 0);
+        assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
+    }
+
+    function test_RevertIf_WithdrawErc20ToZeroAddress() external prankModifier(PAYMASTER_OWNER.addr) {
+        MockToken token = new MockToken("Token", "TKN");
+        uint256 mintAmount = 10 * (10 ** token.decimals());
+        token.mint(address(bicoPaymaster), mintAmount);
+
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
+        bicoPaymaster.withdrawERC20(token, address(0), mintAmount);
     }
 }
