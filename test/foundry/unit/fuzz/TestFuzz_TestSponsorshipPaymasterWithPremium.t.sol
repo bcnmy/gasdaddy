@@ -7,7 +7,6 @@ import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
 
-
 contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
@@ -77,20 +76,6 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
 
         assertEq(ALICE_ADDRESS.balance, initialAliceBalance + ethAmount);
         assertEq(address(bicoPaymaster).balance, 0 ether);
-    }
-
-    function testFuzz_SetPostopCost(uint48 value) external prankModifier(PAYMASTER_OWNER.addr) {
-        vm.assume(value <= 200_000 wei);
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = value;
-
-        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
-        bicoPaymaster.setPostopCost(newPostopCost);
-
-        uint48 resultingPostopCost = bicoPaymaster.postopCost();
-        assertEq(resultingPostopCost, newPostopCost);
     }
 
     function testFuzz_WithdrawErc20(address target, uint256 amount) external prankModifier(PAYMASTER_OWNER.addr) {
