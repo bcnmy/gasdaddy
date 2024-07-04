@@ -5,6 +5,8 @@ import { console2 } from "forge-std/src/Console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
+import { MockToken } from "./../../../../lib/nexus.git/contracts/mocks/MockToken.sol";
+
 
 contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
@@ -89,5 +91,25 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
 
         uint48 resultingPostopCost = bicoPaymaster.postopCost();
         assertEq(resultingPostopCost, newPostopCost);
+    }
+
+    function testFuzz_WithdrawErc20(address target, uint256 amount) external prankModifier(PAYMASTER_OWNER.addr) {
+        vm.assume(target != address(0));
+        vm.assume(amount <= 1_000_000 * (10 ** 18));
+        MockToken token = new MockToken("Token", "TKN");
+        uint256 mintAmount = amount;
+        token.mint(address(bicoPaymaster), mintAmount);
+
+        assertEq(token.balanceOf(address(bicoPaymaster)), mintAmount);
+        assertEq(token.balanceOf(ALICE_ADDRESS), 0);
+
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.TokensWithdrawn(
+            address(token), ALICE_ADDRESS, mintAmount, PAYMASTER_OWNER.addr
+        );
+        bicoPaymaster.withdrawERC20(token, ALICE_ADDRESS, mintAmount);
+
+        assertEq(token.balanceOf(address(bicoPaymaster)), 0);
+        assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
     }
 }
