@@ -232,14 +232,11 @@ contract BiconomySponsorshipPaymaster is
     /// @dev This function is called after a user operation has been executed or reverted.
     /// @param context The context containing the token amount and user sender address.
     /// @param actualGasCost The actual gas cost of the transaction.
-    /// @param actualUserOpFeePerGas - the gas price this UserOp pays. This value is based on the UserOp's maxFeePerGas
-    //      and maxPriorityFee (and basefee)
-    //      It is not the same as tx.gasprice, which is what the bundler pays.
     function _postOp(
         PostOpMode,
         bytes calldata context,
         uint256 actualGasCost,
-        uint256 actualUserOpFeePerGas
+        uint256
     )
         internal
         override
@@ -253,13 +250,15 @@ contract BiconomySponsorshipPaymaster is
             // deduct with premium
             paymasterIdBalances[paymasterId] -= costIncludingPremium;
 
-            uint256 actualPremium = costIncludingPremium - actualGasCost;
-            // "collect" premium
-            paymasterIdBalances[feeCollector] += actualPremium;
+            if (actualGasCost < costIncludingPremium) {
+                // "collect" premium
+                uint256 actualPremium = costIncludingPremium - actualGasCost;
+                paymasterIdBalances[feeCollector] += actualPremium;
+                // Review if we should emit balToDeduct as well
+                emit PremiumCollected(paymasterId, actualPremium);
+            }
 
             emit GasBalanceDeducted(paymasterId, costIncludingPremium, userOpHash);
-            // Review if we should emit balToDeduct as well
-            emit PremiumCollected(paymasterId, actualPremium);
         }
     }
 
@@ -288,7 +287,7 @@ contract BiconomySponsorshipPaymaster is
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
         // not "ECDSA"
-        if(signature.length != 64 && signature.length != 65){
+        if (signature.length != 64 && signature.length != 65) {
             revert InvalidSignatureLength();
         }
 
