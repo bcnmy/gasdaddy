@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
+import { console2 } from "forge-std/src/console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
@@ -26,6 +27,16 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
+    }
+
+    function test_RevertIf_DeployWithSignerSetToZero() external {
+        vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeZero.selector));
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr);
+    }
+
+    function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
+        vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0));
     }
 
     function test_CheckInitialPaymasterState() external view {
@@ -148,7 +159,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
     }
 
-    function test_ValidatePaymasterAndPostOp() external {
+    function test_ValidatePaymasterAndPostOpWithoutPremium() external {
         uint256 initialDappPaymasterBalance = 10 ether;
         bicoPaymaster.depositFor{ value: initialDappPaymasterBalance }(DAPP_ACCOUNT.addr);
 
@@ -169,12 +180,71 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
 
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
-        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
         uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertNotEq(initialDappPaymasterBalance, resultingDappPaymasterBalance);
+    }
+
+    function test_ValidatePaymasterAndPostOpWithPremium() external {
+        uint256 initialDappPaymasterBalance = 10 ether;
+        bicoPaymaster.depositFor{ value: initialDappPaymasterBalance }(DAPP_ACCOUNT.addr);
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+
+        uint48 validUntil = uint48(block.timestamp + 1 days);
+        uint48 validAfter = uint48(block.timestamp);
+
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+
+        // Charge a 10% premium
+        uint32 premium = 1e6 + 1e5;
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, premium
+        );
+        userOp.signature = signUserOp(ALICE, userOp);
+
+        // Estimate paymaster gas limits
+        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        (uint256 validationGasLimit, uint256 postopGasLimit) =
+            estimatePaymasterGasCosts(bicoPaymaster, userOp, userOpHash, 5e4);
+
+        // Ammend the userop to have new gas limits and signature
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            bicoPaymaster,
+            uint128(validationGasLimit),
+            uint128(postopGasLimit),
+            DAPP_ACCOUNT.addr,
+            validUntil,
+            validAfter,
+            premium
+        );
+        userOp.signature = signUserOp(ALICE, userOp);
+        ops[0] = userOp;
+        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+
+        // submit userops
+        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
+        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+
+        // Check that gas fees ended up in the right wallets
+        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 resultingFeeCollectorPaymasterBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+        uint256 resultingBundlerBalance = BUNDLER.addr.balance - initialBundlerBalance;
+        uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+        console2.log(resultingDappPaymasterBalance);
+        console2.log(resultingFeeCollectorPaymasterBalance);
+        console2.log(resultingBundlerBalance);
+        console2.log(totalGasFeesCharged);
+        
+        // resultingDappPaymasterBalance
+        assertEq(resultingFeeCollectorPaymasterBalance, (totalGasFeesCharged * 1e5) / premium);
     }
 
     function test_RevertIf_ValidatePaymasterUserOpWithIncorrectSignatureLength() external {
