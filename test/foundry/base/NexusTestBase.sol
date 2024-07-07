@@ -347,7 +347,7 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         validationGasLimit = validationGasLimit - gasleft();
 
         postopGasLimit = gasleft();
-        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 3e4, 2e9);
+        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1e12, 3e6);
         postopGasLimit = postopGasLimit - gasleft();
     }
 

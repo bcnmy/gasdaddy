@@ -232,15 +232,7 @@ contract BiconomySponsorshipPaymaster is
     /// @dev This function is called after a user operation has been executed or reverted.
     /// @param context The context containing the token amount and user sender address.
     /// @param actualGasCost The actual gas cost of the transaction.
-    function _postOp(
-        PostOpMode,
-        bytes calldata context,
-        uint256 actualGasCost,
-        uint256
-    )
-        internal
-        override
-    {
+    function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
         unchecked {
             (address paymasterId, uint32 dynamicMarkup, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
@@ -250,7 +242,7 @@ contract BiconomySponsorshipPaymaster is
             // deduct with premium
             paymasterIdBalances[paymasterId] -= costIncludingPremium;
 
-            if (actualGasCost < costIncludingPremium) {
+            if (costIncludingPremium > actualGasCost) {
                 // "collect" premium
                 uint256 actualPremium = costIncludingPremium - actualGasCost;
                 paymasterIdBalances[feeCollector] += actualPremium;
@@ -304,8 +296,6 @@ contract BiconomySponsorshipPaymaster is
         if (priceMarkup > 2e6 || priceMarkup == 0) {
             revert InvalidPriceMarkup();
         }
-
-        uint256 maxFeePerGas = userOp.unpackMaxFeePerGas();
 
         // Send 1e6 for No markup
         // Send between 0 and 1e6 for discount
