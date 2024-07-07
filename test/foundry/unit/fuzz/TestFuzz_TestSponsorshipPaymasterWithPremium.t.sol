@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
-import { console2 } from "forge-std/src/console2.sol";
-import { stdMath } from "forge-std/src/Test.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
@@ -152,14 +150,10 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         uint256 resultingFeeCollectorPaymasterBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+
         uint256 premiumCollected = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+        uint256 expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
 
-        uint256 expectedPremium = totalGasFeesCharged - (totalGasFeesCharged * 1e6) / premium;
-
-        console2.log(premiumCollected);
-        console2.log(expectedPremium);
-        console2.log(stdMath.percentDelta(premiumCollected, expectedPremium));
-        // less than 0.01% difference between actual and expected values
-        assert(stdMath.percentDelta(premiumCollected, expectedPremium) < 1e14);
+        assertEq(premiumCollected, expectedPremium);
     }
 }
