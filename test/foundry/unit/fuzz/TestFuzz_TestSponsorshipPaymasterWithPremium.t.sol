@@ -101,59 +101,24 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
     function testFuzz_ValidatePaymasterAndPostOpWithPremium(uint32 premium) external {
         vm.assume(premium <= 2e6);
         vm.assume(premium > 1e6);
-
-        uint256 initialDappPaymasterBalance = 10 ether;
-        bicoPaymaster.depositFor{ value: initialDappPaymasterBalance }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-
-        uint48 validUntil = uint48(block.timestamp + 1 days);
-        uint48 validAfter = uint48(block.timestamp);
-
-        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-
-        userOp.paymasterAndData = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, premium
-        );
-        userOp.signature = signUserOp(ALICE, userOp);
-
-        // Estimate paymaster gas limits
-        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
-        (uint256 validationGasLimit, uint256 postopGasLimit) =
-            estimatePaymasterGasCosts(bicoPaymaster, userOp, userOpHash, 5e4);
-
-        // Ammend the userop to have new gas limits and signature
-        userOp.paymasterAndData = generateAndSignPaymasterData(
-            userOp,
-            PAYMASTER_SIGNER,
-            bicoPaymaster,
-            uint128(validationGasLimit),
-            uint128(postopGasLimit),
-            DAPP_ACCOUNT.addr,
-            validUntil,
-            validAfter,
-            premium
-        );
-        userOp.signature = signUserOp(ALICE, userOp);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, premium);
         ops[0] = userOp;
-        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
 
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
-        initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         vm.expectEmit(true, false, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-        uint256 resultingFeeCollectorPaymasterBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+        (uint256 expectedPremium, uint256 actualPremium) =
+            getPremiums(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, premium);
 
-        uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
-
-        uint256 premiumCollected = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
-        uint256 expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
-
-        assertEq(premiumCollected, expectedPremium);
+        assertEq(expectedPremium, actualPremium);
     }
+
 }
