@@ -351,6 +351,46 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         postopGasLimit = postopGasLimit - gasleft();
     }
 
+    function createUserOp(
+        Vm.Wallet memory sender,
+        BiconomySponsorshipPaymaster paymaster,
+        uint32 premium
+    )
+        internal
+        returns (PackedUserOperation memory userOp, bytes32 userOpHash)
+    {
+        // Create userOp with no paymaster gas estimates
+        uint48 validUntil = uint48(block.timestamp + 1 days);
+        uint48 validAfter = uint48(block.timestamp);
+
+        userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
+
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, premium
+        );
+        userOp.signature = signUserOp(sender, userOp);
+
+        // Estimate paymaster gas limits
+        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        (uint256 validationGasLimit, uint256 postopGasLimit) =
+            estimatePaymasterGasCosts(paymaster, userOp, userOpHash, 5e4);
+
+        // Ammend the userop to have new gas limits and signature
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            paymaster,
+            uint128(validationGasLimit),
+            uint128(postopGasLimit),
+            DAPP_ACCOUNT.addr,
+            validUntil,
+            validAfter,
+            premium
+        );
+        userOp.signature = signUserOp(sender, userOp);
+        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+    }
+
     /// @notice Generates and signs the paymaster data for a user operation.
     /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
     /// @param userOp The user operation to be signed.
@@ -416,5 +456,27 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             result[i] = data[i];
         }
         return result;
+    }
+
+    function getPremiums(
+        BiconomySponsorshipPaymaster paymaster,
+        uint256 initialDappPaymasterBalance,
+        uint256 initialFeeCollectorBalance,
+        uint32 premium
+    )
+        internal
+        view
+        returns (uint256 expectedPremium, uint256 actualPremium)
+    {
+        uint256 resultingDappPaymasterBalance = paymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 resultingFeeCollectorPaymasterBalance = paymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+
+        uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+
+        if (premium >= 1e6) {
+            //premium
+            expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
+            actualPremium = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+        } else revert("Premium must be more than 1e6");
     }
 }

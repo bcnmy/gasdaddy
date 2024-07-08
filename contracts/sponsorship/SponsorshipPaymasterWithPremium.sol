@@ -234,23 +234,23 @@ contract BiconomySponsorshipPaymaster is
     /// @param actualGasCost The actual gas cost of the transaction.
     function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
         unchecked {
-            (address paymasterId, uint32 dynamicMarkup, bytes32 userOpHash) =
+            (address paymasterId, uint32 dynamicAdjustment, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
-            uint256 costIncludingPremium = (actualGasCost * dynamicMarkup) / PRICE_DENOMINATOR;
+            uint256 adjustedGasCost = (actualGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
 
-            // deduct with premium
-            paymasterIdBalances[paymasterId] -= costIncludingPremium;
+            // Deduct the adjusted cost
+            paymasterIdBalances[paymasterId] -= adjustedGasCost;
 
-            if (costIncludingPremium > actualGasCost) {
-                // "collect" premium
-                uint256 actualPremium = costIncludingPremium - actualGasCost;
-                paymasterIdBalances[feeCollector] += actualPremium;
-                // Review if we should emit balToDeduct as well
-                emit PremiumCollected(paymasterId, actualPremium);
+            if (adjustedGasCost > actualGasCost) {
+                // Add premium to fee
+                uint256 premium = adjustedGasCost - actualGasCost;
+                paymasterIdBalances[feeCollector] += premium;
+                // Review if we should emit adjustedGasCost as well
+                emit PremiumCollected(paymasterId, premium);
             }
 
-            emit GasBalanceDeducted(paymasterId, costIncludingPremium, userOpHash);
+            emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
         }
     }
 
