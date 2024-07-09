@@ -27,7 +27,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(testArtifact.postopCost(), 0 wei);
+        assertEq(testArtifact.postOpCost(), 0 wei);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
@@ -45,7 +45,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(bicoPaymaster.postopCost(), 0 wei);
+        assertEq(bicoPaymaster.postOpCost(), 0 wei);
     }
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
