@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
+import { console2 } from "forge-std/src/console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
@@ -27,6 +28,16 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
         assertEq(testArtifact.postopCost(), 0 wei);
+    }
+
+    function test_RevertIf_DeployWithSignerSetToZero() external {
+        vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeZero.selector));
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr);
+    }
+
+    function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
+        vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0));
     }
 
     function test_CheckInitialPaymasterState() external view {
@@ -97,6 +108,24 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         bicoPaymaster.setFeeCollector(DAN_ADDRESS);
     }
 
+    function test_SetPostopCost() external prankModifier(PAYMASTER_OWNER.addr) {
+        uint48 initialPostopCost = bicoPaymaster.postOpCost();
+        uint48 newPostopCost = 5_000;
+
+        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
+        bicoPaymaster.setPostopCost(newPostopCost);
+
+        uint48 resultingPostopCost = bicoPaymaster.postOpCost();
+        assertEq(resultingPostopCost, newPostopCost);
+    }
+
+    function test_RevertIf_SetPostopCostToHigh() external prankModifier(PAYMASTER_OWNER.addr) {
+        uint48 newPostopCost = 200_001;
+        vm.expectRevert(abi.encodeWithSelector(PostOpCostTooHigh.selector));
+        bicoPaymaster.setPostopCost(newPostopCost);
+    }
+
     function test_DepositFor() external {
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 depositAmount = 10 ether;
@@ -121,7 +150,7 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     }
 
     function test_RevertIf_DepositCalled() external {
-        vm.expectRevert("Use depositFor() instead");
+        vm.expectRevert(abi.encodeWithSelector(UseDepositForInstead.selector));
         bicoPaymaster.deposit{ value: 1 ether }();
     }
 
@@ -146,37 +175,55 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     }
 
     function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert("Sponsorship Paymaster: Insufficient funds to withdraw from gas tank");
+        vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
         bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
     }
 
-    function test_ValidatePaymasterAndPostOp() external {
-        uint256 initialDappPaymasterBalance = 10 ether;
-        bicoPaymaster.depositFor{ value: initialDappPaymasterBalance }(DAPP_ACCOUNT.addr);
+    function test_ValidatePaymasterAndPostOpWithoutPremium() external prankModifier(DAPP_ACCOUNT.addr) {
+        bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
+        // No premoium
+        uint32 premium = 1e6;
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-
-        uint48 validUntil = uint48(block.timestamp + 1 days);
-        uint48 validAfter = uint48(block.timestamp);
-
-        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        userOp.paymasterAndData = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6
-        );
-        userOp.signature = signUserOp(ALICE, userOp);
-
-        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
-
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, premium);
         ops[0] = userOp;
+
+        uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
-        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-        assertNotEq(initialDappPaymasterBalance, resultingDappPaymasterBalance);
+        (uint256 expectedPremium, uint256 actualPremium) =
+            getPremiums(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, premium);
+
+        assertEq(expectedPremium, actualPremium);
+    }
+
+    function test_ValidatePaymasterAndPostOpWithPremium() external {
+        bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
+        // 10% premium on gas cost
+        uint32 premium = 1e6 + 1e5;
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, premium);
+        ops[0] = userOp;
+
+        uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+
+        // submit userops
+        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
+        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+
+        (uint256 expectedPremium, uint256 actualPremium) =
+            getPremiums(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, premium);
+
+        assertEq(expectedPremium, actualPremium);
     }
 
     function test_RevertIf_ValidatePaymasterUserOpWithIncorrectSignatureLength() external {
@@ -261,30 +308,8 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
 
     function test_RevertIf_WithdrawEthExceedsBalance() external prankModifier(PAYMASTER_OWNER.addr) {
         uint256 ethAmount = 10 ether;
-        vm.expectRevert("withdraw failed");
+        vm.expectRevert(abi.encodeWithSelector(WithdrawalFailed.selector));
         bicoPaymaster.withdrawEth(payable(ALICE_ADDRESS), ethAmount);
-    }
-
-    function test_SetPostopCost() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = initialPostopCost + 1 wei;
-
-        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
-        bicoPaymaster.setPostopCost(newPostopCost);
-
-        uint48 resultingPostopCost = bicoPaymaster.postopCost();
-        assertEq(resultingPostopCost, newPostopCost);
-    }
-
-    function test_RevertIf_SetPostopCostToHigh() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = initialPostopCost + 200_001 wei;
-
-        vm.expectRevert("Gas overhead too high");
-        bicoPaymaster.setPostopCost(newPostopCost);
     }
 
     function test_WithdrawErc20() external prankModifier(PAYMASTER_OWNER.addr) {

@@ -8,6 +8,7 @@ import "solady/src/utils/ECDSA.sol";
 
 import { EntryPoint } from "account-abstraction/contracts/core/EntryPoint.sol";
 import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IPaymaster } from "account-abstraction/contracts/interfaces/IPaymaster.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
 import { Nexus } from "nexus/contracts/Nexus.sol";
@@ -331,87 +332,63 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         assertTrue(res, "Pre-funding account should succeed");
     }
 
-    /// @notice Calculates the gas cost of the calldata
-    /// @param data The calldata
-    /// @return calldataGas The gas cost of the calldata
-    function calculateCalldataCost(bytes memory data) internal pure returns (uint256 calldataGas) {
-        for (uint256 i = 0; i < data.length; i++) {
-            if (uint8(data[i]) == 0) {
-                calldataGas += 4;
-            } else {
-                calldataGas += 16;
-            }
-        }
-    }
-
-    /// @notice Helper function to measure and log gas for simple EOA calls
-    /// @param description The description for the log
-    /// @param target The target contract address
-    /// @param value The value to be sent with the call
-    /// @param callData The calldata for the call
-    function measureAndLogGasEOA(
-        string memory description,
-        address target,
-        uint256 value,
-        bytes memory callData
+    function estimatePaymasterGasCosts(
+        BiconomySponsorshipPaymaster paymaster,
+        PackedUserOperation memory userOp,
+        bytes32 userOpHash,
+        uint256 requiredPreFund
     )
         internal
+        prankModifier(ENTRYPOINT_ADDRESS)
+        returns (uint256 validationGasLimit, uint256 postopGasLimit)
     {
-        uint256 calldataCost = 0;
-        for (uint256 i = 0; i < callData.length; i++) {
-            if (uint8(callData[i]) == 0) {
-                calldataCost += 4;
-            } else {
-                calldataCost += 16;
-            }
-        }
+        validationGasLimit = gasleft();
+        (bytes memory context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, requiredPreFund);
+        validationGasLimit = validationGasLimit - gasleft();
 
-        uint256 baseGas = 21_000;
-
-        uint256 initialGas = gasleft();
-        (bool res,) = target.call{ value: value }(callData);
-        uint256 gasUsed = initialGas - gasleft() + baseGas + calldataCost;
-        assertTrue(res);
-        emit log_named_uint(description, gasUsed);
+        postopGasLimit = gasleft();
+        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1e12, 3e6);
+        postopGasLimit = postopGasLimit - gasleft();
     }
 
-    /// @notice Helper function to calculate calldata cost and log gas usage
-    /// @param description The description for the log
-    /// @param userOps The user operations to be executed
-    function measureAndLogGas(string memory description, PackedUserOperation[] memory userOps) internal {
-        bytes memory callData = abi.encodeWithSelector(ENTRYPOINT.handleOps.selector, userOps, payable(BUNDLER.addr));
-
-        uint256 calldataCost = 0;
-        for (uint256 i = 0; i < callData.length; i++) {
-            if (uint8(callData[i]) == 0) {
-                calldataCost += 4;
-            } else {
-                calldataCost += 16;
-            }
-        }
-
-        uint256 baseGas = 21_000;
-
-        uint256 initialGas = gasleft();
-        ENTRYPOINT.handleOps(userOps, payable(BUNDLER.addr));
-        uint256 gasUsed = initialGas - gasleft() + baseGas + calldataCost;
-        emit log_named_uint(description, gasUsed);
-    }
-
-    /// @notice Handles a user operation and measures gas usage
-    /// @param userOps The user operations to handle
-    /// @param refundReceiver The address to receive the gas refund
-    /// @return gasUsed The amount of gas used
-    function handleUserOpAndMeasureGas(
-        PackedUserOperation[] memory userOps,
-        address refundReceiver
+    function createUserOp(
+        Vm.Wallet memory sender,
+        BiconomySponsorshipPaymaster paymaster,
+        uint32 premium
     )
         internal
-        returns (uint256 gasUsed)
+        returns (PackedUserOperation memory userOp, bytes32 userOpHash)
     {
-        uint256 gasStart = gasleft();
-        ENTRYPOINT.handleOps(userOps, payable(refundReceiver));
-        gasUsed = gasStart - gasleft();
+        // Create userOp with no paymaster gas estimates
+        uint48 validUntil = uint48(block.timestamp + 1 days);
+        uint48 validAfter = uint48(block.timestamp);
+
+        userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
+
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, premium
+        );
+        userOp.signature = signUserOp(sender, userOp);
+
+        // Estimate paymaster gas limits
+        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        (uint256 validationGasLimit, uint256 postopGasLimit) =
+            estimatePaymasterGasCosts(paymaster, userOp, userOpHash, 5e4);
+
+        // Ammend the userop to have new gas limits and signature
+        userOp.paymasterAndData = generateAndSignPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            paymaster,
+            uint128(validationGasLimit),
+            uint128(postopGasLimit),
+            DAPP_ACCOUNT.addr,
+            validUntil,
+            validAfter,
+            premium
+        );
+        userOp.signature = signUserOp(sender, userOp);
+        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
     }
 
     /// @notice Generates and signs the paymaster data for a user operation.
@@ -479,5 +456,29 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             result[i] = data[i];
         }
         return result;
+    }
+
+    function getPremiums(
+        BiconomySponsorshipPaymaster paymaster,
+        uint256 initialDappPaymasterBalance,
+        uint256 initialFeeCollectorBalance,
+        uint32 premium
+    )
+        internal
+        view
+        returns (uint256 expectedPremium, uint256 actualPremium)
+    {
+        uint256 resultingDappPaymasterBalance = paymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 resultingFeeCollectorPaymasterBalance = paymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+
+        uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+
+        if (premium >= 1e6) {
+            //premium
+            expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
+            actualPremium = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+        } else {
+            revert("Premium must be more than 1e6");
+        }
     }
 }

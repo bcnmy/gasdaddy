@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
-import { console2 } from "forge-std/src/Console2.sol";
 import { NexusTestBase } from "../../base/NexusTestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
 import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
-
+import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
 contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
@@ -79,20 +78,6 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(address(bicoPaymaster).balance, 0 ether);
     }
 
-    function testFuzz_SetPostopCost(uint48 value) external prankModifier(PAYMASTER_OWNER.addr) {
-        vm.assume(value <= 200_000 wei);
-        uint48 initialPostopCost = bicoPaymaster.postopCost();
-        assertEq(initialPostopCost, 0 wei);
-        uint48 newPostopCost = value;
-
-        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
-        bicoPaymaster.setPostopCost(newPostopCost);
-
-        uint48 resultingPostopCost = bicoPaymaster.postopCost();
-        assertEq(resultingPostopCost, newPostopCost);
-    }
-
     function testFuzz_WithdrawErc20(address target, uint256 amount) external prankModifier(PAYMASTER_OWNER.addr) {
         vm.assume(target != address(0));
         vm.assume(amount <= 1_000_000 * (10 ** 18));
@@ -112,4 +97,28 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(token.balanceOf(address(bicoPaymaster)), 0);
         assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
     }
+
+    function testFuzz_ValidatePaymasterAndPostOpWithPremium(uint32 premium) external {
+        vm.assume(premium <= 2e6);
+        vm.assume(premium > 1e6);
+        bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, premium);
+        ops[0] = userOp;
+
+        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+        uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
+        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+
+        (uint256 expectedPremium, uint256 actualPremium) =
+            getPremiums(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, premium);
+
+        assertEq(expectedPremium, actualPremium);
+    }
+
 }
