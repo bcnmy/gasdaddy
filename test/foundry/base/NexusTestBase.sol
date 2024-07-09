@@ -477,6 +477,8 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             //premium
             expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
             actualPremium = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
-        } else revert("Premium must be more than 1e6");
+        } else {
+            revert("Premium must be more than 1e6");
+        }
     }
 }

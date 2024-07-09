@@ -66,4 +66,9 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Throws when trying to withdraw to address(0)
      */
     error CanNotWithdrawToZeroAddress();
+
+    /**
+     * @notice Throws when trying postOpCost is too high
+     */
+    error PostOpCostTooHigh();
 }

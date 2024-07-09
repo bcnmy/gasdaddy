@@ -39,6 +39,7 @@ contract BiconomySponsorshipPaymaster is
 
     address public verifyingSigner;
     address public feeCollector;
+    uint48 public postOpCost;
     uint32 private constant PRICE_DENOMINATOR = 1e6;
 
     // note: could rename to PAYMASTER_ID_OFFSET
@@ -117,6 +118,20 @@ contract BiconomySponsorshipPaymaster is
             sstore(feeCollector.slot, _newFeeCollector)
         }
         emit FeeCollectorChanged(oldFeeCollector, _newFeeCollector, msg.sender);
+    }
+
+    /**
+     * @dev Set a new unaccountedEPGasOverhead value.
+     * @param value The new value to be set as the unaccountedEPGasOverhead.
+     * @notice only to be called by the owner of the contract.
+     */
+    function setPostopCost(uint48 value) external payable onlyOwner {
+        if (value > 200_000) {
+            revert PostOpCostTooHigh();
+        }
+        uint256 oldValue = postOpCost;
+        postOpCost = value;
+        emit PostopCostChanged(oldValue, value);
     }
 
     /**
@@ -232,12 +247,21 @@ contract BiconomySponsorshipPaymaster is
     /// @dev This function is called after a user operation has been executed or reverted.
     /// @param context The context containing the token amount and user sender address.
     /// @param actualGasCost The actual gas cost of the transaction.
-    function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
+    function _postOp(
+        PostOpMode,
+        bytes calldata context,
+        uint256 actualGasCost,
+        uint256 actualUserOpFeePerGas
+    )
+        internal
+        override
+    {
         unchecked {
             (address paymasterId, uint32 dynamicAdjustment, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
-            uint256 adjustedGasCost = (actualGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
+            uint256 totalGasCost = actualGasCost + (postOpCost * actualUserOpFeePerGas);
+            uint256 adjustedGasCost = (totalGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
 
             // Deduct the adjusted cost
             paymasterIdBalances[paymasterId] -= adjustedGasCost;

@@ -106,6 +106,24 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
         bicoPaymaster.setFeeCollector(DAN_ADDRESS);
     }
 
+    function test_SetPostopCost() external prankModifier(PAYMASTER_OWNER.addr) {
+        uint48 initialPostopCost = bicoPaymaster.postOpCost();
+        uint48 newPostopCost = 5_000;
+
+        vm.expectEmit(true, true, false, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.PostopCostChanged(initialPostopCost, newPostopCost);
+        bicoPaymaster.setPostopCost(newPostopCost);
+
+        uint48 resultingPostopCost = bicoPaymaster.postOpCost();
+        assertEq(resultingPostopCost, newPostopCost);
+    }
+
+    function test_RevertIf_SetPostopCostToHigh() external prankModifier(PAYMASTER_OWNER.addr) {
+        uint48 newPostopCost = 200_001;
+        vm.expectRevert(abi.encodeWithSelector(PostOpCostTooHigh.selector));
+        bicoPaymaster.setPostopCost(newPostopCost);
+    }
+
     function test_DepositFor() external {
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 depositAmount = 10 ether;
@@ -132,6 +150,31 @@ contract TestSponsorshipPaymasterWithPremium is NexusTestBase {
     function test_RevertIf_DepositCalled() external {
         vm.expectRevert(abi.encodeWithSelector(UseDepositForInstead.selector));
         bicoPaymaster.deposit{ value: 1 ether }();
+    }
+
+    function test_WithdrawTo() external prankModifier(DAPP_ACCOUNT.addr) {
+        uint256 depositAmount = 10 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        uint256 danInitialBalance = DAN_ADDRESS.balance;
+
+        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, DAN_ADDRESS, depositAmount);
+        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), depositAmount);
+
+        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        assertEq(dappPaymasterBalance, 0 ether);
+        uint256 expectedDanBalance = danInitialBalance + depositAmount;
+        assertEq(DAN_ADDRESS.balance, expectedDanBalance);
+    }
+
+    function test_RevertIf_WithdrawToZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
+        bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
+    }
+
+    function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
+        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
     }
 
     function test_ValidatePaymasterAndPostOpWithoutPremium() external prankModifier(DAPP_ACCOUNT.addr) {
