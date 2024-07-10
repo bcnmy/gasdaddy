@@ -45,6 +45,9 @@ contract BiconomySponsorshipPaymaster is
     // note: could rename to PAYMASTER_ID_OFFSET
     uint256 private constant VALID_PND_OFFSET = PAYMASTER_DATA_OFFSET;
 
+    // Limit for unaccounted gas cost
+    uint16 private constant UNACCOUNTED_GAS_LIMIT = 10_000;
+
     mapping(address => uint256) public paymasterIdBalances;
 
     constructor(
@@ -60,7 +63,7 @@ contract BiconomySponsorshipPaymaster is
             revert VerifyingSignerCanNotBeZero();
         } else if (_feeCollector == address(0)) {
             revert FeeCollectorCanNotBeZero();
-        } else if (_unaccountedGas > 200_000) {
+        } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
         verifyingSigner = _verifyingSigner;
@@ -124,7 +127,7 @@ contract BiconomySponsorshipPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function setUnaccountedGas(uint48 value) external payable onlyOwner {
-        if (value > 200_000) {
+        if (value > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
         uint256 oldValue = unaccountedGas;

@@ -45,7 +45,7 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
     function test_RevertIf_DeployWithUnaccountedGasCostTooHigh() external {
         vm.expectRevert(abi.encodeWithSelector(UnaccountedGasTooHigh.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 200_001
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 10_001
         );
     }
 
@@ -130,7 +130,7 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function test_RevertIf_SetUnaccountedGasToHigh() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint48 newUnaccountedGas = 200_001;
+        uint48 newUnaccountedGas = 10_001;
         vm.expectRevert(abi.encodeWithSelector(UnaccountedGasTooHigh.selector));
         bicoPaymaster.setUnaccountedGas(newUnaccountedGas);
     }
