@@ -15,7 +15,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
         setupTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
         );
     }
 
@@ -108,22 +108,44 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
         (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, dynamicAdjustment);
         ops[0] = userOp;
 
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+
         vm.expectEmit(true, false, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.DynamicAdjustmentCollected(DAPP_ACCOUNT.addr, 0);
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
+        uint256 resultingBundlerBalance = BUNDLER.addr.balance;
+        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+
+        uint256 gasPaidByDapp = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+        uint256 totalGasFeePaid = resultingBundlerBalance - initialBundlerBalance;
         (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
             bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
         );
 
+        // Assert that adjustment collected (if any) is correct
         assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
+        // Gas paid by dapp is higher than paymaster
+        // Guarantees that EP always has sufficient deposit to pay back dapps
+        assertGt(gasPaidByDapp, totalGasFeePaid);
+        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
+        // paymaster)
+        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
     }
 
-    function testFuzz_ParsePaymasterAndData(address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment) external view {
+    function testFuzz_ParsePaymasterAndData(
+        address paymasterId,
+        uint48 validUntil,
+        uint48 validAfter,
+        uint32 dynamicAdjustment
+    )
+        external
+        view
+    {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         (bytes memory paymasterAndData, bytes memory signature) = generateAndSignPaymasterData(
             userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, paymasterId, validUntil, validAfter, dynamicAdjustment

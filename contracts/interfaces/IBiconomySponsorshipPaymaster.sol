@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 interface IBiconomySponsorshipPaymaster {
-    event PostopCostChanged(uint256 indexed oldValue, uint256 indexed newValue);
+    event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FixedDynamicAdjustmentChanged(uint32 indexed oldValue, uint32 indexed newValue);
 
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);

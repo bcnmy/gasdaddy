@@ -51,7 +51,8 @@ contract BiconomySponsorshipPaymaster is
         address _owner,
         IEntryPoint _entryPoint,
         address _verifyingSigner,
-        address _feeCollector
+        address _feeCollector,
+        uint48 _unaccountedGas
     )
         BasePaymaster(_owner, _entryPoint)
     {
@@ -59,9 +60,12 @@ contract BiconomySponsorshipPaymaster is
             revert VerifyingSignerCanNotBeZero();
         } else if (_feeCollector == address(0)) {
             revert FeeCollectorCanNotBeZero();
+        } else if (_unaccountedGas > 200_000) {
+            revert UnaccountedGasTooHigh();
         }
         verifyingSigner = _verifyingSigner;
         feeCollector = _feeCollector;
+        unaccountedGas = _unaccountedGas;
     }
 
     receive() external payable {
@@ -119,13 +123,13 @@ contract BiconomySponsorshipPaymaster is
      * @param value The new value to be set as the unaccountedEPGasOverhead.
      * @notice only to be called by the owner of the contract.
      */
-    function setPostopCost(uint48 value) external payable onlyOwner {
+    function setUnaccountedGas(uint48 value) external payable onlyOwner {
         if (value > 200_000) {
             revert UnaccountedGasTooHigh();
         }
         uint256 oldValue = unaccountedGas;
         unaccountedGas = value;
-        emit PostopCostChanged(oldValue, value);
+        emit UnaccountedGasChanged(oldValue, value);
     }
 
     /**
@@ -254,18 +258,21 @@ contract BiconomySponsorshipPaymaster is
             (address paymasterId, uint32 dynamicAdjustment, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
-            uint256 totalGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
-            uint256 adjustedGasCost = (totalGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
+            // Include unaccountedGas since EP doesn't include this in actualGasCost
+            // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
+            actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
+            // Apply the dynamic adjustment
+            uint256 adjustedGasCost = (actualGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
 
             // Deduct the adjusted cost
             paymasterIdBalances[paymasterId] -= adjustedGasCost;
 
             if (adjustedGasCost > actualGasCost) {
-                // Add dynamicAdjustment to fee
-                uint256 dynamicAdjustment = adjustedGasCost - actualGasCost;
-                paymasterIdBalances[feeCollector] += dynamicAdjustment;
+                // Apply dynamicAdjustment to fee collector balance
+                uint256 premium = adjustedGasCost - actualGasCost;
+                paymasterIdBalances[feeCollector] += premium;
                 // Review if we should emit adjustedGasCost as well
-                emit DynamicAdjustmentCollected(paymasterId, dynamicAdjustment);
+                emit DynamicAdjustmentCollected(paymasterId, premium);
             }
 
             emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
@@ -292,8 +299,8 @@ contract BiconomySponsorshipPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment, bytes calldata signature) =
-            parsePaymasterAndData(userOp.paymasterAndData);
+        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment, bytes calldata signature)
+        = parsePaymasterAndData(userOp.paymasterAndData);
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
         // not "ECDSA"
@@ -322,8 +329,6 @@ contract BiconomySponsorshipPaymaster is
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
-
-        context = abi.encode(paymasterId, dynamicAdjustment, userOpHash);
 
         context = abi.encode(paymasterId, dynamicAdjustment, userOpHash);
 

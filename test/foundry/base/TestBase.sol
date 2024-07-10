@@ -8,6 +8,8 @@ import "solady/src/utils/ECDSA.sol";
 
 import { EntryPoint } from "account-abstraction/contracts/core/EntryPoint.sol";
 import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IAccount } from "account-abstraction/contracts/interfaces/IAccount.sol";
+import { Exec } from "account-abstraction/contracts/utils/Exec.sol";
 import { IPaymaster } from "account-abstraction/contracts/interfaces/IPaymaster.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
@@ -20,7 +22,8 @@ import { Bootstrap, BootstrapConfig } from "nexus/contracts/utils/Bootstrap.sol"
 import { CheatCodes } from "nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 
-import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
+import { BiconomySponsorshipPaymaster } from
+    "../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
 
 abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
     // -----------------------------------------
@@ -59,8 +62,11 @@ abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
     BiconomyMetaFactory internal META_FACTORY;
     MockValidator internal VALIDATOR_MODULE;
     Nexus internal ACCOUNT_IMPLEMENTATION;
-
     Bootstrap internal BOOTSTRAPPER;
+
+    // Used to buffer user op gas limits
+    // GAS_LIMIT = (ESTIMATED_GAS * GAS_BUFFER_RATIO) / 100
+    uint8 private constant GAS_BUFFER_RATIO = 110;
 
     // -----------------------------------------
     // Modifiers
@@ -332,23 +338,50 @@ abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
         assertTrue(res, "Pre-funding account should succeed");
     }
 
+    function estimateUserOpGasCosts(PackedUserOperation memory userOp)
+        internal
+        prankModifier(ENTRYPOINT_ADDRESS)
+        returns (uint256 verificationGasUsed, uint256 callGasUsed, uint256 verificationGasLimit, uint256 callGasLimit)
+    {
+        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        verificationGasUsed = gasleft();
+        IAccount(userOp.sender).validateUserOp(userOp, userOpHash, 0);
+        verificationGasUsed = verificationGasUsed - gasleft();
+
+        callGasUsed = gasleft();
+        bool success = Exec.call(userOp.sender, 0, userOp.callData, 3e6);
+        callGasUsed = callGasUsed - gasleft();
+        assert(success);
+
+        verificationGasLimit = (verificationGasUsed * GAS_BUFFER_RATIO) / 100;
+        callGasLimit = (callGasUsed * GAS_BUFFER_RATIO) / 100;
+    }
+
     function estimatePaymasterGasCosts(
         BiconomySponsorshipPaymaster paymaster,
         PackedUserOperation memory userOp,
-        bytes32 userOpHash,
         uint256 requiredPreFund
     )
         internal
         prankModifier(ENTRYPOINT_ADDRESS)
-        returns (uint256 validationGasLimit, uint256 postopGasLimit)
+        returns (uint256 validationGasUsed, uint256 postopGasUsed, uint256 validationGasLimit, uint256 postopGasLimit)
     {
-        validationGasLimit = gasleft();
+        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+        // Warm up accounts to get more accurate gas estimations
         (bytes memory context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, requiredPreFund);
-        validationGasLimit = validationGasLimit - gasleft();
-
-        postopGasLimit = gasleft();
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1e12, 3e6);
-        postopGasLimit = postopGasLimit - gasleft();
+
+        // Estimate gas used
+        validationGasUsed = gasleft();
+        (context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, requiredPreFund);
+        validationGasUsed = validationGasUsed - gasleft();
+
+        postopGasUsed = gasleft();
+        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1e12, 3e6);
+        postopGasUsed = (postopGasUsed - gasleft());
+
+        validationGasLimit = (validationGasUsed * GAS_BUFFER_RATIO) / 100;
+        postopGasLimit = (postopGasUsed * GAS_BUFFER_RATIO) / 100;
     }
 
     function createUserOp(
@@ -359,24 +392,30 @@ abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
         internal
         returns (PackedUserOperation memory userOp, bytes32 userOpHash)
     {
-        // Create userOp with no paymaster gas estimates
+        // Create userOp with no gas estimates
         uint48 validUntil = uint48(block.timestamp + 1 days);
         uint48 validAfter = uint48(block.timestamp);
 
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
-        (userOp.paymasterAndData, ) = generateAndSignPaymasterData(
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
             userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, dynamicAdjustment
         );
         userOp.signature = signUserOp(sender, userOp);
 
+        (,, uint256 verificationGasLimit, uint256 callGasLimit) = estimateUserOpGasCosts(userOp);
         // Estimate paymaster gas limits
-        userOpHash = ENTRYPOINT.getUserOpHash(userOp);
-        (uint256 validationGasLimit, uint256 postopGasLimit) =
-            estimatePaymasterGasCosts(paymaster, userOp, userOpHash, 5e4);
+        (, uint256 postopGasUsed, uint256 validationGasLimit, uint256 postopGasLimit) =
+            estimatePaymasterGasCosts(paymaster, userOp, 5e4);
+
+        vm.startPrank(paymaster.owner());
+        // Set unaccounted gas to be gas used in postop + 1000 for EP overhead and penalty
+        paymaster.setUnaccountedGas(uint48(postopGasUsed + 1000));
+        vm.stopPrank();
 
         // Ammend the userop to have new gas limits and signature
-        (userOp.paymasterAndData, ) = generateAndSignPaymasterData(
+        userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(verificationGasLimit), uint128(callGasLimit)));
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
             userOp,
             PAYMASTER_SIGNER,
             paymaster,
