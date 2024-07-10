@@ -103,6 +103,14 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
         return entryPoint.balanceOf(address(this));
     }
 
+    function isContract(address _addr) internal view returns (bool) {
+        uint256 size;
+        assembly ("memory-safe") {
+            size := extcodesize(_addr)
+        }
+        return size > 0;
+    }
+
     //sanity check: make sure this EntryPoint was compiled against the same
     // IEntryPoint of this paymaster
     function _validateEntryPointInterface(IEntryPoint _entryPoint) internal virtual {

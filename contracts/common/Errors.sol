@@ -50,7 +50,7 @@ contract BiconomySponsorshipPaymasterErrors {
     /**
      * @notice Throws when invalid signature length in paymasterAndData
      */
-    error InvalidPriceMarkup();
+    error InvalidDynamicAdjustment();
 
     /**
      * @notice Throws when insufficient funds for paymasterid
@@ -68,7 +68,7 @@ contract BiconomySponsorshipPaymasterErrors {
     error CanNotWithdrawToZeroAddress();
 
     /**
-     * @notice Throws when trying postOpCost is too high
+     * @notice Throws when trying unaccountedGas is too high
      */
-    error PostOpCostTooHigh();
+    error UnaccountedGasTooHigh();
 }

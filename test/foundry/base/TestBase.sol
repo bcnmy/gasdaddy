@@ -20,9 +20,9 @@ import { Bootstrap, BootstrapConfig } from "nexus/contracts/utils/Bootstrap.sol"
 import { CheatCodes } from "nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 
-import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
+import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
 
-abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
+abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
     // -----------------------------------------
     // State Variables
     // -----------------------------------------
@@ -354,7 +354,7 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
     function createUserOp(
         Vm.Wallet memory sender,
         BiconomySponsorshipPaymaster paymaster,
-        uint32 premium
+        uint32 dynamicAdjustment
     )
         internal
         returns (PackedUserOperation memory userOp, bytes32 userOpHash)
@@ -365,8 +365,8 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
 
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
-        userOp.paymasterAndData = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, premium
+        (userOp.paymasterAndData, ) = generateAndSignPaymasterData(
+            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, dynamicAdjustment
         );
         userOp.signature = signUserOp(sender, userOp);
 
@@ -376,7 +376,7 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             estimatePaymasterGasCosts(paymaster, userOp, userOpHash, 5e4);
 
         // Ammend the userop to have new gas limits and signature
-        userOp.paymasterAndData = generateAndSignPaymasterData(
+        (userOp.paymasterAndData, ) = generateAndSignPaymasterData(
             userOp,
             PAYMASTER_SIGNER,
             paymaster,
@@ -385,7 +385,7 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             DAPP_ACCOUNT.addr,
             validUntil,
             validAfter,
-            premium
+            dynamicAdjustment
         );
         userOp.signature = signUserOp(sender, userOp);
         userOpHash = ENTRYPOINT.getUserOpHash(userOp);
@@ -396,7 +396,8 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
     /// @param userOp The user operation to be signed.
     /// @param signer The wallet that will sign the paymaster hash.
     /// @param paymaster The paymaster contract.
-    /// @return Updated `PackedUserOperation` with `paymasterAndData` field correctly set.
+    /// @return finalPmData Full Pm Data.
+    /// @return signature  Pm Signature on Data.
     function generateAndSignPaymasterData(
         PackedUserOperation memory userOp,
         Vm.Wallet memory signer,
@@ -406,11 +407,11 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
-        uint32 priceMarkup
+        uint32 dynamicAdjustment
     )
         internal
         view
-        returns (bytes memory)
+        returns (bytes memory finalPmData, bytes memory signature)
     {
         // Initial paymaster data with zero signature
         bytes memory initialPmData = abi.encodePacked(
@@ -420,7 +421,7 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
             paymasterId,
             validUntil,
             validAfter,
-            priceMarkup,
+            dynamicAdjustment,
             new bytes(65) // Zero signature
         );
 
@@ -428,25 +429,23 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         userOp.paymasterAndData = initialPmData;
 
         // Generate hash to be signed
-        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup);
+        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, dynamicAdjustment);
 
         // Sign the hash
-        bytes memory paymasterSignature = signMessage(signer, paymasterHash);
-        require(paymasterSignature.length == 65, "Invalid Paymaster Signature length");
+        signature = signMessage(signer, paymasterHash);
+        require(signature.length == 65, "Invalid Paymaster Signature length");
 
         // Final paymaster data with the actual signature
-        bytes memory finalPmData = abi.encodePacked(
+        finalPmData = abi.encodePacked(
             address(paymaster),
             paymasterValGasLimit,
             paymasterPostOpGasLimit,
             paymasterId,
             validUntil,
             validAfter,
-            priceMarkup,
-            paymasterSignature
+            dynamicAdjustment,
+            signature
         );
-
-        return finalPmData;
     }
 
     function excludeLastNBytes(bytes memory data, uint256 n) internal pure returns (bytes memory) {
@@ -458,27 +457,27 @@ abstract contract NexusTestBase is CheatCodes, BaseEventsAndErrors {
         return result;
     }
 
-    function getPremiums(
+    function getDynamicAdjustments(
         BiconomySponsorshipPaymaster paymaster,
         uint256 initialDappPaymasterBalance,
         uint256 initialFeeCollectorBalance,
-        uint32 premium
+        uint32 dynamicAdjustment
     )
         internal
         view
-        returns (uint256 expectedPremium, uint256 actualPremium)
+        returns (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment)
     {
         uint256 resultingDappPaymasterBalance = paymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 resultingFeeCollectorPaymasterBalance = paymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
 
-        if (premium >= 1e6) {
-            //premium
-            expectedPremium = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / premium);
-            actualPremium = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+        if (dynamicAdjustment >= 1e6) {
+            //dynamicAdjustment
+            expectedDynamicAdjustment = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / dynamicAdjustment);
+            actualDynamicAdjustment = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
         } else {
-            revert("Premium must be more than 1e6");
+            revert("DynamicAdjustment must be more than 1e6");
         }
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 interface IBiconomySponsorshipPaymaster {
     event PostopCostChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FixedPriceMarkupChanged(uint32 indexed oldValue, uint32 indexed newValue);
+    event FixedDynamicAdjustmentChanged(uint32 indexed oldValue, uint32 indexed newValue);
 
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
 
@@ -11,7 +11,7 @@ interface IBiconomySponsorshipPaymaster {
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
     event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
     event GasBalanceDeducted(address indexed paymasterId, uint256 indexed charge, bytes32 indexed userOpHash);
-    event PremiumCollected(address indexed paymasterId, uint256 indexed premium);
+    event DynamicAdjustmentCollected(address indexed paymasterId, uint256 indexed dynamicAdjustment);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
 }

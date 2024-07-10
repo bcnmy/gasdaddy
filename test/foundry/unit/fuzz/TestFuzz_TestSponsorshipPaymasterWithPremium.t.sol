@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
-import { NexusTestBase } from "../../base/NexusTestBase.sol";
+import { TestBase } from "../../base/TestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
-import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/SponsorshipPaymasterWithPremium.sol";
+import { BiconomySponsorshipPaymaster } from
+    "../../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
 import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
-contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
+contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
     function setUp() public {
@@ -98,27 +99,48 @@ contract TestFuzz_SponsorshipPaymasterWithPremium is NexusTestBase {
         assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
     }
 
-    function testFuzz_ValidatePaymasterAndPostOpWithPremium(uint32 premium) external {
-        vm.assume(premium <= 2e6);
-        vm.assume(premium > 1e6);
+    function testFuzz_ValidatePaymasterAndPostOpWithDynamicAdjustment(uint32 dynamicAdjustment) external {
+        vm.assume(dynamicAdjustment <= 2e6);
+        vm.assume(dynamicAdjustment > 1e6);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, premium);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, dynamicAdjustment);
         ops[0] = userOp;
 
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PremiumCollected(DAPP_ACCOUNT.addr, 0);
+        emit IBiconomySponsorshipPaymaster.DynamicAdjustmentCollected(DAPP_ACCOUNT.addr, 0);
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        (uint256 expectedPremium, uint256 actualPremium) =
-            getPremiums(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, premium);
+        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
+            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        );
 
-        assertEq(expectedPremium, actualPremium);
+        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
     }
 
+    function testFuzz_ParsePaymasterAndData(address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment) external view {
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+        (bytes memory paymasterAndData, bytes memory signature) = generateAndSignPaymasterData(
+            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, paymasterId, validUntil, validAfter, dynamicAdjustment
+        );
+
+        (
+            address parsedPaymasterId,
+            uint48 parsedValidUntil,
+            uint48 parsedValidAfter,
+            uint32 parsedDynamicAdjustment,
+            bytes memory parsedSignature
+        ) = bicoPaymaster.parsePaymasterAndData(paymasterAndData);
+
+        assertEq(paymasterId, parsedPaymasterId);
+        assertEq(validUntil, parsedValidUntil);
+        assertEq(validAfter, parsedValidAfter);
+        assertEq(dynamicAdjustment, parsedDynamicAdjustment);
+        assertEq(signature, parsedSignature);
+    }
 }

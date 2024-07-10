@@ -39,7 +39,7 @@ contract BiconomySponsorshipPaymaster is
 
     address public verifyingSigner;
     address public feeCollector;
-    uint48 public postOpCost;
+    uint48 public unaccountedGas;
     uint32 private constant PRICE_DENOMINATOR = 1e6;
 
     // note: could rename to PAYMASTER_ID_OFFSET
@@ -89,16 +89,12 @@ contract BiconomySponsorshipPaymaster is
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
     function setSigner(address _newVerifyingSigner) external payable onlyOwner {
-        uint256 size;
-        assembly {
-            size := extcodesize(_newVerifyingSigner)
-        }
-        if (size > 0) revert VerifyingSignerCanNotBeContract();
+        if (isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         }
         address oldSigner = verifyingSigner;
-        assembly {
+        assembly ("memory-safe") {
             sstore(verifyingSigner.slot, _newVerifyingSigner)
         }
         emit VerifyingSignerChanged(oldSigner, _newVerifyingSigner, msg.sender);
@@ -114,9 +110,7 @@ contract BiconomySponsorshipPaymaster is
     function setFeeCollector(address _newFeeCollector) external payable onlyOwner {
         if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
-        assembly {
-            sstore(feeCollector.slot, _newFeeCollector)
-        }
+        feeCollector = _newFeeCollector;
         emit FeeCollectorChanged(oldFeeCollector, _newFeeCollector, msg.sender);
     }
 
@@ -127,10 +121,10 @@ contract BiconomySponsorshipPaymaster is
      */
     function setPostopCost(uint48 value) external payable onlyOwner {
         if (value > 200_000) {
-            revert PostOpCostTooHigh();
+            revert UnaccountedGasTooHigh();
         }
-        uint256 oldValue = postOpCost;
-        postOpCost = value;
+        uint256 oldValue = unaccountedGas;
+        unaccountedGas = value;
         emit PostopCostChanged(oldValue, value);
     }
 
@@ -195,7 +189,7 @@ contract BiconomySponsorshipPaymaster is
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
-        uint32 priceMarkup
+        uint32 dynamicAdjustment
     )
         public
         view
@@ -218,7 +212,7 @@ contract BiconomySponsorshipPaymaster is
                 paymasterId,
                 validUntil,
                 validAfter,
-                priceMarkup
+                dynamicAdjustment
             )
         );
     }
@@ -230,7 +224,7 @@ contract BiconomySponsorshipPaymaster is
             address paymasterId,
             uint48 validUntil,
             uint48 validAfter,
-            uint32 priceMarkup,
+            uint32 dynamicAdjustment,
             bytes calldata signature
         )
     {
@@ -238,7 +232,7 @@ contract BiconomySponsorshipPaymaster is
             paymasterId = address(bytes20(paymasterAndData[VALID_PND_OFFSET:VALID_PND_OFFSET + 20]));
             validUntil = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 20:VALID_PND_OFFSET + 26]));
             validAfter = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 26:VALID_PND_OFFSET + 32]));
-            priceMarkup = uint32(bytes4(paymasterAndData[VALID_PND_OFFSET + 32:VALID_PND_OFFSET + 36]));
+            dynamicAdjustment = uint32(bytes4(paymasterAndData[VALID_PND_OFFSET + 32:VALID_PND_OFFSET + 36]));
             signature = paymasterAndData[VALID_PND_OFFSET + 36:];
         }
     }
@@ -260,18 +254,18 @@ contract BiconomySponsorshipPaymaster is
             (address paymasterId, uint32 dynamicAdjustment, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
-            uint256 totalGasCost = actualGasCost + (postOpCost * actualUserOpFeePerGas);
+            uint256 totalGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
             uint256 adjustedGasCost = (totalGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
 
             // Deduct the adjusted cost
             paymasterIdBalances[paymasterId] -= adjustedGasCost;
 
             if (adjustedGasCost > actualGasCost) {
-                // Add premium to fee
-                uint256 premium = adjustedGasCost - actualGasCost;
-                paymasterIdBalances[feeCollector] += premium;
+                // Add dynamicAdjustment to fee
+                uint256 dynamicAdjustment = adjustedGasCost - actualGasCost;
+                paymasterIdBalances[feeCollector] += dynamicAdjustment;
                 // Review if we should emit adjustedGasCost as well
-                emit PremiumCollected(paymasterId, premium);
+                emit DynamicAdjustmentCollected(paymasterId, dynamicAdjustment);
             }
 
             emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
@@ -285,7 +279,7 @@ contract BiconomySponsorshipPaymaster is
      * paymasterAndData[52:72] : paymasterId (dappDepositor)
      * paymasterAndData[72:78] : validUntil
      * paymasterAndData[78:84] : validAfter
-     * paymasterAndData[84:88] : priceMarkup
+     * paymasterAndData[84:88] : dynamicAdjustment
      * paymasterAndData[88:] : signature
      */
     function _validatePaymasterUserOp(
@@ -298,7 +292,7 @@ contract BiconomySponsorshipPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 priceMarkup, bytes calldata signature) =
+        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
@@ -308,7 +302,7 @@ contract BiconomySponsorshipPaymaster is
         }
 
         bool validSig = verifyingSigner.isValidSignatureNow(
-            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
+            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, dynamicAdjustment)),
             signature
         );
 
@@ -317,21 +311,21 @@ contract BiconomySponsorshipPaymaster is
             return ("", _packValidationData(true, validUntil, validAfter));
         }
 
-        if (priceMarkup > 2e6 || priceMarkup == 0) {
-            revert InvalidPriceMarkup();
+        if (dynamicAdjustment > 2e6 || dynamicAdjustment == 0) {
+            revert InvalidDynamicAdjustment();
         }
 
         // Send 1e6 for No markup
         // Send between 0 and 1e6 for discount
-        uint256 effectiveCost = (requiredPreFund * priceMarkup) / PRICE_DENOMINATOR;
+        uint256 effectiveCost = (requiredPreFund * dynamicAdjustment) / PRICE_DENOMINATOR;
 
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
 
-        context = abi.encode(paymasterId, priceMarkup, userOpHash);
+        context = abi.encode(paymasterId, dynamicAdjustment, userOpHash);
 
-        context = abi.encode(paymasterId, priceMarkup, userOpHash);
+        context = abi.encode(paymasterId, dynamicAdjustment, userOpHash);
 
         //no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.
