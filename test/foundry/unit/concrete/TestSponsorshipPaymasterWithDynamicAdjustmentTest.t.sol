@@ -198,29 +198,24 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = bicoPaymaster.getDeposit();
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
+        // submit userops
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        uint256 resultingBundlerBalance = BUNDLER.addr.balance;
-        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-
-        uint256 gasPaidByDapp = initialDappPaymasterBalance - resultingDappPaymasterBalance;
-        uint256 totalGasFeePaid = resultingBundlerBalance - initialBundlerBalance;
-        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
-            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        // Calculate and assert dynamic adjustments and gas payments
+        calculateAndAssertAdjustments(
+            bicoPaymaster,
+            initialDappPaymasterBalance,
+            initialFeeCollectorBalance,
+            initialBundlerBalance,
+            initialPaymasterEpBalance,
+            dynamicAdjustment
         );
-
-        // Assert that adjustment collected (if any) is correct
-        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
-        // Gas paid by dapp is higher than paymaster
-        // Guarantees that EP always has sufficient deposit to pay back dapps
-        assertGt(gasPaidByDapp, totalGasFeePaid);
-        // Ensure that max 1% difference between total gas paid and gas paid by dapp (from paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
     }
 
     function test_ValidatePaymasterAndPostOpWithDynamicAdjustment() external {
@@ -233,6 +228,7 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = bicoPaymaster.getDeposit();
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
@@ -243,23 +239,15 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        uint256 resultingBundlerBalance = BUNDLER.addr.balance;
-        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-
-        uint256 gasPaidByDapp = initialDappPaymasterBalance - resultingDappPaymasterBalance;
-        uint256 totalGasFeePaid = resultingBundlerBalance - initialBundlerBalance;
-        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
-            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        // Calculate and assert dynamic adjustments and gas payments
+        calculateAndAssertAdjustments(
+            bicoPaymaster,
+            initialDappPaymasterBalance,
+            initialFeeCollectorBalance,
+            initialBundlerBalance,
+            initialPaymasterEpBalance,
+            dynamicAdjustment
         );
-
-        // Assert that adjustment collected (if any) is correct
-        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
-        // Gas paid by dapp is higher than paymaster
-        // Guarantees that EP always has sufficient deposit to pay back dapps
-        assertGt(gasPaidByDapp, totalGasFeePaid);
-        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
-        // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
     }
 
     function test_RevertIf_ValidatePaymasterUserOpWithIncorrectSignatureLength() external {

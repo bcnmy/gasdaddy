@@ -20,8 +20,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_DepositFor(uint256 depositAmount) external {
-        vm.assume(depositAmount <= 1000 ether);
-        vm.assume(depositAmount > 0 ether);
+        vm.assume(depositAmount <= 1000 ether && depositAmount > 0 ether);
         vm.deal(DAPP_ACCOUNT.addr, depositAmount);
 
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
@@ -36,8 +35,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_WithdrawTo(uint256 withdrawAmount) external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.assume(withdrawAmount <= 1000 ether);
-        vm.assume(withdrawAmount > 0 ether);
+        vm.assume(withdrawAmount <= 1000 ether && withdrawAmount > 0 ether);
         vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
 
         bicoPaymaster.depositFor{ value: withdrawAmount }(DAPP_ACCOUNT.addr);
@@ -54,8 +52,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {
-        vm.assume(ethAmount <= 1000 ether);
-        vm.assume(ethAmount > 0 ether);
+        vm.assume(ethAmount <= 1000 ether && ethAmount > 0 ether);
         uint256 initialPaymasterBalance = address(bicoPaymaster).balance;
 
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
@@ -68,8 +65,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_WithdrawEth(uint256 ethAmount) external prankModifier(PAYMASTER_OWNER.addr) {
-        vm.assume(ethAmount <= 1000 ether);
-        vm.assume(ethAmount > 0 ether);
+        vm.assume(ethAmount <= 1000 ether && ethAmount > 0 ether);
         vm.deal(address(bicoPaymaster), ethAmount);
         uint256 initialAliceBalance = ALICE_ADDRESS.balance;
 
@@ -80,8 +76,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_WithdrawErc20(address target, uint256 amount) external prankModifier(PAYMASTER_OWNER.addr) {
-        vm.assume(target != address(0));
-        vm.assume(amount <= 1_000_000 * (10 ** 18));
+        vm.assume(target != address(0) && amount <= 1_000_000 * (10 ** 18));
         MockToken token = new MockToken("Token", "TKN");
         uint256 mintAmount = amount;
         token.mint(address(bicoPaymaster), mintAmount);
@@ -100,8 +95,7 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function testFuzz_ValidatePaymasterAndPostOpWithDynamicAdjustment(uint32 dynamicAdjustment) external {
-        vm.assume(dynamicAdjustment <= 2e6);
-        vm.assume(dynamicAdjustment > 1e6);
+        vm.assume(dynamicAdjustment <= 2e6 && dynamicAdjustment > 1e6);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
@@ -109,32 +103,26 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
-        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+        uint256 initialPaymasterEpBalance = bicoPaymaster.getDeposit();
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
+        // submit userops
         vm.expectEmit(true, false, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.DynamicAdjustmentCollected(DAPP_ACCOUNT.addr, 0);
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        uint256 resultingBundlerBalance = BUNDLER.addr.balance;
-        uint256 resultingDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-
-        uint256 gasPaidByDapp = initialDappPaymasterBalance - resultingDappPaymasterBalance;
-        uint256 totalGasFeePaid = resultingBundlerBalance - initialBundlerBalance;
-        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
-            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        // Calculate and assert dynamic adjustments and gas payments
+        calculateAndAssertAdjustments(
+            bicoPaymaster,
+            initialDappPaymasterBalance,
+            initialFeeCollectorBalance,
+            initialBundlerBalance,
+            initialPaymasterEpBalance,
+            dynamicAdjustment
         );
-
-        // Assert that adjustment collected (if any) is correct
-        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
-        // Gas paid by dapp is higher than paymaster
-        // Guarantees that EP always has sufficient deposit to pay back dapps
-        assertGt(gasPaidByDapp, totalGasFeePaid);
-        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
-        // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
     }
 
     function testFuzz_ParsePaymasterAndData(

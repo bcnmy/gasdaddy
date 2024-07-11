@@ -519,4 +519,32 @@ abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
             revert("DynamicAdjustment must be more than 1e6");
         }
     }
+
+    function calculateAndAssertAdjustments(
+        BiconomySponsorshipPaymaster bicoPaymaster,
+        uint256 initialDappPaymasterBalance,
+        uint256 initialFeeCollectorBalance,
+        uint256 initialBundlerBalance,
+        uint256 initialPaymasterEpBalance,
+        uint32 dynamicAdjustment
+    )
+        internal
+    {
+        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
+            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        );
+        uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
+        uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+
+        // Assert that what paymaster paid is the same as what the bundler received
+        assertEq(totalGasFeePaid, initialPaymasterEpBalance - bicoPaymaster.getDeposit());
+        // Assert that adjustment collected (if any) is correct
+        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
+        // Gas paid by dapp is higher than paymaster
+        // Guarantees that EP always has sufficient deposit to pay back dapps
+        assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
+        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
+        // paymaster)
+        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
+    }
 }
