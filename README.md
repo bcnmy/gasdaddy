@@ -1,6 +1,6 @@
-[![Biconomy](https://img.shields.io/badge/Made_with_%F0%9F%8D%8A_by-Biconomy-ff4e17?style=flat)](https://biconomy.io) [![License MIT](https://img.shields.io/badge/License-MIT-blue?&style=flat)](./LICENSE) [![Hardhat](https://img.shields.io/badge/Built%20with-Hardhat-FFDB1C.svg)](https://hardhat.org/) [![Foundry](https://img.shields.io/badge/Built%20with-Foundry-FFBD10.svg)](https://getfoundry.sh/)
+[![Biconomy](https://img.shields.io/badge/Made_with_%F0%9F%8D%8A_by-Biconomy-ff4e17?style=flat)](https://biconomy.io) [![License MIT](https://img.shields.io/badge/License-MIT-blue?&style=flat)](./LICENSE)  [![Foundry](https://img.shields.io/badge/Built%20with-Foundry-FFBD10.svg)](https://getfoundry.sh/)
 
-![Codecov Hardhat Coverage](https://img.shields.io/codecov/c/gh/bcnmy/sc-template?token=2BYDIFQ56W&flag=hardhat&label=Hardhat-coverage&logo=codecov) ![Codecov Foundry Coverage](https://img.shields.io/codecov/c/gh/bcnmy/sc-template?token=2BYDIFQ56W&flag=foundry&label=Foundry-coverage&logo=codecov)
+
 
 # Smart Contract Template Base 🚀
 
@@ -23,14 +23,14 @@ This repository serves as a comprehensive foundation for smart contract projects
 ## Features
 
 - **Smart Contract Template Base**: A robust foundation for future smart contract projects.
-- **Hardhat & Foundry Support**: Equipped with both Hardhat and Foundry tools and an adapted folder structure for seamless development.
+- **Foundry Support**: Equipped with Foundry tools and an adapted folder structure for seamless development.
 - **Best Practices**: Adheres to industry best practices in smart contract programming to ensure code quality and security.
 - **Continuous Integration & Deployment**: Utilizes GitHub Actions for automated testing and deployment, ensuring code reliability.
 - **Strict Linting**: Implements Solhint based on the Solidity style guide, enhancing code quality and consistency.
-- **Comprehensive Testing**: Includes a wide range of tests (unit, fuzz, fork) for both Foundry and Hardhat environments.
+- **Comprehensive Testing**: Includes a wide range of tests (unit, fuzz, fork) for both Foundry environment.
 - **Environment Configuration**: Comes with `.env.example` for easy setup of API keys and environmental variables.
 - **Code Formatting**: Uses Prettier to maintain a consistent code style across the project.
-- **Configurations for Foundry & Hardhat**: Provides essential settings and scripts for building, testing, and deployment, tailored for both development environments.
+- **Configurations for Foundry**: Provides essential settings and scripts for building, testing, and deployment, tailored for both development environments.
 
 ## Getting Started
 
@@ -63,7 +63,7 @@ Copy `.env.example` to `.env` and fill in your details.
 
 ## 🛠️ Essential Scripts
 
-Execute key operations for Foundry and Hardhat with these scripts. Append `:forge` or `:hardhat` to run them in the respective environment.
+Execute key operations for Foundry with these scripts. Append `:forge` to run them in the respective environment.
 
 ### 🏗️ Build Contracts
 
@@ -71,7 +71,7 @@ Execute key operations for Foundry and Hardhat with these scripts. Append `:forg
 yarn build
 ```
 
-Compiles contracts for both Foundry and Hardhat.
+Compiles contracts for both Foundry.
 
 ### 🧪 Run Tests
 
@@ -135,9 +135,9 @@ Automatically fixes linting problems found.
 yarn check
 ```
 
-To generate reports of the storage layout for potential upgrades safety using `hardhat-storage-layout`.
 
-🔄 Add `:forge` or `:hardhat` to any script above to target only Foundry or Hardhat environment, respectively.
+
+🔄 Add `:forge` to any script above to target only Foundry
 
 ## 🔒 Security Audits
 
