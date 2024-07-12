@@ -24,9 +24,6 @@ broadcast/*/31337/
 node_modules
 .env
 
-# Hardhat files
-/cache
-/artifacts
 /docs
 
 # TypeChain files

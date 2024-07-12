@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-- Initial setup and configurations for both Foundry and Hardhat environments.
+- Initial setup and configurations for Foundry.
 - Integration of GitHub Actions for CI/CD pipelines.
 - Addition of linter configurations for Solidity and TypeScript.
 
@@ -15,8 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 - `Foo.sol` and `Lock.sol` smart contracts under the `contracts` directory.
-- Foundry and Hardhat configurations for building and testing smart contracts.
-- Comprehensive testing scripts for Foundry and Hardhat environments in `test/foundry` and `test/hardhat`.
+- Foundry configuration for building and testing smart contracts.
+- Comprehensive testing scripts for Foundry environment in `test/foundry`.
 - GitHub Actions workflows for automated testing, linting, and security checks.
 - Documentation for getting started, usage, and contribution guidelines.
 
@@ -39,4 +39,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 - Initial commit with basic project structure.
-- Setup of development environments for Solidity smart contract development using Foundry and Hardhat.
+- Setup of development environments for Solidity smart contract development using Foundry.
