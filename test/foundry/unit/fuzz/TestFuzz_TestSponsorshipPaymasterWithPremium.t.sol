@@ -3,8 +3,7 @@ pragma solidity ^0.8.26;
 
 import { TestBase } from "../../base/TestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
-import { BiconomySponsorshipPaymaster } from
-    "../../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
+import { BiconomySponsorshipPaymaster } from "../../../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 import { MockToken } from "./../../../../lib/nexus/contracts/mocks/MockToken.sol";
 import { PackedUserOperation } from "account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 

@@ -4,20 +4,21 @@ pragma solidity ^0.8.26;
 /* solhint-disable reason-string */
 
 import "../base/BasePaymaster.sol";
-import "account-abstraction/contracts/core/UserOperationLib.sol";
-import "account-abstraction/contracts/core/Helpers.sol";
-import { SignatureCheckerLib } from "solady/src/utils/SignatureCheckerLib.sol";
-import { ECDSA as ECDSA_solady } from "solady/src/utils/ECDSA.sol";
+import "@account-abstraction/contracts/core/UserOperationLib.sol";
+import "@account-abstraction/contracts/core/Helpers.sol";
+import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
+import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import { BiconomySponsorshipPaymasterErrors } from "../common/Errors.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeTransferLib } from "solady/src/utils/SafeTransferLib.sol";
+import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
 /**
  * @title BiconomySponsorshipPaymaster
  * @author livingrockrises<chirag@biconomy.io>
- * @notice Based on Infinitism 'VerifyingPaymaster' contract
+ * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
+ * @notice Based on Infinitism's 'VerifyingPaymaster' contract
  * @dev This contract is used to sponsor the transaction fees of the user operations
  * Uses a verifying signer to provide the signature if predetermined conditions are met
  * regarding the user operation calldata. Also this paymaster is Singleton in nature which
@@ -43,7 +44,7 @@ contract BiconomySponsorshipPaymaster is
     uint32 private constant PRICE_DENOMINATOR = 1e6;
 
     // note: could rename to PAYMASTER_ID_OFFSET
-    uint256 private constant VALID_PND_OFFSET = PAYMASTER_DATA_OFFSET;
+    uint256 private constant PAYMASTER_ID_OFFSET = PAYMASTER_DATA_OFFSET;
 
     // Limit for unaccounted gas cost
     uint16 private constant UNACCOUNTED_GAS_LIMIT = 10_000;
@@ -95,7 +96,7 @@ contract BiconomySponsorshipPaymaster is
      * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
-    function setSigner(address _newVerifyingSigner) external payable onlyOwner {
+    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
         if (isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
@@ -114,7 +115,7 @@ contract BiconomySponsorshipPaymaster is
      * @notice If _newFeeCollector is set to zero address, it will revert with an error.
      * After setting the new fee collector address, it will emit an event FeeCollectorChanged.
      */
-    function setFeeCollector(address _newFeeCollector) external payable onlyOwner {
+    function setFeeCollector(address _newFeeCollector) external payable override onlyOwner {
         if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
         feeCollector = _newFeeCollector;
@@ -126,7 +127,7 @@ contract BiconomySponsorshipPaymaster is
      * @param value The new value to be set as the unaccountedEPGasOverhead.
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint48 value) external payable onlyOwner {
+    function setUnaccountedGas(uint48 value) external payable override onlyOwner {
         if (value > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
@@ -138,7 +139,7 @@ contract BiconomySponsorshipPaymaster is
     /**
      * @dev Override the default implementation.
      */
-    function deposit() external payable virtual override {
+    function deposit() external payable override virtual {
         revert UseDepositForInstead();
     }
 
@@ -148,7 +149,7 @@ contract BiconomySponsorshipPaymaster is
      * @param target address to send to
      * @param amount amount to withdraw
      */
-    function withdrawERC20(IERC20 token, address target, uint256 amount) external payable onlyOwner nonReentrant {
+    function withdrawERC20(IERC20 token, address target, uint256 amount) external onlyOwner nonReentrant {
         _withdrawERC20(token, target, amount);
     }
 
@@ -169,7 +170,7 @@ contract BiconomySponsorshipPaymaster is
         emit GasWithdrawn(msg.sender, withdrawAddress, amount);
     }
 
-    function withdrawEth(address payable recipient, uint256 amount) external onlyOwner nonReentrant {
+    function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {
         (bool success,) = recipient.call{ value: amount }("");
         if (!success) {
             revert WithdrawalFailed();
@@ -236,11 +237,11 @@ contract BiconomySponsorshipPaymaster is
         )
     {
         unchecked {
-            paymasterId = address(bytes20(paymasterAndData[VALID_PND_OFFSET:VALID_PND_OFFSET + 20]));
-            validUntil = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 20:VALID_PND_OFFSET + 26]));
-            validAfter = uint48(bytes6(paymasterAndData[VALID_PND_OFFSET + 26:VALID_PND_OFFSET + 32]));
-            dynamicAdjustment = uint32(bytes4(paymasterAndData[VALID_PND_OFFSET + 32:VALID_PND_OFFSET + 36]));
-            signature = paymasterAndData[VALID_PND_OFFSET + 36:];
+            paymasterId = address(bytes20(paymasterAndData[PAYMASTER_ID_OFFSET:PAYMASTER_ID_OFFSET + 20]));
+            validUntil = uint48(bytes6(paymasterAndData[PAYMASTER_ID_OFFSET + 20:PAYMASTER_ID_OFFSET + 26]));
+            validAfter = uint48(bytes6(paymasterAndData[PAYMASTER_ID_OFFSET + 26:PAYMASTER_ID_OFFSET + 32]));
+            dynamicAdjustment = uint32(bytes4(paymasterAndData[PAYMASTER_ID_OFFSET + 32:PAYMASTER_ID_OFFSET + 36]));
+            signature = paymasterAndData[PAYMASTER_ID_OFFSET + 36:];
         }
     }
 

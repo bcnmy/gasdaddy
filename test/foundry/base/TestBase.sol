@@ -22,8 +22,7 @@ import { Bootstrap, BootstrapConfig } from "nexus/contracts/utils/Bootstrap.sol"
 import { CheatCodes } from "nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 
-import { BiconomySponsorshipPaymaster } from
-    "../../../contracts/sponsorship/SponsorshipPaymasterWithDynamicAdjustment.sol";
+import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 
 abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
     // -----------------------------------------

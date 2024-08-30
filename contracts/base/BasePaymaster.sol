@@ -5,9 +5,9 @@ pragma solidity ^0.8.26;
 
 import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IPaymaster } from "account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "account-abstraction/contracts/core/UserOperationLib.sol";
+import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
+import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "@account-abstraction/contracts/core/UserOperationLib.sol";
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
