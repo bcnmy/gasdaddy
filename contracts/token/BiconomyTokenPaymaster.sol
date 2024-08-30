@@ -6,6 +6,8 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
@@ -14,7 +16,7 @@ import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.s
  * @title BiconomyTokenPaymaster
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
  * @author livingrockrises<chirag@biconomy.io>
- * @notice Token Paymaster for v0.7 Entry Point
+ * @notice Token Paymaster for Entry Point v0.7
  * @dev  A paymaster that allows user to pay gas fee in ERC20 tokens. The paymaster owner chooses which tokens to
  * accept. The payment manager (usually the owner) first deposits native gas into the EntryPoint. Then, for each
  * transaction, it takes the gas fee from the user's ERC20 token balance. The exchange rate between ETH and the token is
@@ -40,21 +42,109 @@ contract BiconomyTokenPaymaster is
         address _owner,
         IEntryPoint _entryPoint,
         address _verifyingSigner,
-        address _feeCollector,
         uint16 _unaccountedGas
     )
         BasePaymaster(_owner, _entryPoint)
     {
-        _checkConstructorArgs(_verifyingSigner, _feeCollector, _unaccountedGas);
+        _checkConstructorArgs(_verifyingSigner, _unaccountedGas);
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, _verifyingSigner)
         }
         verifyingSigner = _verifyingSigner;
-        feeCollector = _feeCollector;
+        feeCollector = address(this); // initialize fee collector to this contract
         unaccountedGas = _unaccountedGas;
     }
 
-        /**
+    /**
+     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
+     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
+     */
+    function deposit() public payable virtual override nonReentrant {
+        entryPoint.depositTo{ value: msg.value }(address(this));
+    }
+
+    /**
+     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
+     * specified address.
+     * @param withdrawAddress The address to which the gas tokens should be transferred.
+     * @param amount The amount of gas tokens to withdraw.
+     */
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public override onlyOwner nonReentrant {
+        if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
+        entryPoint.withdrawTo(withdrawAddress, amount);
+    }
+
+    /**
+     * @dev pull tokens out of paymaster in case they were sent to the paymaster at any point.
+     * @param token the token deposit to withdraw
+     * @param target address to send to
+     * @param amount amount to withdraw
+     */
+    function withdrawERC20(IERC20 token, address target, uint256 amount) external payable onlyOwner nonReentrant {
+        _withdrawERC20(token, target, amount);
+    }
+
+    /**
+     * @dev pull tokens out of paymaster in case they were sent to the paymaster at any point.
+     * @param token the token deposit to withdraw
+     * @param target address to send to
+     */
+    function withdrawERC20Full(IERC20 token, address target) external payable onlyOwner nonReentrant {
+        uint256 amount = token.balanceOf(address(this));
+        _withdrawERC20(token, target, amount);
+    }
+
+    /**
+     * @dev pull multiple tokens out of paymaster in case they were sent to the paymaster at any point.
+     * @param token the tokens deposit to withdraw
+     * @param target address to send to
+     * @param amount amounts to withdraw
+     */
+    function withdrawMultipleERC20(
+        IERC20[] calldata token,
+        address target,
+        uint256[] calldata amount
+    )
+        external
+        payable
+        onlyOwner
+        nonReentrant
+    {
+        if (token.length != amount.length) {
+            revert TokensAndAmountsLengthMismatch();
+        }
+        unchecked {
+            for (uint256 i; i < token.length;) {
+                _withdrawERC20(token[i], target, amount[i]);
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @dev pull multiple tokens out of paymaster in case they were sent to the paymaster at any point.
+     * @param token the tokens deposit to withdraw
+     * @param target address to send to
+     */
+    function withdrawMultipleERC20Full(
+        IERC20[] calldata token,
+        address target
+    )
+        external
+        payable
+        onlyOwner
+        nonReentrant
+    {
+        unchecked {
+            for (uint256 i; i < token.length;) {
+                uint256 amount = token[i].balanceOf(address(this));
+                _withdrawERC20(token[i], target, amount);
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @dev Set a new verifying signer address.
      * Can only be called by the owner of the contract.
      * @param _newVerifyingSigner The new address to be set as the verifying signer.
@@ -81,7 +171,6 @@ contract BiconomyTokenPaymaster is
      * After setting the new fee collector address, it will emit an event FeeCollectorChanged.
      */
     function setFeeCollector(address _newFeeCollector) external payable override onlyOwner {
-        if (_isContract(_newFeeCollector)) revert FeeCollectorCanNotBeContract();
         if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
         feeCollector = _newFeeCollector;
@@ -100,14 +189,6 @@ contract BiconomyTokenPaymaster is
         uint16 oldValue = unaccountedGas;
         unaccountedGas = value;
         emit UnaccountedGasChanged(oldValue, value);
-    }
-
-    /**
-     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
-     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
-     */
-    function deposit() public payable virtual override nonReentrant {
-        entryPoint.depositTo{ value: msg.value }(address(this));
     }
 
     /**
@@ -149,24 +230,18 @@ contract BiconomyTokenPaymaster is
         // Implementation of post-operation logic
     }
 
-    function _checkConstructorArgs(
-        address _verifyingSigner,
-        address _feeCollector,
-        uint16 _unaccountedGas
-    )
-        internal
-        view
-    {
+    function _checkConstructorArgs(address _verifyingSigner, uint16 _unaccountedGas) internal view {
         if (_verifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         } else if (_isContract(_verifyingSigner)) {
             revert VerifyingSignerCanNotBeContract();
-        } else if (_feeCollector == address(0)) {
-            revert FeeCollectorCanNotBeZero();
-        } else if (_isContract(_feeCollector)) {
-            revert FeeCollectorCanNotBeContract();
         } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
+    }
+
+    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
+        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
+        SafeTransferLib.safeTransfer(address(token), target, amount);
     }
 }

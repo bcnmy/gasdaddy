@@ -15,14 +15,20 @@ contract BiconomyTokenPaymasterErrors {
     /**
      * @notice Throws when the fee collector address provided is a deployed contract
      */
-    error FeeCollectorCanNotBeContract();
-
-    /**
-     * @notice Throws when the fee collector address provided is a deployed contract
-     */
     error VerifyingSignerCanNotBeContract();
+
     /**
      * @notice Throws when trying unaccountedGas is too high
      */
     error UnaccountedGasTooHigh();
+
+    /**
+     * @notice Throws when trying to withdraw to address(0)
+     */
+    error CanNotWithdrawToZeroAddress();
+
+    /**
+     * @notice Throws when trying to withdraw multiple tokens, but each token doesn't have a corresponding amount
+     */
+    error TokensAndAmountsLengthMismatch();
 }

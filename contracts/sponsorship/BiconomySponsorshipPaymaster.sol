@@ -10,7 +10,7 @@ import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import { BiconomySponsorshipPaymasterErrors } from "../common/BiconomySponsorshipPaymasterErrors.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
@@ -343,7 +343,14 @@ contract BiconomySponsorshipPaymaster is
         emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
 
-    function _checkConstructorArgs(address _verifyingSigner, address _feeCollector, uint16 _unaccountedGas) internal view {
+    function _checkConstructorArgs(
+        address _verifyingSigner,
+        address _feeCollector,
+        uint16 _unaccountedGas
+    )
+        internal
+        view
+    {
         if (_verifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         } else if (_isContract(_verifyingSigner)) {
