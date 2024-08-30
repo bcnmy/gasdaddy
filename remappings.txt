@@ -2,6 +2,8 @@
 @prb/test/=node_modules/@prb/test/
 @nexus/=lib/nexus/
 @forge-std/=lib/forge-std/
+@uniswap/v3-periphery/=lib/v3-periphery
+@uniswap/v3-core/=lib/v3-core
 @account-abstraction=node_modules/account-abstraction/
 @modulekit/=node_modules/modulekit/src/
 @sentinellist/=node_modules/sentinellist/

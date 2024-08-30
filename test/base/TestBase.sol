@@ -528,6 +528,7 @@ abstract contract TestBase is CheatCodes, BaseEventsAndErrors {
         uint32 dynamicAdjustment
     )
         internal
+        view
     {
         (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
             bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment

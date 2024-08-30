@@ -8,7 +8,7 @@ import "@account-abstraction/contracts/core/UserOperationLib.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
-import { BiconomySponsorshipPaymasterErrors } from "../common/Errors.sol";
+import { BiconomySponsorshipPaymasterErrors } from "../common/BiconomySponsorshipPaymasterErrors.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
