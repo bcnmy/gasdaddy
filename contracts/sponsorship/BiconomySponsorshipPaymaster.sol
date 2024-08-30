@@ -40,14 +40,13 @@ contract BiconomySponsorshipPaymaster is
 
     address public verifyingSigner;
     address public feeCollector;
-    uint48 public unaccountedGas;
+    uint16 public unaccountedGas;
     uint32 private constant PRICE_DENOMINATOR = 1e6;
 
-    // note: could rename to PAYMASTER_ID_OFFSET
+    // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant PAYMASTER_ID_OFFSET = PAYMASTER_DATA_OFFSET;
-
     // Limit for unaccounted gas cost
-    uint16 private constant UNACCOUNTED_GAS_LIMIT = 10_000;
+    uint16 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
 
     mapping(address => uint256) public paymasterIdBalances;
 
@@ -56,18 +55,14 @@ contract BiconomySponsorshipPaymaster is
         IEntryPoint _entryPoint,
         address _verifyingSigner,
         address _feeCollector,
-        uint48 _unaccountedGas
+        uint16 _unaccountedGas
     )
         BasePaymaster(_owner, _entryPoint)
     {
-        if (_verifyingSigner == address(0)) {
-            revert VerifyingSignerCanNotBeZero();
-        } else if (_feeCollector == address(0)) {
-            revert FeeCollectorCanNotBeZero();
-        } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
-            revert UnaccountedGasTooHigh();
+        _checkConstructorArgs(_verifyingSigner, _feeCollector, _unaccountedGas);
+        assembly ("memory-safe") {
+            sstore(verifyingSigner.slot, _verifyingSigner)
         }
-        verifyingSigner = _verifyingSigner;
         feeCollector = _feeCollector;
         unaccountedGas = _unaccountedGas;
     }
@@ -97,7 +92,7 @@ contract BiconomySponsorshipPaymaster is
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
     function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
-        if (isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
+        if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         }
@@ -116,6 +111,7 @@ contract BiconomySponsorshipPaymaster is
      * After setting the new fee collector address, it will emit an event FeeCollectorChanged.
      */
     function setFeeCollector(address _newFeeCollector) external payable override onlyOwner {
+        if (_isContract(_newFeeCollector)) revert FeeCollectorCanNotBeContract();
         if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
         feeCollector = _newFeeCollector;
@@ -127,11 +123,11 @@ contract BiconomySponsorshipPaymaster is
      * @param value The new value to be set as the unaccountedEPGasOverhead.
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint48 value) external payable override onlyOwner {
+    function setUnaccountedGas(uint16 value) external payable override onlyOwner {
         if (value > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        uint256 oldValue = unaccountedGas;
+        uint16 oldValue = unaccountedGas;
         unaccountedGas = value;
         emit UnaccountedGasChanged(oldValue, value);
     }
@@ -139,7 +135,7 @@ contract BiconomySponsorshipPaymaster is
     /**
      * @dev Override the default implementation.
      */
-    function deposit() external payable override virtual {
+    function deposit() external payable virtual override {
         revert UseDepositForInstead();
     }
 
@@ -345,5 +341,19 @@ contract BiconomySponsorshipPaymaster is
         if (target == address(0)) revert CanNotWithdrawToZeroAddress();
         SafeTransferLib.safeTransfer(address(token), target, amount);
         emit TokensWithdrawn(address(token), target, amount, msg.sender);
+    }
+
+    function _checkConstructorArgs(address _verifyingSigner, address _feeCollector, uint16 _unaccountedGas) internal view {
+        if (_verifyingSigner == address(0)) {
+            revert VerifyingSignerCanNotBeZero();
+        } else if (_isContract(_verifyingSigner)) {
+            revert VerifyingSignerCanNotBeContract();
+        } else if (_feeCollector == address(0)) {
+            revert FeeCollectorCanNotBeZero();
+        } else if (_isContract(_feeCollector)) {
+            revert FeeCollectorCanNotBeContract();
+        } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
+            revert UnaccountedGasTooHigh();
+        }
     }
 }

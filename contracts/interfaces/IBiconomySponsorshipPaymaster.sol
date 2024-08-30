@@ -22,7 +22,7 @@ interface IBiconomySponsorshipPaymaster{
 
     function setFeeCollector(address _newFeeCollector) external payable;
 
-    function setUnaccountedGas(uint48 value) external payable;
+    function setUnaccountedGas(uint16 value) external payable;
 
     function withdrawERC20(IERC20 token, address target, uint256 amount) external;
 
