@@ -11,6 +11,8 @@ import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
+import "@account-abstraction/contracts/core/Helpers.sol";
+
 
 /**
  * @title BiconomyTokenPaymaster
@@ -192,6 +194,78 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
+     * return the hash we're going to sign off-chain (and validate on-chain)
+     * this method is called by the off-chain service, to sign the request.
+     * it is called on-chain from the validatePaymasterUserOp, to validate the signature.
+     * note that this signature covers all fields of the UserOperation, except the "paymasterAndData",
+     * which will carry the signature itself.
+     */
+    function getHash(
+        PackedUserOperation calldata userOp,
+        PriceSource priceSource,
+        uint48 validUntil,
+        uint48 validAfter,
+        address feeToken,
+        address oracleAggregator,
+        uint256 exchangeRate,
+        uint32 priceMarkup
+    )
+        public
+        view
+        returns (bytes32)
+    {
+        //can't use userOp.hash(), since it contains also the paymasterAndData itself.
+        address sender = userOp.getSender();
+        return keccak256(
+            abi.encode(
+                sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.accountGasLimits,
+                uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                block.chainid,
+                address(this),
+                priceSource, // treated as a uint8
+                validUntil,
+                validAfter,
+                feeToken,
+                oracleAggregator,
+                exchangeRate,
+                priceMarkup
+            )
+        );
+    }
+
+    function parsePaymasterAndData(bytes calldata paymasterAndData)
+        public
+        pure
+        returns (
+            PriceSource priceSource,
+            uint48 validUntil,
+            uint48 validAfter,
+            address feeToken,
+            address oracleAggregator,
+            uint256 exchangeRate,
+            uint32 priceMarkup,
+            bytes calldata signature
+        )
+    {
+        unchecked {
+            priceSource = PriceSource(uint8(bytes1(paymasterAndData[PAYMASTER_DATA_OFFSET])));
+            validUntil = uint48(bytes6(paymasterAndData[PAYMASTER_DATA_OFFSET + 1:PAYMASTER_DATA_OFFSET + 7]));
+            validAfter = uint48(bytes6(paymasterAndData[PAYMASTER_DATA_OFFSET + 7:PAYMASTER_DATA_OFFSET + 13]));
+            feeToken = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 13:PAYMASTER_DATA_OFFSET + 33]));
+            oracleAggregator = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 33:PAYMASTER_DATA_OFFSET + 53]));
+            exchangeRate = uint256(bytes32(paymasterAndData[PAYMASTER_DATA_OFFSET + 53:PAYMASTER_DATA_OFFSET + 85]));
+            priceMarkup = uint32(bytes4(paymasterAndData[PAYMASTER_DATA_OFFSET + 85:PAYMASTER_DATA_OFFSET + 89]));
+            signature = paymasterAndData[PAYMASTER_DATA_OFFSET + 89:];
+        }
+    }
+
+    /**
      * @dev Validate a user operation.
      * This method is abstract in BasePaymaster and must be implemented in derived contracts.
      * @param userOp The user operation.
@@ -207,7 +281,34 @@ contract BiconomyTokenPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        // Implementation of user operation validation logic
+        // review: in this method try to resolve stack too deep (though via-ir is good enough)
+        (
+            PriceSource priceSource,
+            uint48 validUntil,
+            uint48 validAfter,
+            address feeToken,
+            address oracleAggregator,
+            uint256 exchangeRate,
+            uint32 priceMarkup,
+            bytes calldata signature
+        ) = parsePaymasterAndData(userOp.paymasterAndData);
+
+        if (signature.length != 64 && signature.length != 65) {
+            revert InvalidSignatureLength();
+        }
+
+        bool validSig = verifyingSigner.isValidSignatureNow(
+            ECDSA_solady.toEthSignedMessageHash(
+                getHash(
+                    userOp, priceSource, validUntil, validAfter, feeToken, oracleAggregator, exchangeRate, priceMarkup
+                )
+            ),
+            signature
+        );
+
+        if (!validSig) {
+            return ("", _packValidationData(true, validUntil, validAfter));
+        }
     }
 
     /**

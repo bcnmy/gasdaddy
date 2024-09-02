@@ -31,4 +31,9 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when trying to withdraw multiple tokens, but each token doesn't have a corresponding amount
      */
     error TokensAndAmountsLengthMismatch();
+
+    /**
+     * @notice Throws when invalid signature length in paymasterAndData
+     */
+    error InvalidSignatureLength();
 }

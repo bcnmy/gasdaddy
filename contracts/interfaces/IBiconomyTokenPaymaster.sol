@@ -2,10 +2,9 @@
 pragma solidity ^0.8.26;
 
 interface IBiconomyTokenPaymaster {
-    enum ExchangeRateSource {
-        EXTERNAL_EXCHANGE_RATE,
-        ORACLE_BASED,
-        TWAP_BASED
+    enum PriceSource {
+        EXTERNAL,
+        ORACLE
     }
 
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
