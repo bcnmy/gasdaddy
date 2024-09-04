@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
@@ -19,14 +19,14 @@ import "@account-abstraction/contracts/core/Helpers.sol";
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
  * @author livingrockrises<chirag@biconomy.io>
  * @notice Token Paymaster for Entry Point v0.7
- * @dev  A paymaster that allows user to pay gas fee in ERC20 tokens. The paymaster owner chooses which tokens to
+ * @dev  A paymaster that allows user to pay gas fees in ERC20 tokens. The paymaster owner chooses which tokens to
  * accept. The payment manager (usually the owner) first deposits native gas into the EntryPoint. Then, for each
  * transaction, it takes the gas fee from the user's ERC20 token balance. The exchange rate between ETH and the token is
  * calculated using 1 of three methods: external price source, off-chain oracle, or a TWAP oracle.
  */
 contract BiconomyTokenPaymaster is
     BasePaymaster,
-    ReentrancyGuard,
+    ReentrancyGuardTransient,
     BiconomyTokenPaymasterErrors,
     IBiconomyTokenPaymaster
 {
@@ -208,7 +208,7 @@ contract BiconomyTokenPaymaster is
         address feeToken,
         address oracleAggregator,
         uint256 exchangeRate,
-        uint32 priceMarkup
+        uint32 dynamicAdjustment
     )
         public
         view
@@ -234,7 +234,7 @@ contract BiconomyTokenPaymaster is
                 feeToken,
                 oracleAggregator,
                 exchangeRate,
-                priceMarkup
+                dynamicAdjustment
             )
         );
     }
@@ -249,7 +249,7 @@ contract BiconomyTokenPaymaster is
             address feeToken,
             address oracleAggregator,
             uint256 exchangeRate,
-            uint32 priceMarkup,
+            uint32 dynamicAdjustment,
             bytes calldata signature
         )
     {
@@ -260,7 +260,7 @@ contract BiconomyTokenPaymaster is
             feeToken = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 13:PAYMASTER_DATA_OFFSET + 33]));
             oracleAggregator = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 33:PAYMASTER_DATA_OFFSET + 53]));
             exchangeRate = uint256(bytes32(paymasterAndData[PAYMASTER_DATA_OFFSET + 53:PAYMASTER_DATA_OFFSET + 85]));
-            priceMarkup = uint32(bytes4(paymasterAndData[PAYMASTER_DATA_OFFSET + 85:PAYMASTER_DATA_OFFSET + 89]));
+            dynamicAdjustment = uint32(bytes4(paymasterAndData[PAYMASTER_DATA_OFFSET + 85:PAYMASTER_DATA_OFFSET + 89]));
             signature = paymasterAndData[PAYMASTER_DATA_OFFSET + 89:];
         }
     }
@@ -289,7 +289,7 @@ contract BiconomyTokenPaymaster is
             address feeToken,
             address oracleAggregator,
             uint256 exchangeRate,
-            uint32 priceMarkup,
+            uint32 dynamicAdjustment,
             bytes calldata signature
         ) = parsePaymasterAndData(userOp.paymasterAndData);
 
@@ -300,27 +300,29 @@ contract BiconomyTokenPaymaster is
         bool validSig = verifyingSigner.isValidSignatureNow(
             ECDSA_solady.toEthSignedMessageHash(
                 getHash(
-                    userOp, priceSource, validUntil, validAfter, feeToken, oracleAggregator, exchangeRate, priceMarkup
+                    userOp, priceSource, validUntil, validAfter, feeToken, oracleAggregator, exchangeRate, dynamicAdjustment
                 )
             ),
             signature
         );
 
+        // Return with SIG_VALIDATION_FAILED instead of reverting
         if (!validSig) {
             return ("", _packValidationData(true, validUntil, validAfter));
         }
+
+
     }
 
     /**
      * @dev Post-operation handler.
      * This method is abstract in BasePaymaster and must be implemented in derived contracts.
-     * @param mode The mode of the post operation (opSucceeded, opReverted, or postOpReverted).
      * @param context The context value returned by validatePaymasterUserOp.
      * @param actualGasCost Actual gas used so far (excluding this postOp call).
      * @param actualUserOpFeePerGas The gas price this UserOp pays.
      */
     function _postOp(
-        PostOpMode mode,
+        PostOpMode,
         bytes calldata context,
         uint256 actualGasCost,
         uint256 actualUserOpFeePerGas

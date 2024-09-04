@@ -38,16 +38,16 @@ contract TestFuzz_SponsorshipPaymasterWithDynamicAdjustment is TestBase {
         vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
 
         bicoPaymaster.depositFor{ value: withdrawAmount }(DAPP_ACCOUNT.addr);
-        uint256 danInitialBalance = DAN_ADDRESS.balance;
+        uint256 danInitialBalance = BOB_ADDRESS.balance;
 
         vm.expectEmit(true, true, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, DAN_ADDRESS, withdrawAmount);
-        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), withdrawAmount);
+        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, BOB_ADDRESS, withdrawAmount);
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), withdrawAmount);
 
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertEq(dappPaymasterBalance, 0 ether);
         uint256 expectedDanBalance = danInitialBalance + withdrawAmount;
-        assertEq(DAN_ADDRESS.balance, expectedDanBalance);
+        assertEq(BOB_ADDRESS.balance, expectedDanBalance);
     }
 
     function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {

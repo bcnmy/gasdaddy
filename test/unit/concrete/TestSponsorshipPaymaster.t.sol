@@ -71,9 +71,9 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
-        emit OwnershipTransferred(PAYMASTER_OWNER.addr, DAN_ADDRESS);
-        bicoPaymaster.transferOwnership(DAN_ADDRESS);
-        assertEq(bicoPaymaster.owner(), DAN_ADDRESS);
+        emit OwnershipTransferred(PAYMASTER_OWNER.addr, BOB_ADDRESS);
+        bicoPaymaster.transferOwnership(BOB_ADDRESS);
+        assertEq(bicoPaymaster.owner(), BOB_ADDRESS);
     }
 
     function test_RevertIf_OwnershipTransferToZeroAddress() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -83,16 +83,16 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
 
     function test_RevertIf_UnauthorizedOwnershipTransfer() external {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
-        bicoPaymaster.transferOwnership(DAN_ADDRESS);
+        bicoPaymaster.transferOwnership(BOB_ADDRESS);
     }
 
     function test_SetVerifyingSigner() external prankModifier(PAYMASTER_OWNER.addr) {
         vm.expectEmit(true, true, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.VerifyingSignerChanged(
-            PAYMASTER_SIGNER.addr, DAN_ADDRESS, PAYMASTER_OWNER.addr
+            PAYMASTER_SIGNER.addr, BOB_ADDRESS, PAYMASTER_OWNER.addr
         );
-        bicoPaymaster.setSigner(DAN_ADDRESS);
-        assertEq(bicoPaymaster.verifyingSigner(), DAN_ADDRESS);
+        bicoPaymaster.setSigner(BOB_ADDRESS);
+        assertEq(bicoPaymaster.verifyingSigner(), BOB_ADDRESS);
     }
 
     function test_RevertIf_SetVerifyingSignerToContract() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -107,16 +107,16 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
 
     function test_RevertIf_UnauthorizedSetVerifyingSigner() external {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
-        bicoPaymaster.setSigner(DAN_ADDRESS);
+        bicoPaymaster.setSigner(BOB_ADDRESS);
     }
 
     function test_SetFeeCollector() external prankModifier(PAYMASTER_OWNER.addr) {
         vm.expectEmit(true, true, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.FeeCollectorChanged(
-            PAYMASTER_FEE_COLLECTOR.addr, DAN_ADDRESS, PAYMASTER_OWNER.addr
+            PAYMASTER_FEE_COLLECTOR.addr, BOB_ADDRESS, PAYMASTER_OWNER.addr
         );
-        bicoPaymaster.setFeeCollector(DAN_ADDRESS);
-        assertEq(bicoPaymaster.feeCollector(), DAN_ADDRESS);
+        bicoPaymaster.setFeeCollector(BOB_ADDRESS);
+        assertEq(bicoPaymaster.feeCollector(), BOB_ADDRESS);
     }
 
     function test_RevertIf_SetFeeCollectorToZeroAddress() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -126,7 +126,7 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
 
     function test_RevertIf_UnauthorizedSetFeeCollector() external {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector));
-        bicoPaymaster.setFeeCollector(DAN_ADDRESS);
+        bicoPaymaster.setFeeCollector(BOB_ADDRESS);
     }
 
     function test_SetUnaccountedGas() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -178,16 +178,16 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
     function test_WithdrawTo() external prankModifier(DAPP_ACCOUNT.addr) {
         uint256 depositAmount = 10 ether;
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
-        uint256 danInitialBalance = DAN_ADDRESS.balance;
+        uint256 danInitialBalance = BOB_ADDRESS.balance;
 
         vm.expectEmit(true, true, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, DAN_ADDRESS, depositAmount);
-        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), depositAmount);
+        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, BOB_ADDRESS, depositAmount);
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), depositAmount);
 
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertEq(dappPaymasterBalance, 0 ether);
         uint256 expectedDanBalance = danInitialBalance + depositAmount;
-        assertEq(DAN_ADDRESS.balance, expectedDanBalance);
+        assertEq(BOB_ADDRESS.balance, expectedDanBalance);
     }
 
     function test_RevertIf_WithdrawToZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
@@ -197,7 +197,7 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
 
     function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
         vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
-        bicoPaymaster.withdrawTo(payable(DAN_ADDRESS), 1 ether);
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
 
     function test_ValidatePaymasterAndPostOpWithoutDynamicAdjustment() external prankModifier(DAPP_ACCOUNT.addr) {

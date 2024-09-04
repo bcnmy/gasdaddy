@@ -9,7 +9,7 @@ import "@account-abstraction/contracts/core/Helpers.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import { BiconomySponsorshipPaymasterErrors } from "../common/BiconomySponsorshipPaymasterErrors.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
@@ -31,7 +31,7 @@ import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshi
 
 contract BiconomySponsorshipPaymaster is
     BasePaymaster,
-    ReentrancyGuard,
+    ReentrancyGuardTransient,
     BiconomySponsorshipPaymasterErrors,
     IBiconomySponsorshipPaymaster
 {
