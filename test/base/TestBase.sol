@@ -5,14 +5,12 @@ import { Test } from "forge-std/src/Test.sol";
 import { Vm } from "forge-std/src/Vm.sol";
 
 import "@solady/src/utils/ECDSA.sol";
-import { TestHelper } from "@nexus/test/foundry/utils/TestHelper.t.sol";
+import { TestHelper, IEntryPoint, EntryPoint } from "@nexus/test/foundry/utils/TestHelper.t.sol";
 
-import { EntryPoint } from "@account-abstraction/contracts/core/EntryPoint.sol";
-import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { IAccount } from "@account-abstraction/contracts/interfaces/IAccount.sol";
 import { Exec } from "@account-abstraction/contracts/utils/Exec.sol";
 import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { PackedUserOperation } from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import { PackedUserOperation } from "@nexus/contracts/Nexus.sol";
 
 import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";

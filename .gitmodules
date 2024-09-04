@@ -1,6 +1,6 @@
 [submodule "lib/nexus"]
 	path = lib/nexus
-	url = https://github.com/lib/nexus
+	url = https://github.com/bcnmy/nexus
 	branch = dev
 [submodule "lib/forge-std"]
 	path = lib/forge-std

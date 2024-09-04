@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { TestBase } from "../../base/TestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
-import { PackedUserOperation } from "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { PackedUserOperation } from "@nexus/contracts/Nexus.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 
 contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
