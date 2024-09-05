@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.26;
 
-import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
@@ -12,7 +10,6 @@ import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
-
 
 /**
  * @title BiconomyTokenPaymaster
@@ -31,30 +28,34 @@ contract BiconomyTokenPaymaster is
     IBiconomyTokenPaymaster
 {
     using UserOperationLib for PackedUserOperation;
-    using SignatureCheckerLib for address;
 
-    address public verifyingSigner;
     address public feeCollector;
-    uint16 public unaccountedGas;
+    uint256 public unaccountedGas;
+    uint256 public dynamicAdjustment;
 
     // Limit for unaccounted gas cost
-    uint16 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
+    uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
+    uint256 private constant PRICE_DENOMINATOR = 1e6;
+    uint256 private constant MAX_DYNAMIC_ADJUSTMENT = 2e6;
 
     constructor(
         address _owner,
         IEntryPoint _entryPoint,
-        address _verifyingSigner,
-        uint16 _unaccountedGas
+        uint256 _unaccountedGas,
+        uint256 _dynamicAdjustment
     )
         BasePaymaster(_owner, _entryPoint)
     {
-        _checkConstructorArgs(_verifyingSigner, _unaccountedGas);
-        assembly ("memory-safe") {
-            sstore(verifyingSigner.slot, _verifyingSigner)
+        if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
+            revert UnaccountedGasTooHigh();
+        } else if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment == 0) {
+            revert InvalidDynamicAdjustment();
         }
-        verifyingSigner = _verifyingSigner;
-        feeCollector = address(this); // initialize fee collector to this contract
-        unaccountedGas = _unaccountedGas;
+        assembly ("memory-safe") {
+            sstore(feeCollector.slot, address()) // initialize fee collector to this contract
+            sstore(unaccountedGas.slot, _unaccountedGas)
+            sstore(dynamicAdjustment.slot, _dynamicAdjustment)
+        }
     }
 
     /**
@@ -147,25 +148,6 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Set a new verifying signer address.
-     * Can only be called by the owner of the contract.
-     * @param _newVerifyingSigner The new address to be set as the verifying signer.
-     * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
-     * After setting the new signer address, it will emit an event VerifyingSignerChanged.
-     */
-    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
-        if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
-        if (_newVerifyingSigner == address(0)) {
-            revert VerifyingSignerCanNotBeZero();
-        }
-        address oldSigner = verifyingSigner;
-        assembly ("memory-safe") {
-            sstore(verifyingSigner.slot, _newVerifyingSigner)
-        }
-        emit VerifyingSignerChanged(oldSigner, _newVerifyingSigner, msg.sender);
-    }
-
-    /**
      * @dev Set a new fee collector address.
      * Can only be called by the owner of the contract.
      * @param _newFeeCollector The new address to be set as the fee collector.
@@ -175,94 +157,42 @@ contract BiconomyTokenPaymaster is
     function setFeeCollector(address _newFeeCollector) external payable override onlyOwner {
         if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
         address oldFeeCollector = feeCollector;
-        feeCollector = _newFeeCollector;
+        assembly ("memory-safe") {
+            sstore(feeCollector.slot, _newFeeCollector)
+        }
         emit FeeCollectorChanged(oldFeeCollector, _newFeeCollector, msg.sender);
     }
 
     /**
      * @dev Set a new unaccountedEPGasOverhead value.
-     * @param value The new value to be set as the unaccountedEPGasOverhead.
+     * @param _newUnaccountedGas The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint16 value) external payable override onlyOwner {
-        if (value > UNACCOUNTED_GAS_LIMIT) {
+    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable override onlyOwner {
+        if (_newUnaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        uint16 oldValue = unaccountedGas;
-        unaccountedGas = value;
-        emit UnaccountedGasChanged(oldValue, value);
+        uint256 oldUnaccountedGas = unaccountedGas;
+        assembly ("memory-safe") {
+            sstore(unaccountedGas.slot, _newUnaccountedGas)
+        }
+        emit UnaccountedGasChanged(oldUnaccountedGas, _newUnaccountedGas);
     }
 
     /**
-     * return the hash we're going to sign off-chain (and validate on-chain)
-     * this method is called by the off-chain service, to sign the request.
-     * it is called on-chain from the validatePaymasterUserOp, to validate the signature.
-     * note that this signature covers all fields of the UserOperation, except the "paymasterAndData",
-     * which will carry the signature itself.
+     * @dev Set a new unaccountedEPGasOverhead value.
+     * @param _newDynamicAdjustment The new value to be set as the unaccounted gas value
+     * @notice only to be called by the owner of the contract.
      */
-    function getHash(
-        PackedUserOperation calldata userOp,
-        PriceSource priceSource,
-        uint48 validUntil,
-        uint48 validAfter,
-        address feeToken,
-        address oracleAggregator,
-        uint256 exchangeRate,
-        uint32 dynamicAdjustment
-    )
-        public
-        view
-        returns (bytes32)
-    {
-        //can't use userOp.hash(), since it contains also the paymasterAndData itself.
-        address sender = userOp.getSender();
-        return keccak256(
-            abi.encode(
-                sender,
-                userOp.nonce,
-                keccak256(userOp.initCode),
-                keccak256(userOp.callData),
-                userOp.accountGasLimits,
-                uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
-                userOp.preVerificationGas,
-                userOp.gasFees,
-                block.chainid,
-                address(this),
-                priceSource, // treated as a uint8
-                validUntil,
-                validAfter,
-                feeToken,
-                oracleAggregator,
-                exchangeRate,
-                dynamicAdjustment
-            )
-        );
-    }
-
-    function parsePaymasterAndData(bytes calldata paymasterAndData)
-        public
-        pure
-        returns (
-            PriceSource priceSource,
-            uint48 validUntil,
-            uint48 validAfter,
-            address feeToken,
-            address oracleAggregator,
-            uint256 exchangeRate,
-            uint32 dynamicAdjustment,
-            bytes calldata signature
-        )
-    {
-        unchecked {
-            priceSource = PriceSource(uint8(bytes1(paymasterAndData[PAYMASTER_DATA_OFFSET])));
-            validUntil = uint48(bytes6(paymasterAndData[PAYMASTER_DATA_OFFSET + 1:PAYMASTER_DATA_OFFSET + 7]));
-            validAfter = uint48(bytes6(paymasterAndData[PAYMASTER_DATA_OFFSET + 7:PAYMASTER_DATA_OFFSET + 13]));
-            feeToken = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 13:PAYMASTER_DATA_OFFSET + 33]));
-            oracleAggregator = address(bytes20(paymasterAndData[PAYMASTER_DATA_OFFSET + 33:PAYMASTER_DATA_OFFSET + 53]));
-            exchangeRate = uint256(bytes32(paymasterAndData[PAYMASTER_DATA_OFFSET + 53:PAYMASTER_DATA_OFFSET + 85]));
-            dynamicAdjustment = uint32(bytes4(paymasterAndData[PAYMASTER_DATA_OFFSET + 85:PAYMASTER_DATA_OFFSET + 89]));
-            signature = paymasterAndData[PAYMASTER_DATA_OFFSET + 89:];
+    function setDynamicAdjustment(uint256 _newDynamicAdjustment) external payable override onlyOwner {
+        if (_newDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _newDynamicAdjustment == 0) {
+            revert InvalidDynamicAdjustment();
         }
+        uint256 oldDynamicAdjustment = dynamicAdjustment;
+        assembly ("memory-safe") {
+            sstore(dynamicAdjustment.slot, _newDynamicAdjustment)
+        }
+        emit FixedDynamicAdjustmentChanged(oldDynamicAdjustment, _newDynamicAdjustment);
     }
 
     /**
@@ -281,37 +211,8 @@ contract BiconomyTokenPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        // review: in this method try to resolve stack too deep (though via-ir is good enough)
-        (
-            PriceSource priceSource,
-            uint48 validUntil,
-            uint48 validAfter,
-            address feeToken,
-            address oracleAggregator,
-            uint256 exchangeRate,
-            uint32 dynamicAdjustment,
-            bytes calldata signature
-        ) = parsePaymasterAndData(userOp.paymasterAndData);
-
-        if (signature.length != 64 && signature.length != 65) {
-            revert InvalidSignatureLength();
-        }
-
-        bool validSig = verifyingSigner.isValidSignatureNow(
-            ECDSA_solady.toEthSignedMessageHash(
-                getHash(
-                    userOp, priceSource, validUntil, validAfter, feeToken, oracleAggregator, exchangeRate, dynamicAdjustment
-                )
-            ),
-            signature
-        );
-
-        // Return with SIG_VALIDATION_FAILED instead of reverting
-        if (!validSig) {
-            return ("", _packValidationData(true, validUntil, validAfter));
-        }
-
-
+        (maxCost);
+        // Implementation of post-operation logic
     }
 
     /**
@@ -330,17 +231,8 @@ contract BiconomyTokenPaymaster is
         internal
         override
     {
+        (context);
         // Implementation of post-operation logic
-    }
-
-    function _checkConstructorArgs(address _verifyingSigner, uint16 _unaccountedGas) internal view {
-        if (_verifyingSigner == address(0)) {
-            revert VerifyingSignerCanNotBeZero();
-        } else if (_isContract(_verifyingSigner)) {
-            revert VerifyingSignerCanNotBeContract();
-        } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
-            revert UnaccountedGasTooHigh();
-        }
     }
 
     function _withdrawERC20(IERC20 token, address target, uint256 amount) private {

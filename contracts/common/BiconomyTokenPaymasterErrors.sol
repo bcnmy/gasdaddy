@@ -13,11 +13,6 @@ contract BiconomyTokenPaymasterErrors {
     error FeeCollectorCanNotBeZero();
 
     /**
-     * @notice Throws when the fee collector address provided is a deployed contract
-     */
-    error VerifyingSignerCanNotBeContract();
-
-    /**
      * @notice Throws when trying unaccountedGas is too high
      */
     error UnaccountedGasTooHigh();
@@ -35,5 +30,5 @@ contract BiconomyTokenPaymasterErrors {
     /**
      * @notice Throws when invalid signature length in paymasterAndData
      */
-    error InvalidSignatureLength();
+    error InvalidDynamicAdjustment();
 }

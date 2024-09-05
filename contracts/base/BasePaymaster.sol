@@ -162,15 +162,4 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     function _requireFromEntryPoint() internal virtual {
         require(msg.sender == address(entryPoint), "Sender not EntryPoint");
     }
-
-    /**
-     * Check if address is a contract
-     */
-    function _isContract(address _addr) internal view returns (bool) {
-        uint256 size;
-        assembly ("memory-safe") {
-            size := extcodesize(_addr)
-        }
-        return size > 0;
-    }
 }
