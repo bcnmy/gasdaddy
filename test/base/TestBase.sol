@@ -5,12 +5,11 @@ import { Test } from "forge-std/src/Test.sol";
 import { Vm } from "forge-std/src/Vm.sol";
 
 import "@solady/src/utils/ECDSA.sol";
-import { TestHelper, IEntryPoint, EntryPoint } from "@nexus/test/foundry/utils/TestHelper.t.sol";
+import "./TestHelper.sol";
 
 import { IAccount } from "@account-abstraction/contracts/interfaces/IAccount.sol";
 import { Exec } from "@account-abstraction/contracts/utils/Exec.sol";
 import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { PackedUserOperation } from "@nexus/contracts/Nexus.sol";
 
 import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
@@ -43,18 +42,12 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     // Setup Functions
     // -----------------------------------------
     /// @notice Initializes the testing environment with wallets, contracts, and accounts
-    function setupTestEnvironment() internal virtual {
+    function setupPaymasterTestEnvironment() internal virtual {
         /// Initializes the testing environment
         setupPredefinedWallets();
         setupPaymasterPredefinedWallets();
         deployTestContracts();
         deployNexusForPredefinedWallets();
-    }
-
-    function createAndFundWallet(string memory name, uint256 amount) internal returns (Vm.Wallet memory) {
-        Vm.Wallet memory wallet = newWallet(name);
-        vm.deal(wallet.addr, amount);
-        return wallet;
     }
 
     function setupPaymasterPredefinedWallets() internal {

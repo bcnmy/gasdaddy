@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
-import { TestBase } from "../../base/TestBase.sol";
+import "../../base/TestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
-import { PackedUserOperation } from "@nexus/contracts/Nexus.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 
 contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
     function setUp() public {
-        setupTestEnvironment();
+        setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
             PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
