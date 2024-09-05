@@ -129,14 +129,14 @@ contract TestSponsorshipPaymasterWithDynamicAdjustment is TestBase {
     }
 
     function test_SetUnaccountedGas() external prankModifier(PAYMASTER_OWNER.addr) {
-        uint16 initialUnaccountedGas = bicoPaymaster.unaccountedGas();
-        uint16 newUnaccountedGas = 5000;
+        uint256 initialUnaccountedGas = bicoPaymaster.unaccountedGas();
+        uint256 newUnaccountedGas = 5000;
 
         vm.expectEmit(true, true, false, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.UnaccountedGasChanged(initialUnaccountedGas, newUnaccountedGas);
         bicoPaymaster.setUnaccountedGas(newUnaccountedGas);
 
-        uint48 resultingUnaccountedGas = bicoPaymaster.unaccountedGas();
+        uint256 resultingUnaccountedGas = bicoPaymaster.unaccountedGas();
         assertEq(resultingUnaccountedGas, newUnaccountedGas);
     }
 

@@ -4,11 +4,12 @@ pragma solidity ^0.8.26;
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20, ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
+import { IOracle } from "../interfaces/oracles/IOracle.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 
 /**
@@ -29,9 +30,17 @@ contract BiconomyTokenPaymaster is
 {
     using UserOperationLib for PackedUserOperation;
 
+    struct TokenInfo {
+        IOracle oracle;
+        uint8 decimals;
+    }
+
+    // State variables
     address public feeCollector;
     uint256 public unaccountedGas;
     uint256 public dynamicAdjustment;
+    IOracle public nativeOracle; // ETH -> USD price
+    mapping(address => TokenInfo) tokenDirectory;
 
     // Limit for unaccounted gas cost
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
@@ -42,7 +51,10 @@ contract BiconomyTokenPaymaster is
         address _owner,
         IEntryPoint _entryPoint,
         uint256 _unaccountedGas,
-        uint256 _dynamicAdjustment
+        uint256 _dynamicAdjustment,
+        IOracle _nativeOracle,
+        address[] memory _tokens, // Array of token addresses
+        IOracle[] memory _oracles // Array of corresponding oracle addresses
     )
         BasePaymaster(_owner, _entryPoint)
     {
@@ -50,11 +62,19 @@ contract BiconomyTokenPaymaster is
             revert UnaccountedGasTooHigh();
         } else if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment == 0) {
             revert InvalidDynamicAdjustment();
+        } else if (_tokens.length != _oracles.length) {
+            revert TokensAndOraclesLengthMismatch();
         }
         assembly ("memory-safe") {
             sstore(feeCollector.slot, address()) // initialize fee collector to this contract
             sstore(unaccountedGas.slot, _unaccountedGas)
             sstore(dynamicAdjustment.slot, _dynamicAdjustment)
+            sstore(nativeOracle.slot, _nativeOracle)
+        }
+
+        // Populate the tokenToOracle mapping
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], ERC20(_tokens[i]).decimals());
         }
     }
 
@@ -211,8 +231,7 @@ contract BiconomyTokenPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (maxCost);
-        // Implementation of post-operation logic
+        
     }
 
     /**
@@ -238,5 +257,31 @@ contract BiconomyTokenPaymaster is
     function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
         if (target == address(0)) revert CanNotWithdrawToZeroAddress();
         SafeTransferLib.safeTransfer(address(token), target, amount);
+    }
+
+    /// @notice Fetches the latest token price.
+
+    /// @return price The latest token price fetched from the oracles.
+    function getPrice(address tokenAddress) internal view returns (uint192) {
+        TokenInfo memory tokenInfo = tokenDirectory[tokenAddress];
+        uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
+        uint192 nativeAssetPrice = _fetchPrice(nativeOracle);
+        uint192 price = nativeAssetPrice * uint192(tokenInfo.decimals) / tokenPrice;
+        return price;
+    }
+
+    /// @notice Fetches the latest price from the given oracle.
+    /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetOracle.
+    /// @param _oracle The oracle contract to fetch the price from.
+    /// @return price The latest price fetched from the oracle.
+    function _fetchPrice(IOracle _oracle) internal view returns (uint192 price) {
+        (, int256 answer,, uint256 updatedAt,) = _oracle.latestRoundData();
+        if (answer <= 0) {
+            revert OraclePriceNotPositive();
+        }
+        // if (updatedAt < block.timestamp - stalenessThreshold) {
+        //     revert OraclePriceStale();
+        // }
+        price = uint192(int192(answer));
     }
 }

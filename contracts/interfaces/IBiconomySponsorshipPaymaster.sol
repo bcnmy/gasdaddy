@@ -6,7 +6,7 @@ import { PackedUserOperation } from "@account-abstraction/contracts/core/UserOpe
 
 interface IBiconomySponsorshipPaymaster{
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FixedDynamicAdjustmentChanged(uint32 indexed oldValue, uint32 indexed newValue);
+    event FixedDynamicAdjustmentChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
@@ -22,7 +22,7 @@ interface IBiconomySponsorshipPaymaster{
 
     function setFeeCollector(address _newFeeCollector) external payable;
 
-    function setUnaccountedGas(uint16 value) external payable;
+    function setUnaccountedGas(uint256 value) external payable;
 
     function withdrawERC20(IERC20 token, address target, uint256 amount) external;
 

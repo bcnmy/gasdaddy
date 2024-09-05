@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 interface IBiconomyTokenPaymaster {
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FixedDynamicAdjustmentChanged(uint32 indexed oldValue, uint32 indexed newValue);
+    event FixedDynamicAdjustmentChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
     event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);

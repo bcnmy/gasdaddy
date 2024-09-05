@@ -40,13 +40,14 @@ contract BiconomySponsorshipPaymaster is
 
     address public verifyingSigner;
     address public feeCollector;
-    uint16 public unaccountedGas;
-    uint32 private constant PRICE_DENOMINATOR = 1e6;
+    uint256 public unaccountedGas;
 
+    // Denominator to prevent precision errors when applying dynamic adjustment
+    uint256 private constant PRICE_DENOMINATOR = 1e6;
     // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant PAYMASTER_ID_OFFSET = PAYMASTER_DATA_OFFSET;
     // Limit for unaccounted gas cost
-    uint16 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
+    uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
 
     mapping(address => uint256) public paymasterIdBalances;
 
@@ -55,7 +56,7 @@ contract BiconomySponsorshipPaymaster is
         IEntryPoint _entryPoint,
         address _verifyingSigner,
         address _feeCollector,
-        uint16 _unaccountedGas
+        uint256 _unaccountedGas
     )
         BasePaymaster(_owner, _entryPoint)
     {
@@ -123,11 +124,11 @@ contract BiconomySponsorshipPaymaster is
      * @param value The new value to be set as the unaccountedEPGasOverhead.
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint16 value) external payable override onlyOwner {
+    function setUnaccountedGas(uint256 value) external payable override onlyOwner {
         if (value > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        uint16 oldValue = unaccountedGas;
+        uint256 oldValue = unaccountedGas;
         unaccountedGas = value;
         emit UnaccountedGasChanged(oldValue, value);
     }
@@ -346,7 +347,7 @@ contract BiconomySponsorshipPaymaster is
     function _checkConstructorArgs(
         address _verifyingSigner,
         address _feeCollector,
-        uint16 _unaccountedGas
+        uint256 _unaccountedGas
     )
         internal
         view
