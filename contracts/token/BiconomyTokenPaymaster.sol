@@ -17,10 +17,12 @@ import "@account-abstraction/contracts/core/Helpers.sol";
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
  * @author livingrockrises<chirag@biconomy.io>
  * @notice Token Paymaster for Entry Point v0.7
- * @dev  A paymaster that allows user to pay gas fees in ERC20 tokens. The paymaster owner chooses which tokens to
- * accept. The payment manager (usually the owner) first deposits native gas into the EntryPoint. Then, for each
- * transaction, it takes the gas fee from the user's ERC20 token balance. The exchange rate between ETH and the token is
- * calculated using 1 of three methods: external price source, off-chain oracle, or a TWAP oracle.
+ * @dev  A paymaster that allows user to pay gas fees in ERC20 tokens. The paymaster uses the precharge and refund model
+ * to handle gas remittances. For fair and "always available" operation, it relies on price oracles which
+ * implement the IOracle interface to calculate the gas cost of the transaction in a supported token. The owner has full
+ * discretion over the supported tokens, premium and discounts applied (if any), and how to manage the assets
+ * received by the paymaster. The properties described above, make the paymaster self-relaint: independent of any
+ * offchain service for use.
  */
 contract BiconomyTokenPaymaster is
     BasePaymaster,
@@ -34,13 +36,14 @@ contract BiconomyTokenPaymaster is
     address public feeCollector;
     uint256 public unaccountedGas;
     uint256 public dynamicAdjustment;
+    uint256 public priceExpiryDuration;
     IOracle public nativeOracle; // ETH -> USD price
     mapping(address => TokenInfo) tokenDirectory;
 
     // Limit for unaccounted gas cost
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
     uint256 private constant PRICE_DENOMINATOR = 1e6;
-    uint256 private constant MAX_DYNAMIC_ADJUSTMENT = 2e6;
+    uint256 private constant MAX_DYNAMIC_ADJUSTMENT = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
     constructor(
         address _owner,
@@ -48,6 +51,7 @@ contract BiconomyTokenPaymaster is
         uint256 _unaccountedGas,
         uint256 _dynamicAdjustment,
         IOracle _nativeOracle,
+        uint256 _priceExpiryDuration,
         address[] memory _tokens, // Array of token addresses
         uint8[] memory _decimals, // Array of corresponding token decimals
         IOracle[] memory _oracles // Array of corresponding oracle addresses
@@ -176,7 +180,7 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(feeCollector.slot, _newFeeCollector)
         }
-        emit FeeCollectorChanged(oldFeeCollector, _newFeeCollector, msg.sender);
+        emit UpdatedFeeCollector(oldFeeCollector, _newFeeCollector, msg.sender);
     }
 
     /**
@@ -192,12 +196,12 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(unaccountedGas.slot, _newUnaccountedGas)
         }
-        emit UnaccountedGasChanged(oldUnaccountedGas, _newUnaccountedGas);
+        emit UpdatedUnaccountedGas(oldUnaccountedGas, _newUnaccountedGas);
     }
 
     /**
      * @dev Set a new dynamicAdjustment value.
-     * @param _newDynamicAdjustment The new value to be set as the unaccounted gas value
+     * @param _newDynamicAdjustment The new value to be set as the dynamic adjustment
      * @notice only to be called by the owner of the contract.
      */
     function setDynamicAdjustment(uint256 _newDynamicAdjustment) external payable override onlyOwner {
@@ -208,7 +212,20 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(dynamicAdjustment.slot, _newDynamicAdjustment)
         }
-        emit FixedDynamicAdjustmentChanged(oldDynamicAdjustment, _newDynamicAdjustment);
+        emit UpdatedFixedDynamicAdjustment(oldDynamicAdjustment, _newDynamicAdjustment);
+    }
+
+    /**
+     * @dev Set a new dynamicAdjustment value.
+     * @param _newPriceExpiryDuration The new value to be set as the unaccounted gas value
+     * @notice only to be called by the owner of the contract.
+     */
+    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable override onlyOwner {
+        uint256 oldPriceExpiryDuration = priceExpiryDuration;
+        assembly ("memory-safe") {
+            sstore(priceExpiryDuration.slot, _newPriceExpiryDuration)
+        }
+        emit UpdatedPriceExpiryDuration(oldPriceExpiryDuration, _newPriceExpiryDuration);
     }
 
     /**
@@ -229,6 +246,7 @@ contract BiconomyTokenPaymaster is
         onlyOwner
     {
         tokenDirectory[_tokenAddress] = TokenInfo(_oracle, _decimals);
+        emit UpdatedTokenDirectory(_tokenAddress, _oracle, _decimals);
     }
 
     /**
@@ -293,9 +311,9 @@ contract BiconomyTokenPaymaster is
         if (answer <= 0) {
             revert OraclePriceNotPositive();
         }
-        // if (updatedAt < block.timestamp - stalenessThreshold) {
-        //     revert OraclePriceStale();
-        // }
+        if (updatedAt < block.timestamp - priceExpiryDuration) {
+            revert OraclePriceExpired();
+        }
         price = uint192(int192(answer));
     }
 }

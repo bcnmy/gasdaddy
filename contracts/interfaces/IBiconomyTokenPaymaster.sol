@@ -10,9 +10,10 @@ interface IBiconomyTokenPaymaster {
         uint8 decimals;
     }
 
-    event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FixedDynamicAdjustmentChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
+    event UpdatedUnaccountedGas(uint256 indexed oldValue, uint256 indexed newValue);
+    event UpdatedFixedDynamicAdjustment(uint256 indexed oldValue, uint256 indexed newValue);
+    event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
+    event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
     event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
     event GasBalanceDeducted(address indexed paymasterId, uint256 indexed charge, bytes32 indexed userOpHash);
@@ -26,6 +27,8 @@ interface IBiconomyTokenPaymaster {
     function setUnaccountedGas(uint256 value) external payable;
 
     function setDynamicAdjustment(uint256 _newUnaccountedGas) external payable;
+
+    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable;
 
     function setTokenInfo(address _tokenAddress, IOracle _oracle, uint8 _decimals) external payable;
 }

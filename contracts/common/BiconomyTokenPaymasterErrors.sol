@@ -41,4 +41,9 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when oracle returns invalid price
      */
     error OraclePriceNotPositive();
+
+    /**
+     * @notice Throws when oracle price hasn't been updated for a duration of time the owner is comfortable with
+     */
+    error OraclePriceExpired();
 }
