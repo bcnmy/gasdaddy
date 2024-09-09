@@ -22,10 +22,10 @@ interface IBiconomyTokenPaymaster {
     event UpdatedVerifyingSigner(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
-    event GasDeposited(address indexed paymasterId, uint256 indexed value);
-    event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
-    event GasBalanceDeducted(address indexed paymasterId, uint256 indexed charge, bytes32 indexed userOpHash);
-    event DynamicAdjustmentCollected(address indexed paymasterId, uint256 indexed dynamicAdjustment);
+    event TokensRefunded(address indexed userOpSender, uint256 refundAmount, bytes32 indexed userOpHash);
+    event PaidGasInTokens(
+        address indexed userOpSender, uint256 charge, uint256 dynamicAdjustment, bytes32 indexed userOpHash
+    );
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
     event UpdatedTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);

@@ -20,14 +20,18 @@ import "@account-abstraction/contracts/core/Helpers.sol";
  * @title BiconomyTokenPaymaster
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
  * @author livingrockrises<chirag@biconomy.io>
- * @notice Token Paymaster for Entry Point v0.7
+ * @notice Biconomy's Token Paymaster for Entry Point v0.7
  * @dev  A paymaster that allows user to pay gas fees in ERC20 tokens. The paymaster uses the precharge and refund model
- * to handle gas remittances. For fair and "always available" operation, it supports a mode that relies purely on price
- * oracles (Offchain and TWAP) which
- * implement the IOracle interface to calculate the token cost of a transaction. The owner has full
- * discretion over the supported tokens, premium and discounts applied (if any), and how to manage the assets
- * received by the paymaster. The properties described above, make the paymaster self-relaint: independent of any
- * offchain service for use.
+ * to handle gas remittances.
+ *
+ * Currently, the paymaster supports two modes:
+ * 1. EXTERNAL - Relies on a quoted token price from a trusted entity (verifyingSigner).
+ * 2. INDEPENDENT - Relies purely on price oracles (Offchain and TWAP) which implement the IOracle interface. This mode
+ * doesn't require a signature and is always "available" to use.
+ *
+ * The paymaster's owner has full discretion over the supported tokens (for independent mode), price adjustments
+ * applied, and how
+ * to manage the assets received by the paymaster.
  */
 contract BiconomyTokenPaymaster is
     BasePaymaster,
@@ -419,7 +423,9 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(tokenAddress, tokenAmount, tokenPrice, userOp.sender, userOpHash);
+            context = abi.encode(
+                userOp.sender, tokenAddress, tokenAmount, tokenPrice, uint256(externalDynamicAdjustment), userOpHash
+            );
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -442,7 +448,7 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encodePacked(tokenAddress, tokenAmount, tokenPrice, userOp.sender, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, dynamicAdjustment, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -463,8 +469,30 @@ contract BiconomyTokenPaymaster is
         internal
         override
     {
-        (context);
-        // Implementation of post-operation logic
+        // Decode context data
+        (
+            address userOpSender,
+            address tokenAddress,
+            uint256 prechargedAmount,
+            uint192 tokenPrice,
+            uint256 appliedDynamicAdjustment,
+            bytes32 userOpHash
+        ) = abi.decode(context, (address, address, uint256, uint192, uint256, bytes32));
+
+        // Calculate the actual cost in tokens based on the actual gas cost and the token price
+        uint256 actualTokenAmount = (
+            (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedDynamicAdjustment * tokenPrice
+        ) / (1e18 * PRICE_DENOMINATOR);
+
+        // If the user was overcharged, refund the excess tokens
+        if (prechargedAmount > actualTokenAmount) {
+            uint256 refundAmount = prechargedAmount - actualTokenAmount;
+            SafeTransferLib.safeTransfer(tokenAddress, userOpSender, refundAmount);
+            emit TokensRefunded(userOpSender, refundAmount, userOpHash);
+        }
+
+        // Emit an event for post-operation completion (optional)
+        emit PaidGasInTokens(userOpSender, actualGasCost, appliedDynamicAdjustment, userOpHash);
     }
 
     function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
