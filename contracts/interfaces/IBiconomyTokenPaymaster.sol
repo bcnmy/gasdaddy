@@ -4,6 +4,11 @@ pragma solidity ^0.8.26;
 import { IOracle } from "./oracles/IOracle.sol";
 
 interface IBiconomyTokenPaymaster {
+    enum PaymasterMode {
+        EXTERNAL,
+        INDEPENDENT
+    }
+
     // Struct for storing information about the token
     struct TokenInfo {
         IOracle oracle;
@@ -30,5 +35,5 @@ interface IBiconomyTokenPaymaster {
 
     function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable;
 
-    function setTokenInfo(address _tokenAddress, IOracle _oracle, uint8 _decimals) external payable;
+    function setTokenInfo(address _tokenAddress, IOracle _oracle) external payable;
 }

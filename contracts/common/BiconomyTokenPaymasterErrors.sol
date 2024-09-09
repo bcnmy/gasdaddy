@@ -38,6 +38,11 @@ contract BiconomyTokenPaymasterErrors {
     error TokensAndInfoLengthMismatch();
 
     /**
+     * @notice Throws when invalid PaymasterMode specified in paymasterAndData
+     */
+    error InvalidPaymasterMode();
+
+    /**
      * @notice Throws when oracle returns invalid price
      */
     error OraclePriceNotPositive();
@@ -46,4 +51,14 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when oracle price hasn't been updated for a duration of time the owner is comfortable with
      */
     error OraclePriceExpired();
+
+    /**
+     * @notice Throws when token address to pay with is invalid
+     */
+    error InvalidTokenAddress();
+
+    /**
+     * @notice Throws when user tries to pay with an unsupported token
+     */
+    error TokenNotSupported();
 }
