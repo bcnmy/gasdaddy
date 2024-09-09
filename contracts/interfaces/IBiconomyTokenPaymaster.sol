@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.26;
 
+import { IOracle } from "./oracles/IOracle.sol";
+
 interface IBiconomyTokenPaymaster {
+    // Struct for storing information about the token
+    struct TokenInfo {
+        IOracle oracle;
+        uint8 decimals;
+    }
+
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FixedDynamicAdjustmentChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
@@ -11,10 +19,13 @@ interface IBiconomyTokenPaymaster {
     event DynamicAdjustmentCollected(address indexed paymasterId, uint256 indexed dynamicAdjustment);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
+    event UpdatedTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);
 
     function setFeeCollector(address _newFeeCollector) external payable;
 
     function setUnaccountedGas(uint256 value) external payable;
 
     function setDynamicAdjustment(uint256 _newUnaccountedGas) external payable;
+
+    function setTokenInfo(address _tokenAddress, IOracle _oracle, uint8 _decimals) external payable;
 }

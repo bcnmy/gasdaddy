@@ -35,7 +35,7 @@ contract BiconomyTokenPaymasterErrors {
     /**
      * @notice Throws when each token doesnt have a corresponding oracle
      */
-    error TokensAndOraclesLengthMismatch();
+    error TokensAndInfoLengthMismatch();
 
     /**
      * @notice Throws when oracle returns invalid price

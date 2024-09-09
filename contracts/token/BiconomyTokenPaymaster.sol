@@ -30,11 +30,6 @@ contract BiconomyTokenPaymaster is
 {
     using UserOperationLib for PackedUserOperation;
 
-    struct TokenInfo {
-        IOracle oracle;
-        uint8 decimals;
-    }
-
     // State variables
     address public feeCollector;
     uint256 public unaccountedGas;
@@ -54,6 +49,7 @@ contract BiconomyTokenPaymaster is
         uint256 _dynamicAdjustment,
         IOracle _nativeOracle,
         address[] memory _tokens, // Array of token addresses
+        uint8[] memory _decimals, // Array of corresponding token decimals
         IOracle[] memory _oracles // Array of corresponding oracle addresses
     )
         BasePaymaster(_owner, _entryPoint)
@@ -62,8 +58,8 @@ contract BiconomyTokenPaymaster is
             revert UnaccountedGasTooHigh();
         } else if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment == 0) {
             revert InvalidDynamicAdjustment();
-        } else if (_tokens.length != _oracles.length) {
-            revert TokensAndOraclesLengthMismatch();
+        } else if (_tokens.length != _oracles.length || _tokens.length != _decimals.length) {
+            revert TokensAndInfoLengthMismatch();
         }
         assembly ("memory-safe") {
             sstore(feeCollector.slot, address()) // initialize fee collector to this contract
@@ -74,7 +70,7 @@ contract BiconomyTokenPaymaster is
 
         // Populate the tokenToOracle mapping
         for (uint256 i = 0; i < _tokens.length; i++) {
-            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], ERC20(_tokens[i]).decimals());
+            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], _decimals[i]);
         }
     }
 
@@ -200,7 +196,7 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Set a new unaccountedEPGasOverhead value.
+     * @dev Set a new dynamicAdjustment value.
      * @param _newDynamicAdjustment The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
@@ -213,6 +209,26 @@ contract BiconomyTokenPaymaster is
             sstore(dynamicAdjustment.slot, _newDynamicAdjustment)
         }
         emit FixedDynamicAdjustmentChanged(oldDynamicAdjustment, _newDynamicAdjustment);
+    }
+
+    /**
+     * @dev Set or update a TokenInfo entry in the tokenDirectory mapping.
+     * @param _tokenAddress The new value to be set as the unaccounted gas value
+     * @param _oracle The new value to be set as the unaccounted gas value
+     * @param _decimals The new value to be set as the unaccounted gas value
+     * @notice only to be called by the owner of the contract.
+     */
+    function setTokenInfo(
+        address _tokenAddress,
+        IOracle _oracle,
+        uint8 _decimals
+    )
+        external
+        payable
+        override
+        onlyOwner
+    {
+        tokenDirectory[_tokenAddress] = TokenInfo(_oracle, _decimals);
     }
 
     /**
@@ -230,9 +246,7 @@ contract BiconomyTokenPaymaster is
         internal
         override
         returns (bytes memory context, uint256 validationData)
-    {
-        
-    }
+    { }
 
     /**
      * @dev Post-operation handler.
