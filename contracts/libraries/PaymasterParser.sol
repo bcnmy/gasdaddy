@@ -6,8 +6,8 @@ import "@account-abstraction/contracts/core/UserOperationLib.sol";
 
 // A helper library to parse paymaster and data
 library PaymasterParser {
-    uint256 private constant PAYMASTER_MODE_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET; // Start offset of mode in
-        // PND
+    // Start offset of mode in PND
+    uint256 private constant PAYMASTER_MODE_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
     function parsePaymasterAndData(bytes calldata paymasterAndData)
         external
@@ -22,7 +22,25 @@ library PaymasterParser {
         }
     }
 
-    function parseExternalModeSpecificData(bytes calldata modeSpecificData) external pure { }
+    function parseExternalModeSpecificData(bytes calldata modeSpecificData)
+        external
+        pure
+        returns (
+            uint48 validUntil,
+            uint48 validAfter,
+            address tokenAddress,
+            uint128 tokenPrice,
+            uint32 externalDynamicAdjustment,
+            bytes memory signature
+        )
+    {
+        validUntil = uint48(bytes6(modeSpecificData[:6]));
+        validAfter = uint48(bytes6(modeSpecificData[6:12]));
+        tokenAddress = address(bytes20(modeSpecificData[12:32]));
+        tokenPrice = uint128(bytes16(modeSpecificData[32:48]));
+        externalDynamicAdjustment = uint32(bytes4(modeSpecificData[48:52]));
+        signature = modeSpecificData[52:];
+    }
 
     function parseIndependentModeSpecificData(bytes calldata modeSpecificData)
         external

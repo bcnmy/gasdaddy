@@ -364,15 +364,4 @@ contract BiconomySponsorshipPaymaster is
             revert UnaccountedGasTooHigh();
         }
     }
-
-    /**
-     * Check if address is a contract
-     */
-    function _isContract(address _addr) internal view returns (bool) {
-        uint256 size;
-        assembly ("memory-safe") {
-            size := extcodesize(_addr)
-        }
-        return size > 0;
-    }
 }

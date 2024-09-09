@@ -6,6 +6,10 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when the verifiying signer address provided is address(0)
      */
     error VerifyingSignerCanNotBeZero();
+    /**
+     * @notice Throws when the fee collector address provided is a deployed contract
+     */
+    error VerifyingSignerCanNotBeContract();
 
     /**
      * @notice Throws when the fee collector address provided is address(0)
@@ -61,4 +65,14 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when user tries to pay with an unsupported token
      */
     error TokenNotSupported();
+
+    /**
+     * @notice Throws when oracle decimals aren't equal to 8
+     */
+    error InvalidOracleDecimals();
+
+    /**
+     * @notice Throws when external signer's signature has invalid length
+     */
+    error InvalidSignatureLength();
 }

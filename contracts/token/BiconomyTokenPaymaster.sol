@@ -12,6 +12,8 @@ import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterEr
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
 import { IOracle } from "../interfaces/oracles/IOracle.sol";
 import { PaymasterParser } from "../libraries/PaymasterParser.sol";
+import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
+import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
 
 /**
@@ -35,9 +37,11 @@ contract BiconomyTokenPaymaster is
 {
     using UserOperationLib for PackedUserOperation;
     using PaymasterParser for bytes;
+    using SignatureCheckerLib for address;
 
     // State variables
     address public feeCollector;
+    address public verifyingSigner;
     uint256 public unaccountedGas;
     uint256 public dynamicAdjustment;
     uint256 public priceExpiryDuration;
@@ -51,6 +55,7 @@ contract BiconomyTokenPaymaster is
 
     constructor(
         address _owner,
+        address _verifyingSigner,
         IEntryPoint _entryPoint,
         uint256 _unaccountedGas,
         uint256 _dynamicAdjustment,
@@ -61,14 +66,29 @@ contract BiconomyTokenPaymaster is
     )
         BasePaymaster(_owner, _entryPoint)
     {
+        if (_isContract(_verifyingSigner)) {
+            revert VerifyingSignerCanNotBeContract();
+        }
+        if (_verifyingSigner == address(0)) {
+            revert VerifyingSignerCanNotBeZero();
+        }
         if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
-        } else if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment == 0) {
+        }
+        if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment < PRICE_DENOMINATOR) {
             revert InvalidDynamicAdjustment();
-        } else if (_tokens.length != _oracles.length) {
+        }
+        if (_tokens.length != _oracles.length) {
             revert TokensAndInfoLengthMismatch();
         }
+        if (_nativeOracle.decimals() != 8) {
+            // ETH -> USD will always have 8 decimals for Chainlink and TWAP
+            revert InvalidOracleDecimals();
+        }
+
+        // Set state variables
         assembly ("memory-safe") {
+            sstore(verifyingSigner.slot, _verifyingSigner)
             sstore(feeCollector.slot, address()) // initialize fee collector to this contract
             sstore(unaccountedGas.slot, _unaccountedGas)
             sstore(dynamicAdjustment.slot, _dynamicAdjustment)
@@ -78,7 +98,11 @@ contract BiconomyTokenPaymaster is
 
         // Populate the tokenToOracle mapping
         for (uint256 i = 0; i < _tokens.length; i++) {
-            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], IERC20Metadata(_tokens[i]).decimals());
+            if (_oracles[i].decimals() != 8) {
+                // Token -> USD will always have 8 decimals
+                revert InvalidOracleDecimals();
+            }
+            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], 10 ** IERC20Metadata(_tokens[i]).decimals());
         }
     }
 
@@ -172,6 +196,25 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
+     * @dev Set a new verifying signer address.
+     * Can only be called by the owner of the contract.
+     * @param _newVerifyingSigner The new address to be set as the verifying signer.
+     * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
+     * After setting the new signer address, it will emit an event VerifyingSignerChanged.
+     */
+    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
+        if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
+        if (_newVerifyingSigner == address(0)) {
+            revert VerifyingSignerCanNotBeZero();
+        }
+        address oldSigner = verifyingSigner;
+        assembly ("memory-safe") {
+            sstore(verifyingSigner.slot, _newVerifyingSigner)
+        }
+        emit UpdatedVerifyingSigner(oldSigner, _newVerifyingSigner, msg.sender);
+    }
+
+    /**
      * @dev Set a new fee collector address.
      * Can only be called by the owner of the contract.
      * @param _newFeeCollector The new address to be set as the fee collector.
@@ -209,7 +252,7 @@ contract BiconomyTokenPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function setDynamicAdjustment(uint256 _newDynamicAdjustment) external payable override onlyOwner {
-        if (_newDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _newDynamicAdjustment == 0) {
+        if (_newDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _newDynamicAdjustment < PRICE_DENOMINATOR) {
             revert InvalidDynamicAdjustment();
         }
         uint256 oldDynamicAdjustment = dynamicAdjustment;
@@ -233,15 +276,82 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Set or update a TokenInfo entry in the tokenDirectory mapping.
-     * @param _tokenAddress The new value to be set as the unaccounted gas value
-     * @param _oracle The new value to be set as the unaccounted gas value
+     * @dev Update the native oracle address
+     * @param _oracle The new native asset oracle
      * @notice only to be called by the owner of the contract.
      */
-    function setTokenInfo(address _tokenAddress, IOracle _oracle) external payable override onlyOwner {
+    function setNativeOracle(IOracle _oracle) external payable override onlyOwner {
+        if (_oracle.decimals() != 8) {
+            // Native -> USD will always have 8 decimals
+            revert InvalidOracleDecimals();
+        }
+
+        IOracle oldNativeOracle = nativeOracle;
+        assembly ("memory-safe") {
+            sstore(nativeOracle.slot, _oracle)
+        }
+
+        emit UpdatedNativeAssetOracle(oldNativeOracle, _oracle);
+    }
+
+    /**
+     * @dev Set or update a TokenInfo entry in the tokenDirectory mapping.
+     * @param _tokenAddress The token address to add or update in directory
+     * @param _oracle The oracle to use for the specified token
+     * @notice only to be called by the owner of the contract.
+     */
+    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable override onlyOwner {
+        if (_oracle.decimals() != 8) {
+            // Token -> USD will always have 8 decimals
+            revert InvalidOracleDecimals();
+        }
+
         uint8 decimals = IERC20Metadata(_tokenAddress).decimals();
-        tokenDirectory[_tokenAddress] = TokenInfo(_oracle, decimals);
+        tokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
+
         emit UpdatedTokenDirectory(_tokenAddress, _oracle, decimals);
+    }
+
+    /**
+     * return the hash we're going to sign off-chain (and validate on-chain)
+     * this method is called by the off-chain service, to sign the request.
+     * it is called on-chain from the validatePaymasterUserOp, to validate the signature.
+     * note that this signature covers all fields of the UserOperation, except the "paymasterAndData",
+     * which will carry the signature itself.
+     */
+    function getHash(
+        PackedUserOperation calldata userOp,
+        uint48 validUntil,
+        uint48 validAfter,
+        address tokenAddress,
+        uint128 tokenPrice,
+        uint32 externalDynamicAdjustment
+    )
+        public
+        view
+        returns (bytes32)
+    {
+        //can't use userOp.hash(), since it contains also the paymasterAndData itself.
+        address sender = userOp.getSender();
+        return keccak256(
+            abi.encode(
+                sender,
+                userOp.nonce,
+                keccak256(userOp.initCode),
+                keccak256(userOp.callData),
+                userOp.accountGasLimits,
+                uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
+                userOp.preVerificationGas,
+                userOp.gasFees,
+                block.chainid,
+                address(this),
+                validUntil,
+                validAfter,
+                tokenAddress,
+                tokenPrice,
+                externalDynamicAdjustment
+            )
+        );
     }
 
     /**
@@ -269,6 +379,48 @@ contract BiconomyTokenPaymaster is
         if (mode == PaymasterMode.EXTERNAL) {
             // Use the price and other params specified in modeSpecificData by the verifyingSigner
             // Useful for supporting tokens which don't have oracle support
+
+            (
+                uint48 validUntil,
+                uint48 validAfter,
+                address tokenAddress,
+                uint128 tokenPrice,
+                uint32 externalDynamicAdjustment,
+                bytes memory signature
+            ) = modeSpecificData.parseExternalModeSpecificData();
+
+            if (signature.length != 64 && signature.length != 65) {
+                revert InvalidSignatureLength();
+            }
+
+            bool validSig = verifyingSigner.isValidSignatureNow(
+                ECDSA_solady.toEthSignedMessageHash(
+                    getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalDynamicAdjustment)
+                ),
+                signature
+            );
+
+            //don't revert on signature failure: return SIG_VALIDATION_FAILED
+            if (!validSig) {
+                return ("", _packValidationData(true, validUntil, validAfter));
+            }
+
+            if (externalDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || externalDynamicAdjustment < PRICE_DENOMINATOR) {
+                revert InvalidDynamicAdjustment();
+            }
+
+            uint256 tokenAmount;
+            {
+                uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
+                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalDynamicAdjustment * tokenPrice)
+                    / (1e18 * PRICE_DENOMINATOR);
+            }
+
+            // Transfer full amount to this address. Unused amount will be refunded in postOP
+            SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
+
+            context = abi.encode(tokenAddress, tokenAmount, tokenPrice, userOp.sender, userOpHash);
+            validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
             if (modeSpecificData.length != 20) {
@@ -283,15 +435,15 @@ contract BiconomyTokenPaymaster is
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = (maxCost + (unaccountedGas) * maxFeePerGas) * dynamicAdjustment * tokenPrice
+                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * dynamicAdjustment * tokenPrice)
                     / (1e18 * PRICE_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encodePacked(tokenAmount, tokenPrice, userOp.sender, userOpHash);
-            validationData = 0;
+            context = abi.encodePacked(tokenAddress, tokenAmount, tokenPrice, userOp.sender, userOpHash);
+            validationData = 0; // Validation success and price is valid indefinetly
         }
     }
 
@@ -323,6 +475,7 @@ contract BiconomyTokenPaymaster is
     /// @notice Fetches the latest token price.
     /// @return price The latest token price fetched from the oracles.
     function getPrice(address tokenAddress) internal view returns (uint192 price) {
+        // Fetch token information from directory
         TokenInfo memory tokenInfo = tokenDirectory[tokenAddress];
 
         if (address(tokenInfo.oracle) == address(0)) {
@@ -330,9 +483,11 @@ contract BiconomyTokenPaymaster is
             revert TokenNotSupported();
         }
 
+        // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
         uint192 nativeAssetPrice = _fetchPrice(nativeOracle);
 
+        // Adjust to token  decimals
         price = nativeAssetPrice * uint192(tokenInfo.decimals) / tokenPrice;
     }
 
