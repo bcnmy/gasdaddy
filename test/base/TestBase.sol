@@ -351,4 +351,5 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         array[0] = oracle;
         return array;
     }
+
 }

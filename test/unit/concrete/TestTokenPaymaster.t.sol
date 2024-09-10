@@ -10,11 +10,14 @@ import {
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
 import { MockOracle } from "../../mocks/MockOracle.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 
 contract TestTokenPaymaster is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
     MockOracle public nativeOracle;
     MockToken public testToken;
+    MockToken public testToken2;
     MockOracle public tokenOracle;
 
     function setUp() public {
@@ -24,6 +27,8 @@ contract TestTokenPaymaster is TestBase {
         nativeOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH
         tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token
         testToken = new MockToken("Test Token", "TKN");
+        testToken2 = new MockToken("Test Token 2", "TKN2");
+
 
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
@@ -135,9 +140,7 @@ contract TestTokenPaymaster is TestBase {
     function test_SetFeeCollector() external prankModifier(PAYMASTER_OWNER.addr) {
         // Set the expected fee collector change and expect the event to be emitted
         vm.expectEmit(true, true, true, true, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.UpdatedFeeCollector(
-            address(tokenPaymaster), BOB_ADDRESS, PAYMASTER_OWNER.addr
-        );
+        emit IBiconomyTokenPaymaster.UpdatedFeeCollector(address(tokenPaymaster), BOB_ADDRESS, PAYMASTER_OWNER.addr);
 
         // Call the function to set the fee collector
         tokenPaymaster.setFeeCollector(BOB_ADDRESS);
@@ -290,4 +293,119 @@ contract TestTokenPaymaster is TestBase {
 
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
+
+    // Test multiple ERC20 token withdrawals
+    function test_WithdrawMultipleERC20Tokens() external prankModifier(PAYMASTER_OWNER.addr) {
+        // Mint tokens to paymaster
+        testToken.mint(address(tokenPaymaster), 1000 * (10 ** testToken.decimals()));
+        testToken2.mint(address(tokenPaymaster), 2000 * (10 ** testToken2.decimals()));
+
+        assertEq(testToken.balanceOf(address(tokenPaymaster)), 1000 * (10 ** testToken.decimals()));
+        assertEq(testToken2.balanceOf(address(tokenPaymaster)), 2000 * (10 ** testToken2.decimals()));
+
+        // Withdraw both tokens
+        IERC20[] memory tokens = new IERC20[](2);
+        tokens[0] = IERC20(testToken);
+        tokens[1] = IERC20(testToken2);
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 500 * (10 ** testToken.decimals());
+        amounts[1] = 1000 * (10 ** testToken2.decimals());
+
+        vm.expectEmit(true, true, true, true, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.TokensWithdrawn(
+            address(testToken), ALICE_ADDRESS, amounts[0], PAYMASTER_OWNER.addr
+        );
+
+        vm.expectEmit(true, true, true, true, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.TokensWithdrawn(
+            address(testToken2), ALICE_ADDRESS, amounts[1], PAYMASTER_OWNER.addr
+        );
+
+        tokenPaymaster.withdrawMultipleERC20(tokens, ALICE_ADDRESS, amounts);
+
+        assertEq(testToken.balanceOf(address(ALICE_ADDRESS)), amounts[0]);
+        assertEq(testToken2.balanceOf(address(ALICE_ADDRESS)), amounts[1]);
+    }
+
+    // Test scenario where the token price has expired
+    function test_RevertIf_PriceExpired() external {
+        // Set price expiry duration to a short time for testing
+        vm.warp(block.timestamp + 2 days); // Move forward in time to simulate price expiry
+
+        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
+        vm.startPrank(address(ALICE_ACCOUNT));
+        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+        uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
+
+        (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            tokenPaymaster,
+            3e6,
+            3e6,
+            IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT,
+            uint48(block.timestamp + 1 days),
+            uint48(block.timestamp),
+            address(testToken),
+            tokenPrice,
+            1e6
+        );
+
+        userOp.paymasterAndData = paymasterAndData;
+        userOp.signature = signUserOp(ALICE, userOp);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        vm.expectRevert();
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+    }
+
+    // Test setting a high dynamic adjustment
+    function test_SetDynamicAdjustmentTooHigh() external prankModifier(PAYMASTER_OWNER.addr) {
+        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidDynamicAdjustment.selector);
+        tokenPaymaster.setDynamicAdjustment(2e6 + 1); // Setting too high
+    }
+
+    // Test invalid signature in external mode
+    function test_RevertIf_InvalidSignature_ExternalMode() external {
+        tokenPaymaster.deposit{ value: 10 ether }();
+        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
+        vm.startPrank(address(ALICE_ACCOUNT));
+        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+        uint128 tokenPrice = 1e8;
+
+        // Create a valid paymasterAndData
+        (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            tokenPaymaster,
+            3e6,
+            3e6,
+            IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
+            uint48(block.timestamp + 1 days),
+            uint48(block.timestamp),
+            address(testToken),
+            tokenPrice,
+            1e6
+        );
+
+        // Tamper the signature by altering the last byte
+        paymasterAndData[paymasterAndData.length - 1] = bytes1(uint8(paymasterAndData[paymasterAndData.length - 1]) + 1);
+        userOp.paymasterAndData = paymasterAndData;
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        vm.expectRevert();
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+    }
+
 }
