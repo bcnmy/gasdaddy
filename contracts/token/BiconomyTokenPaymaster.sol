@@ -11,7 +11,7 @@ import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
 import { IOracle } from "../interfaces/oracles/IOracle.sol";
-import { PaymasterParser } from "../libraries/PaymasterParser.sol";
+import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
@@ -40,7 +40,7 @@ contract BiconomyTokenPaymaster is
     IBiconomyTokenPaymaster
 {
     using UserOperationLib for PackedUserOperation;
-    using PaymasterParser for bytes;
+    using TokenPaymasterParserLib for bytes;
     using SignatureCheckerLib for address;
 
     // State variables
@@ -423,9 +423,8 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(
-                userOp.sender, tokenAddress, tokenAmount, tokenPrice, uint256(externalDynamicAdjustment), userOpHash
-            );
+            context =
+                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalDynamicAdjustment, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -488,16 +487,19 @@ contract BiconomyTokenPaymaster is
         if (prechargedAmount > actualTokenAmount) {
             uint256 refundAmount = prechargedAmount - actualTokenAmount;
             SafeTransferLib.safeTransfer(tokenAddress, userOpSender, refundAmount);
-            emit TokensRefunded(userOpSender, refundAmount, userOpHash);
+            emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
         // Emit an event for post-operation completion (optional)
-        emit PaidGasInTokens(userOpSender, actualGasCost, appliedDynamicAdjustment, userOpHash);
+        emit PaidGasInTokens(
+            userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedDynamicAdjustment, userOpHash
+        );
     }
 
     function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
         if (target == address(0)) revert CanNotWithdrawToZeroAddress();
         SafeTransferLib.safeTransfer(address(token), target, amount);
+        emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
 
     /// @notice Fetches the latest token price.

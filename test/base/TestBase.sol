@@ -17,6 +17,13 @@ import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 
+import {
+    BiconomyTokenPaymaster,
+    IBiconomyTokenPaymaster,
+    BiconomyTokenPaymasterErrors,
+    IOracle
+} from "../../../contracts/token/BiconomyTokenPaymaster.sol";
+
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
 
@@ -207,6 +214,70 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         );
     }
 
+    /// @notice Generates and signs the paymaster data for a user operation.
+    /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
+    /// @param userOp The user operation to be signed.
+    /// @param signer The wallet that will sign the paymaster hash.
+    /// @param paymaster The paymaster contract.
+    /// @return finalPmData Full Pm Data.
+    /// @return signature  Pm Signature on Data.
+    function generateAndSignTokenPaymasterData(
+        PackedUserOperation memory userOp,
+        Vm.Wallet memory signer,
+        BiconomyTokenPaymaster paymaster,
+        uint128 paymasterValGasLimit,
+        uint128 paymasterPostOpGasLimit,
+        IBiconomyTokenPaymaster.PaymasterMode mode,
+        uint48 validUntil,
+        uint48 validAfter,
+        address tokenAddress,
+        uint128 tokenPrice,
+        uint32 externalDynamicAdjustment
+    )
+        internal
+        view
+        returns (bytes memory finalPmData, bytes memory signature)
+    {
+        // Initial paymaster data with zero signature
+        bytes memory initialPmData = abi.encodePacked(
+            address(paymaster),
+            paymasterValGasLimit,
+            paymasterPostOpGasLimit,
+            uint8(mode),
+            validUntil,
+            validAfter,
+            tokenAddress,
+            tokenPrice,
+            externalDynamicAdjustment,
+            new bytes(65) // Zero signature
+        );
+
+        // Update user operation with initial paymaster data
+        userOp.paymasterAndData = initialPmData;
+
+        // Generate hash to be signed
+        bytes32 paymasterHash =
+            paymaster.getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalDynamicAdjustment);
+
+        // Sign the hash
+        signature = signMessage(signer, paymasterHash);
+        require(signature.length == 65, "Invalid Paymaster Signature length");
+
+        // Final paymaster data with the actual signature
+        finalPmData = abi.encodePacked(
+            address(paymaster),
+            paymasterValGasLimit,
+            paymasterPostOpGasLimit,
+            uint8(mode),
+            validUntil,
+            validAfter,
+            tokenAddress,
+            tokenPrice,
+            externalDynamicAdjustment,
+            signature
+        );
+    }
+
     function excludeLastNBytes(bytes memory data, uint256 n) internal pure returns (bytes memory) {
         require(data.length > n, "Input data is too short");
         bytes memory result = new bytes(data.length - n);
@@ -267,5 +338,17 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
         assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
+    }
+
+    function _toSingletonArray(address addr) internal pure returns (address[] memory) {
+        address[] memory array = new address[](1);
+        array[0] = addr;
+        return array;
+    }
+
+    function _toSingletonArray(IOracle oracle) internal pure returns (IOracle[] memory) {
+        IOracle[] memory array = new IOracle[](1);
+        array[0] = oracle;
+        return array;
     }
 }

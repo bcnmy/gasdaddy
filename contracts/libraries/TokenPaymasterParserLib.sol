@@ -5,7 +5,7 @@ import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.s
 import "@account-abstraction/contracts/core/UserOperationLib.sol";
 
 // A helper library to parse paymaster and data
-library PaymasterParser {
+library TokenPaymasterParserLib {
     // Start offset of mode in PND
     uint256 private constant PAYMASTER_MODE_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
@@ -15,10 +15,8 @@ library PaymasterParser {
         returns (IBiconomyTokenPaymaster.PaymasterMode mode, bytes memory modeSpecificData)
     {
         unchecked {
-            mode = IBiconomyTokenPaymaster.PaymasterMode(
-                uint8(bytes1(paymasterAndData[PAYMASTER_MODE_OFFSET:PAYMASTER_MODE_OFFSET + 8]))
-            );
-            modeSpecificData = paymasterAndData[PAYMASTER_MODE_OFFSET + 8:];
+            mode = IBiconomyTokenPaymaster.PaymasterMode(uint8(bytes1(paymasterAndData[PAYMASTER_MODE_OFFSET])));
+            modeSpecificData = paymasterAndData[PAYMASTER_MODE_OFFSET + 1:];
         }
     }
 
