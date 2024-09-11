@@ -44,15 +44,22 @@ contract BiconomyTokenPaymaster is
     using SignatureCheckerLib for address;
 
     // State variables
+
+    // Review: where will the be used since we have pre charge and refund model?
     address public feeCollector;
     address public verifyingSigner;
+    // Review: Do we need this?
     uint256 public unaccountedGas;
+    // Note: lets mention somewhere that is is a fee markup
     uint256 public dynamicAdjustment;
+    // Review: this could be set based on an oracle? one feedback we got from previous audits is that this should be dynamic 
     uint256 public priceExpiryDuration;
+    // Note: rename to native token to USD price
     IOracle public nativeOracle; // ETH -> USD price
     mapping(address => TokenInfo) tokenDirectory;
 
     // PAYMASTER_ID_OFFSET
+    // Review: we have this storage unaccountedGas and also below one.
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
     uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with dynamic adjustment
     uint256 private constant MAX_DYNAMIC_ADJUSTMENT = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
@@ -99,6 +106,9 @@ contract BiconomyTokenPaymaster is
             sstore(priceExpiryDuration.slot, _priceExpiryDuration)
             sstore(nativeOracle.slot, _nativeOracle)
         }
+
+        // Review: token to USD oracle could also have 18. I have noticed some from chainlink.
+        // Better to make it part of token config
 
         // Populate the tokenToOracle mapping
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -285,6 +295,7 @@ contract BiconomyTokenPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function setNativeOracle(IOracle _oracle) external payable override onlyOwner {
+        // Review
         if (_oracle.decimals() != 8) {
             // Native -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
@@ -298,6 +309,7 @@ contract BiconomyTokenPaymaster is
         emit UpdatedNativeAssetOracle(oldNativeOracle, _oracle);
     }
 
+    // Review: instead we should have a means to add or remove a token from the token directory
     /**
      * @dev Set or update a TokenInfo entry in the tokenDirectory mapping.
      * @param _tokenAddress The token address to add or update in directory
@@ -311,6 +323,7 @@ contract BiconomyTokenPaymaster is
         }
 
         uint8 decimals = IERC20Metadata(_tokenAddress).decimals();
+        // Note: why dont we just store the decimals and let oracle deal with it?
         tokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
 
         emit UpdatedTokenDirectory(_tokenAddress, _oracle, decimals);
@@ -513,6 +526,9 @@ contract BiconomyTokenPaymaster is
             revert TokenNotSupported();
         }
 
+        // Review: TWAP doesn't come in here yet?
+        // also do we need to consider for tokens with direct oracles. like dflag defined in tokenInfo
+
         // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
         uint192 nativeAssetPrice = _fetchPrice(nativeOracle);
@@ -535,4 +551,7 @@ contract BiconomyTokenPaymaster is
         }
         price = uint192(int192(answer));
     }
+
+    // Todo
+    // Let's add one public method that swaps particular token using uniswap and then deposits the received native to the entrypoint.
 }
