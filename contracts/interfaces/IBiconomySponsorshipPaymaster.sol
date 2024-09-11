@@ -6,13 +6,13 @@ import { PackedUserOperation } from "@account-abstraction/contracts/core/UserOpe
 
 interface IBiconomySponsorshipPaymaster{
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
-    event FixedDynamicAdjustmentChanged(uint256 indexed oldValue, uint256 indexed newValue);
+    event FixedPriceMarkupChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
     event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
     event GasBalanceDeducted(address indexed paymasterId, uint256 indexed charge, bytes32 indexed userOpHash);
-    event DynamicAdjustmentCollected(address indexed paymasterId, uint256 indexed dynamicAdjustment);
+    event PriceMarkupCollected(address indexed paymasterId, uint256 indexed priceMarkup);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
 
@@ -35,7 +35,7 @@ interface IBiconomySponsorshipPaymaster{
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         external
         view
@@ -48,7 +48,7 @@ interface IBiconomySponsorshipPaymaster{
             address paymasterId,
             uint48 validUntil,
             uint48 validAfter,
-            uint32 dynamicAdjustment,
+            uint32 priceMarkup,
             bytes calldata signature
         );
 }

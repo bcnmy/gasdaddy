@@ -18,7 +18,7 @@ interface IBiconomyTokenPaymaster {
     }
 
     event UpdatedUnaccountedGas(uint256 indexed oldValue, uint256 indexed newValue);
-    event UpdatedFixedDynamicAdjustment(uint256 indexed oldValue, uint256 indexed newValue);
+    event UpdatedFixedPriceMarkup(uint256 indexed oldValue, uint256 indexed newValue);
     event UpdatedVerifyingSigner(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
@@ -30,7 +30,7 @@ interface IBiconomyTokenPaymaster {
         address indexed token,
         uint256 nativeCharge,
         uint256 tokenCharge,
-        uint256 dynamicAdjustment,
+        uint256 priceMarkup,
         bytes32 indexed userOpHash
     );
     event Received(address indexed sender, uint256 value);
@@ -42,7 +42,7 @@ interface IBiconomyTokenPaymaster {
 
     function setUnaccountedGas(uint256 value) external payable;
 
-    function setDynamicAdjustment(uint256 _newUnaccountedGas) external payable;
+    function setPriceMarkup(uint256 _newUnaccountedGas) external payable;
 
     function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable;
 

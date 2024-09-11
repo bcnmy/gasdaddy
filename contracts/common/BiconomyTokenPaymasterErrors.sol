@@ -34,7 +34,7 @@ contract BiconomyTokenPaymasterErrors {
     /**
      * @notice Throws when invalid signature length in paymasterAndData
      */
-    error InvalidDynamicAdjustment();
+    error InvalidPriceMarkup();
 
     /**
      * @notice Throws when each token doesnt have a corresponding oracle

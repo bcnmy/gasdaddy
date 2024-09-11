@@ -28,7 +28,7 @@ library TokenPaymasterParserLib {
             uint48 validAfter,
             address tokenAddress,
             uint128 tokenPrice,
-            uint32 externalDynamicAdjustment,
+            uint32 externalPriceMarkup,
             bytes memory signature
         )
     {
@@ -36,7 +36,7 @@ library TokenPaymasterParserLib {
         validAfter = uint48(bytes6(modeSpecificData[6:12]));
         tokenAddress = address(bytes20(modeSpecificData[12:32]));
         tokenPrice = uint128(bytes16(modeSpecificData[32:48]));
-        externalDynamicAdjustment = uint32(bytes4(modeSpecificData[48:52]));
+        externalPriceMarkup = uint32(bytes4(modeSpecificData[48:52]));
         signature = modeSpecificData[52:];
     }
 

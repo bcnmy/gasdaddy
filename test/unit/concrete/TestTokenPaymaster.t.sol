@@ -15,7 +15,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract TestTokenPaymaster is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
-    MockOracle public nativeOracle;
+    MockOracle public nativeAssetToUsdOracle;
     MockToken public testToken;
     MockToken public testToken2;
     MockOracle public tokenOracle;
@@ -24,7 +24,7 @@ contract TestTokenPaymaster is TestBase {
         setupPaymasterTestEnvironment();
 
         // Deploy mock oracles and tokens
-        nativeOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH
+        nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH
         tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token
         testToken = new MockToken("Test Token", "TKN");
         testToken2 = new MockToken("Test Token 2", "TKN2");
@@ -36,8 +36,8 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             5000, // unaccounted gas
-            1e6, // dynamic adjustment
-            nativeOracle,
+            1e6, // price markup
+            nativeAssetToUsdOracle,
             1 days, // price expiry duration
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
@@ -51,7 +51,7 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT,
             5000,
             1e6,
-            nativeOracle,
+            nativeAssetToUsdOracle,
             1 days,
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
@@ -60,9 +60,9 @@ contract TestTokenPaymaster is TestBase {
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
-        assertEq(address(testArtifact.nativeOracle()), address(nativeOracle));
+        assertEq(address(testArtifact.nativeAssetToUsdOracle()), address(nativeAssetToUsdOracle));
         assertEq(testArtifact.unaccountedGas(), 5000);
-        assertEq(testArtifact.dynamicAdjustment(), 1e6);
+        assertEq(testArtifact.priceMarkup(), 1e6);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
@@ -73,7 +73,7 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT,
             5000,
             1e6,
-            nativeOracle,
+            nativeAssetToUsdOracle,
             1 days,
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
@@ -88,7 +88,7 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT,
             5000,
             1e6,
-            nativeOracle,
+            nativeAssetToUsdOracle,
             1 days,
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
@@ -103,22 +103,22 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT,
             50_001, // too high unaccounted gas
             1e6,
-            nativeOracle,
+            nativeAssetToUsdOracle,
             1 days,
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
         );
     }
 
-    function test_RevertIf_InvalidDynamicAdjustment() external {
-        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidDynamicAdjustment.selector);
+    function test_RevertIf_InvalidPriceMarkup() external {
+        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidPriceMarkup.selector);
         new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             5000,
-            2e6 + 1, // too high dynamic adjustment
-            nativeOracle,
+            2e6 + 1, // too high price markup
+            nativeAssetToUsdOracle,
             1 days,
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle)))
@@ -198,10 +198,10 @@ contract TestTokenPaymaster is TestBase {
         MockOracle newOracle = new MockOracle(100_000_000, 8);
 
         vm.expectEmit(true, true, false, true, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.UpdatedNativeAssetOracle(nativeOracle, newOracle);
+        emit IBiconomyTokenPaymaster.UpdatedNativeAssetOracle(nativeAssetToUsdOracle, newOracle);
         tokenPaymaster.setNativeOracle(newOracle);
 
-        assertEq(address(tokenPaymaster.nativeOracle()), address(newOracle));
+        assertEq(address(tokenPaymaster.nativeAssetToUsdOracle()), address(newOracle));
     }
 
     function test_ValidatePaymasterUserOp_ExternalMode() external {
@@ -216,7 +216,7 @@ contract TestTokenPaymaster is TestBase {
         uint48 validUntil = uint48(block.timestamp + 1 days);
         uint48 validAfter = uint48(block.timestamp);
         uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
-        uint32 externalDynamicAdjustment = 1e6;
+        uint32 externalPriceMarkup = 1e6;
 
         // Generate and sign the token paymaster data
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
@@ -230,7 +230,7 @@ contract TestTokenPaymaster is TestBase {
             validAfter,
             address(testToken),
             tokenPrice,
-            externalDynamicAdjustment
+            externalPriceMarkup
         );
 
         userOp.paymasterAndData = paymasterAndData;
@@ -353,10 +353,10 @@ contract TestTokenPaymaster is TestBase {
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
 
-    // Test setting a high dynamic adjustment
-    function test_SetDynamicAdjustmentTooHigh() external prankModifier(PAYMASTER_OWNER.addr) {
-        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidDynamicAdjustment.selector);
-        tokenPaymaster.setDynamicAdjustment(2e6 + 1); // Setting too high
+    // Test setting a high price markup
+    function test_SetPriceMarkupTooHigh() external prankModifier(PAYMASTER_OWNER.addr) {
+        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidPriceMarkup.selector);
+        tokenPaymaster.setPriceMarkup(2e6 + 1); // Setting too high
     }
 
     // Test invalid signature in external mode

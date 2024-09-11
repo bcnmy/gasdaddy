@@ -42,7 +42,7 @@ contract BiconomySponsorshipPaymaster is
     address public feeCollector;
     uint256 public unaccountedGas;
 
-    // Denominator to prevent precision errors when applying dynamic adjustment
+    // Denominator to prevent precision errors when applying price markup
     uint256 private constant PRICE_DENOMINATOR = 1e6;
     // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant PAYMASTER_ID_OFFSET = PAYMASTER_DATA_OFFSET;
@@ -194,7 +194,7 @@ contract BiconomySponsorshipPaymaster is
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         public
         view
@@ -217,7 +217,7 @@ contract BiconomySponsorshipPaymaster is
                 paymasterId,
                 validUntil,
                 validAfter,
-                dynamicAdjustment
+                priceMarkup
             )
         );
     }
@@ -229,7 +229,7 @@ contract BiconomySponsorshipPaymaster is
             address paymasterId,
             uint48 validUntil,
             uint48 validAfter,
-            uint32 dynamicAdjustment,
+            uint32 priceMarkup,
             bytes calldata signature
         )
     {
@@ -237,7 +237,7 @@ contract BiconomySponsorshipPaymaster is
             paymasterId = address(bytes20(paymasterAndData[PAYMASTER_ID_OFFSET:PAYMASTER_ID_OFFSET + 20]));
             validUntil = uint48(bytes6(paymasterAndData[PAYMASTER_ID_OFFSET + 20:PAYMASTER_ID_OFFSET + 26]));
             validAfter = uint48(bytes6(paymasterAndData[PAYMASTER_ID_OFFSET + 26:PAYMASTER_ID_OFFSET + 32]));
-            dynamicAdjustment = uint32(bytes4(paymasterAndData[PAYMASTER_ID_OFFSET + 32:PAYMASTER_ID_OFFSET + 36]));
+            priceMarkup = uint32(bytes4(paymasterAndData[PAYMASTER_ID_OFFSET + 32:PAYMASTER_ID_OFFSET + 36]));
             signature = paymasterAndData[PAYMASTER_ID_OFFSET + 36:];
         }
     }
@@ -256,24 +256,24 @@ contract BiconomySponsorshipPaymaster is
         override
     {
         unchecked {
-            (address paymasterId, uint32 dynamicAdjustment, bytes32 userOpHash) =
+            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash) =
                 abi.decode(context, (address, uint32, bytes32));
 
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
             actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
-            // Apply the dynamic adjustment
-            uint256 adjustedGasCost = (actualGasCost * dynamicAdjustment) / PRICE_DENOMINATOR;
+            // Apply the price markup
+            uint256 adjustedGasCost = (actualGasCost * priceMarkup) / PRICE_DENOMINATOR;
 
             // Deduct the adjusted cost
             paymasterIdBalances[paymasterId] -= adjustedGasCost;
 
             if (adjustedGasCost > actualGasCost) {
-                // Apply dynamicAdjustment to fee collector balance
+                // Apply priceMarkup to fee collector balance
                 uint256 premium = adjustedGasCost - actualGasCost;
                 paymasterIdBalances[feeCollector] += premium;
                 // Review if we should emit adjustedGasCost as well
-                emit DynamicAdjustmentCollected(paymasterId, premium);
+                emit PriceMarkupCollected(paymasterId, premium);
             }
 
             emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
@@ -287,7 +287,7 @@ contract BiconomySponsorshipPaymaster is
      * paymasterAndData[52:72] : paymasterId (dappDepositor)
      * paymasterAndData[72:78] : validUntil
      * paymasterAndData[78:84] : validAfter
-     * paymasterAndData[84:88] : dynamicAdjustment
+     * paymasterAndData[84:88] : priceMarkup
      * paymasterAndData[88:] : signature
      */
     function _validatePaymasterUserOp(
@@ -300,7 +300,7 @@ contract BiconomySponsorshipPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 dynamicAdjustment, bytes calldata signature)
+        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 priceMarkup, bytes calldata signature)
         = parsePaymasterAndData(userOp.paymasterAndData);
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
@@ -310,7 +310,7 @@ contract BiconomySponsorshipPaymaster is
         }
 
         bool validSig = verifyingSigner.isValidSignatureNow(
-            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, dynamicAdjustment)),
+            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
             signature
         );
 
@@ -319,19 +319,19 @@ contract BiconomySponsorshipPaymaster is
             return ("", _packValidationData(true, validUntil, validAfter));
         }
 
-        if (dynamicAdjustment > 2e6 || dynamicAdjustment == 0) {
-            revert InvalidDynamicAdjustment();
+        if (priceMarkup > 2e6 || priceMarkup == 0) {
+            revert InvalidPriceMarkup();
         }
 
         // Send 1e6 for No markup
         // Send between 0 and 1e6 for discount
-        uint256 effectiveCost = (requiredPreFund * dynamicAdjustment) / PRICE_DENOMINATOR;
+        uint256 effectiveCost = (requiredPreFund * priceMarkup) / PRICE_DENOMINATOR;
 
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
 
-        context = abi.encode(paymasterId, dynamicAdjustment, userOpHash);
+        context = abi.encode(paymasterId, priceMarkup, userOpHash);
 
         //no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.

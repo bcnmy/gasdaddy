@@ -46,23 +46,23 @@ contract BiconomyTokenPaymaster is
     // State variables
     address public verifyingSigner;
     uint256 public unaccountedGas;
-    uint256 public dynamicAdjustment;
+    uint256 public priceMarkup;
     uint256 public priceExpiryDuration;
-    IOracle public nativeOracle; // ETH -> USD price
+    IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
     mapping(address => TokenInfo) tokenDirectory;
 
     // PAYMASTER_ID_OFFSET
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
-    uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with dynamic adjustment
-    uint256 private constant MAX_DYNAMIC_ADJUSTMENT = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
+    uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
+    uint256 private constant MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
     constructor(
         address _owner,
         address _verifyingSigner,
         IEntryPoint _entryPoint,
         uint256 _unaccountedGas,
-        uint256 _dynamicAdjustment,
-        IOracle _nativeOracle,
+        uint256 _priceMarkup,
+        IOracle _nativeAssetToUsdOracle,
         uint256 _priceExpiryDuration,
         address[] memory _tokens, // Array of token addresses
         IOracle[] memory _oracles // Array of corresponding oracle addresses
@@ -78,13 +78,13 @@ contract BiconomyTokenPaymaster is
         if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        if (_dynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _dynamicAdjustment < PRICE_DENOMINATOR) {
-            revert InvalidDynamicAdjustment();
+        if (_priceMarkup > MAX_PRICE_MARKUP || _priceMarkup < PRICE_DENOMINATOR) {
+            revert InvalidPriceMarkup();
         }
         if (_tokens.length != _oracles.length) {
             revert TokensAndInfoLengthMismatch();
         }
-        if (_nativeOracle.decimals() != 8) {
+        if (_nativeAssetToUsdOracle.decimals() != 8) {
             // ETH -> USD will always have 8 decimals for Chainlink and TWAP
             revert InvalidOracleDecimals();
         }
@@ -93,9 +93,9 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, _verifyingSigner)
             sstore(unaccountedGas.slot, _unaccountedGas)
-            sstore(dynamicAdjustment.slot, _dynamicAdjustment)
+            sstore(priceMarkup.slot, _priceMarkup)
             sstore(priceExpiryDuration.slot, _priceExpiryDuration)
-            sstore(nativeOracle.slot, _nativeOracle)
+            sstore(nativeAssetToUsdOracle.slot, _nativeAssetToUsdOracle)
         }
 
         // Populate the tokenToOracle mapping
@@ -233,23 +233,23 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Set a new dynamicAdjustment value.
-     * @param _newDynamicAdjustment The new value to be set as the dynamic adjustment
+     * @dev Set a new priceMarkup value.
+     * @param _newPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setDynamicAdjustment(uint256 _newDynamicAdjustment) external payable override onlyOwner {
-        if (_newDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || _newDynamicAdjustment < PRICE_DENOMINATOR) {
-            revert InvalidDynamicAdjustment();
+    function setPriceMarkup(uint256 _newPriceMarkup) external payable override onlyOwner {
+        if (_newPriceMarkup > MAX_PRICE_MARKUP || _newPriceMarkup < PRICE_DENOMINATOR) {
+            revert InvalidPriceMarkup();
         }
-        uint256 oldDynamicAdjustment = dynamicAdjustment;
+        uint256 oldPriceMarkup = priceMarkup;
         assembly ("memory-safe") {
-            sstore(dynamicAdjustment.slot, _newDynamicAdjustment)
+            sstore(priceMarkup.slot, _newPriceMarkup)
         }
-        emit UpdatedFixedDynamicAdjustment(oldDynamicAdjustment, _newDynamicAdjustment);
+        emit UpdatedFixedPriceMarkup(oldPriceMarkup, _newPriceMarkup);
     }
 
     /**
-     * @dev Set a new dynamicAdjustment value.
+     * @dev Set a new priceMarkup value.
      * @param _newPriceExpiryDuration The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
@@ -272,9 +272,9 @@ contract BiconomyTokenPaymaster is
             revert InvalidOracleDecimals();
         }
 
-        IOracle oldNativeOracle = nativeOracle;
+        IOracle oldNativeOracle = nativeAssetToUsdOracle;
         assembly ("memory-safe") {
-            sstore(nativeOracle.slot, _oracle)
+            sstore(nativeAssetToUsdOracle.slot, _oracle)
         }
 
         emit UpdatedNativeAssetOracle(oldNativeOracle, _oracle);
@@ -311,7 +311,7 @@ contract BiconomyTokenPaymaster is
         uint48 validAfter,
         address tokenAddress,
         uint128 tokenPrice,
-        uint32 externalDynamicAdjustment
+        uint32 externalPriceMarkup
     )
         public
         view
@@ -335,7 +335,7 @@ contract BiconomyTokenPaymaster is
                 validAfter,
                 tokenAddress,
                 tokenPrice,
-                externalDynamicAdjustment
+                externalPriceMarkup
             )
         );
     }
@@ -371,7 +371,7 @@ contract BiconomyTokenPaymaster is
                 uint48 validAfter,
                 address tokenAddress,
                 uint128 tokenPrice,
-                uint32 externalDynamicAdjustment,
+                uint32 externalPriceMarkup,
                 bytes memory signature
             ) = modeSpecificData.parseExternalModeSpecificData();
 
@@ -381,7 +381,7 @@ contract BiconomyTokenPaymaster is
 
             bool validSig = verifyingSigner.isValidSignatureNow(
                 ECDSA_solady.toEthSignedMessageHash(
-                    getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalDynamicAdjustment)
+                    getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalPriceMarkup)
                 ),
                 signature
             );
@@ -391,14 +391,14 @@ contract BiconomyTokenPaymaster is
                 return ("", _packValidationData(true, validUntil, validAfter));
             }
 
-            if (externalDynamicAdjustment > MAX_DYNAMIC_ADJUSTMENT || externalDynamicAdjustment < PRICE_DENOMINATOR) {
-                revert InvalidDynamicAdjustment();
+            if (externalPriceMarkup > MAX_PRICE_MARKUP || externalPriceMarkup < PRICE_DENOMINATOR) {
+                revert InvalidPriceMarkup();
             }
 
             uint256 tokenAmount;
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalDynamicAdjustment * tokenPrice)
+                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalPriceMarkup * tokenPrice)
                     / (1e18 * PRICE_DENOMINATOR);
             }
 
@@ -406,7 +406,7 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalDynamicAdjustment, userOpHash);
+                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -422,14 +422,14 @@ contract BiconomyTokenPaymaster is
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * dynamicAdjustment * tokenPrice)
+                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * priceMarkup * tokenPrice)
                     / (1e18 * PRICE_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, dynamicAdjustment, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, priceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -456,13 +456,13 @@ contract BiconomyTokenPaymaster is
             address tokenAddress,
             uint256 prechargedAmount,
             uint192 tokenPrice,
-            uint256 appliedDynamicAdjustment,
+            uint256 appliedPriceMarkup,
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint192, uint256, bytes32));
 
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
-            (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedDynamicAdjustment * tokenPrice
+            (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * PRICE_DENOMINATOR);
 
         if (prechargedAmount > actualTokenAmount) {
@@ -473,7 +473,7 @@ contract BiconomyTokenPaymaster is
         }
 
         emit PaidGasInTokens(
-            userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedDynamicAdjustment, userOpHash
+            userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, userOpHash
         );
     }
 
@@ -496,14 +496,14 @@ contract BiconomyTokenPaymaster is
 
         // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
-        uint192 nativeAssetPrice = _fetchPrice(nativeOracle);
+        uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
 
         // Adjust to token  decimals
         price = nativeAssetPrice * uint192(tokenInfo.decimals) / tokenPrice;
     }
 
     /// @notice Fetches the latest price from the given oracle.
-    /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetOracle.
+    /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetToUsdOracle.
     /// @param _oracle The oracle contract to fetch the price from.
     /// @return price The latest price fetched from the oracle.
     function _fetchPrice(IOracle _oracle) internal view returns (uint192 price) {

@@ -114,7 +114,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     function createUserOp(
         Vm.Wallet memory sender,
         BiconomySponsorshipPaymaster paymaster,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         internal
         returns (PackedUserOperation memory userOp, bytes32 userOpHash)
@@ -126,7 +126,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
         (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, dynamicAdjustment
+            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, priceMarkup
         );
         userOp.signature = signUserOp(sender, userOp);
 
@@ -151,7 +151,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             DAPP_ACCOUNT.addr,
             validUntil,
             validAfter,
-            dynamicAdjustment
+            priceMarkup
         );
         userOp.signature = signUserOp(sender, userOp);
         userOpHash = ENTRYPOINT.getUserOpHash(userOp);
@@ -173,7 +173,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         address paymasterId,
         uint48 validUntil,
         uint48 validAfter,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         internal
         view
@@ -187,7 +187,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             paymasterId,
             validUntil,
             validAfter,
-            dynamicAdjustment,
+            priceMarkup,
             new bytes(65) // Zero signature
         );
 
@@ -195,7 +195,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         userOp.paymasterAndData = initialPmData;
 
         // Generate hash to be signed
-        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, dynamicAdjustment);
+        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
@@ -209,7 +209,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             paymasterId,
             validUntil,
             validAfter,
-            dynamicAdjustment,
+            priceMarkup,
             signature
         );
     }
@@ -232,7 +232,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint48 validAfter,
         address tokenAddress,
         uint128 tokenPrice,
-        uint32 externalDynamicAdjustment
+        uint32 externalPriceMarkup
     )
         internal
         view
@@ -248,7 +248,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             validAfter,
             tokenAddress,
             tokenPrice,
-            externalDynamicAdjustment,
+            externalPriceMarkup,
             new bytes(65) // Zero signature
         );
 
@@ -257,7 +257,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         // Generate hash to be signed
         bytes32 paymasterHash =
-            paymaster.getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalDynamicAdjustment);
+            paymaster.getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalPriceMarkup);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
@@ -273,7 +273,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             validAfter,
             tokenAddress,
             tokenPrice,
-            externalDynamicAdjustment,
+            externalPriceMarkup,
             signature
         );
     }
@@ -287,27 +287,27 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         return result;
     }
 
-    function getDynamicAdjustments(
+    function getPriceMarkups(
         BiconomySponsorshipPaymaster paymaster,
         uint256 initialDappPaymasterBalance,
         uint256 initialFeeCollectorBalance,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         internal
         view
-        returns (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment)
+        returns (uint256 expectedPriceMarkup, uint256 actualPriceMarkup)
     {
         uint256 resultingDappPaymasterBalance = paymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 resultingFeeCollectorPaymasterBalance = paymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
 
-        if (dynamicAdjustment >= 1e6) {
-            //dynamicAdjustment
-            expectedDynamicAdjustment = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / dynamicAdjustment);
-            actualDynamicAdjustment = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+        if (priceMarkup >= 1e6) {
+            //priceMarkup
+            expectedPriceMarkup = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / priceMarkup);
+            actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
         } else {
-            revert("DynamicAdjustment must be more than 1e6");
+            revert("PriceMarkup must be more than 1e6");
         }
     }
 
@@ -317,13 +317,13 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 initialFeeCollectorBalance,
         uint256 initialBundlerBalance,
         uint256 initialPaymasterEpBalance,
-        uint32 dynamicAdjustment
+        uint32 priceMarkup
     )
         internal
         view
     {
-        (uint256 expectedDynamicAdjustment, uint256 actualDynamicAdjustment) = getDynamicAdjustments(
-            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, dynamicAdjustment
+        (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) = getPriceMarkups(
+            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup
         );
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
         uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
@@ -331,13 +331,13 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Assert that what paymaster paid is the same as what the bundler received
         assertEq(totalGasFeePaid, initialPaymasterEpBalance - bicoPaymaster.getDeposit());
         // Assert that adjustment collected (if any) is correct
-        assertEq(expectedDynamicAdjustment, actualDynamicAdjustment);
+        assertEq(expectedPriceMarkup, actualPriceMarkup);
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
         // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualDynamicAdjustment, gasPaidByDapp, 0.01e18);
+        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.01e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

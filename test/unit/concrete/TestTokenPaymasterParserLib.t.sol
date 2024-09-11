@@ -65,7 +65,7 @@ contract TestTokenPaymasterParserLib is Test {
         uint48 expectedValidAfter = uint48(block.timestamp);
         address expectedTokenAddress = address(0x1234567890AbcdEF1234567890aBcdef12345678);
         uint128 expectedTokenPrice = 1e8;
-        uint32 expectedExternalDynamicAdjustment = 1e6;
+        uint32 expectedExternalPriceMarkup = 1e6;
         bytes memory expectedSignature = hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef";
 
         // Construct external mode specific data
@@ -74,7 +74,7 @@ contract TestTokenPaymasterParserLib is Test {
             bytes6(abi.encodePacked(expectedValidAfter)),
             bytes20(expectedTokenAddress),
             bytes16(abi.encodePacked(expectedTokenPrice)),
-            bytes4(abi.encodePacked(expectedExternalDynamicAdjustment)),
+            bytes4(abi.encodePacked(expectedExternalPriceMarkup)),
             expectedSignature
         );
 
@@ -84,7 +84,7 @@ contract TestTokenPaymasterParserLib is Test {
             uint48 parsedValidAfter,
             address parsedTokenAddress,
             uint128 parsedTokenPrice,
-            uint32 parsedExternalDynamicAdjustment,
+            uint32 parsedExternalPriceMarkup,
             bytes memory parsedSignature
         ) = externalModeSpecificData.parseExternalModeSpecificData();
 
@@ -93,7 +93,7 @@ contract TestTokenPaymasterParserLib is Test {
         assertEq(parsedValidAfter, expectedValidAfter, "ValidAfter should match");
         assertEq(parsedTokenAddress, expectedTokenAddress, "Token address should match");
         assertEq(parsedTokenPrice, expectedTokenPrice, "Token price should match");
-        assertEq(parsedExternalDynamicAdjustment, expectedExternalDynamicAdjustment, "Dynamic adjustment should match");
+        assertEq(parsedExternalPriceMarkup, expectedExternalPriceMarkup, "Dynamic adjustment should match");
         assertEq(parsedSignature, expectedSignature, "Signature should match");
     }
 
