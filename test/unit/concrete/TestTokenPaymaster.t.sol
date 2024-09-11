@@ -194,12 +194,12 @@ contract TestTokenPaymaster is TestBase {
         );
     }
 
-    function test_SetNativeOracle() external prankModifier(PAYMASTER_OWNER.addr) {
+    function test_SetNativeAssetToUsdOracle() external prankModifier(PAYMASTER_OWNER.addr) {
         MockOracle newOracle = new MockOracle(100_000_000, 8);
 
         vm.expectEmit(true, true, false, true, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.UpdatedNativeAssetOracle(nativeAssetToUsdOracle, newOracle);
-        tokenPaymaster.setNativeOracle(newOracle);
+        tokenPaymaster.setNativeAssetToUsdOracle(newOracle);
 
         assertEq(address(tokenPaymaster.nativeAssetToUsdOracle()), address(newOracle));
     }

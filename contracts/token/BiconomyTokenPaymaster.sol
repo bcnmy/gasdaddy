@@ -15,6 +15,8 @@ import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.so
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -62,8 +64,8 @@ contract BiconomyTokenPaymaster is
         IEntryPoint _entryPoint,
         uint256 _unaccountedGas,
         uint256 _priceMarkup,
-        IOracle _nativeAssetToUsdOracle,
         uint256 _priceExpiryDuration,
+        IOracle _nativeAssetToUsdOracle,
         address[] memory _tokens, // Array of token addresses
         IOracle[] memory _oracles // Array of corresponding oracle addresses
     )
@@ -266,18 +268,18 @@ contract BiconomyTokenPaymaster is
      * @param _oracle The new native asset oracle
      * @notice only to be called by the owner of the contract.
      */
-    function setNativeOracle(IOracle _oracle) external payable override onlyOwner {
+    function setNativeAssetToUsdOracle(IOracle _oracle) external payable override onlyOwner {
         if (_oracle.decimals() != 8) {
             // Native -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
         }
 
-        IOracle oldNativeOracle = nativeAssetToUsdOracle;
+        IOracle oldNativeAssetToUsdOracle = nativeAssetToUsdOracle;
         assembly ("memory-safe") {
             sstore(nativeAssetToUsdOracle.slot, _oracle)
         }
 
-        emit UpdatedNativeAssetOracle(oldNativeOracle, _oracle);
+        emit UpdatedNativeAssetOracle(oldNativeAssetToUsdOracle, _oracle);
     }
 
     /**
@@ -296,6 +298,17 @@ contract BiconomyTokenPaymaster is
         tokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
 
         emit UpdatedTokenDirectory(_tokenAddress, _oracle, decimals);
+    }
+
+    /**
+     * @dev Swap a token in the paymaster for ETH to increase its entry point deposit
+     * @param _swapRouter The address of the swap router to use to facilitate the swap
+     * @param _tokenAddress The token address of the token to swap for ETH
+     * @param _tokenAmount The amount of the token to swap
+     * @notice only to be called by the owner of the contract.
+     */
+    function swapTokenAndDeposit(ISwapRouter _swapRouter, address _tokenAddress, uint256 _tokenAmount) external payable onlyOwner { 
+
     }
 
     /**
@@ -405,8 +418,7 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
