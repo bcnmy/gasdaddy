@@ -137,18 +137,6 @@ contract TestTokenPaymaster is TestBase {
         tokenPaymaster.setSigner(address(0));
     }
 
-    function test_SetFeeCollector() external prankModifier(PAYMASTER_OWNER.addr) {
-        // Set the expected fee collector change and expect the event to be emitted
-        vm.expectEmit(true, true, true, true, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.UpdatedFeeCollector(address(tokenPaymaster), BOB_ADDRESS, PAYMASTER_OWNER.addr);
-
-        // Call the function to set the fee collector
-        tokenPaymaster.setFeeCollector(BOB_ADDRESS);
-
-        // Assert the change has been applied correctly
-        assertEq(tokenPaymaster.feeCollector(), BOB_ADDRESS);
-    }
-
     function test_Deposit() external prankModifier(PAYMASTER_OWNER.addr) {
         uint256 depositAmount = 10 ether;
         assertEq(tokenPaymaster.getDeposit(), 0);

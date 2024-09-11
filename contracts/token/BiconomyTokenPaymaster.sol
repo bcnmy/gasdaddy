@@ -44,7 +44,6 @@ contract BiconomyTokenPaymaster is
     using SignatureCheckerLib for address;
 
     // State variables
-    address public feeCollector;
     address public verifyingSigner;
     uint256 public unaccountedGas;
     uint256 public dynamicAdjustment;
@@ -93,7 +92,6 @@ contract BiconomyTokenPaymaster is
         // Set state variables
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, _verifyingSigner)
-            sstore(feeCollector.slot, address()) // initialize fee collector to this contract
             sstore(unaccountedGas.slot, _unaccountedGas)
             sstore(dynamicAdjustment.slot, _dynamicAdjustment)
             sstore(priceExpiryDuration.slot, _priceExpiryDuration)
@@ -216,22 +214,6 @@ contract BiconomyTokenPaymaster is
             sstore(verifyingSigner.slot, _newVerifyingSigner)
         }
         emit UpdatedVerifyingSigner(oldSigner, _newVerifyingSigner, msg.sender);
-    }
-
-    /**
-     * @dev Set a new fee collector address.
-     * Can only be called by the owner of the contract.
-     * @param _newFeeCollector The new address to be set as the fee collector.
-     * @notice If _newFeeCollector is set to zero address, it will revert with an error.
-     * After setting the new fee collector address, it will emit an event FeeCollectorChanged.
-     */
-    function setFeeCollector(address _newFeeCollector) external payable override onlyOwner {
-        if (_newFeeCollector == address(0)) revert FeeCollectorCanNotBeZero();
-        address oldFeeCollector = feeCollector;
-        assembly ("memory-safe") {
-            sstore(feeCollector.slot, _newFeeCollector)
-        }
-        emit UpdatedFeeCollector(oldFeeCollector, _newFeeCollector, msg.sender);
     }
 
     /**
@@ -483,14 +465,13 @@ contract BiconomyTokenPaymaster is
             (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedDynamicAdjustment * tokenPrice
         ) / (1e18 * PRICE_DENOMINATOR);
 
-        // If the user was overcharged, refund the excess tokens
         if (prechargedAmount > actualTokenAmount) {
+            // If the user was overcharged, refund the excess tokens
             uint256 refundAmount = prechargedAmount - actualTokenAmount;
             SafeTransferLib.safeTransfer(tokenAddress, userOpSender, refundAmount);
             emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
-        // Emit an event for post-operation completion (optional)
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedDynamicAdjustment, userOpHash
         );

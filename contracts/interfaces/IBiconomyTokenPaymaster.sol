@@ -22,9 +22,16 @@ interface IBiconomyTokenPaymaster {
     event UpdatedVerifyingSigner(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
-    event TokensRefunded(address indexed userOpSender, address indexed token, uint256 refundAmount, bytes32 indexed userOpHash);
+    event TokensRefunded(
+        address indexed userOpSender, address indexed token, uint256 refundAmount, bytes32 indexed userOpHash
+    );
     event PaidGasInTokens(
-        address indexed userOpSender, address indexed token, uint256 nativeCharge, uint256 tokenCharge, uint256 dynamicAdjustment, bytes32 indexed userOpHash
+        address indexed userOpSender,
+        address indexed token,
+        uint256 nativeCharge,
+        uint256 tokenCharge,
+        uint256 dynamicAdjustment,
+        bytes32 indexed userOpHash
     );
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
@@ -32,8 +39,6 @@ interface IBiconomyTokenPaymaster {
     event UpdatedNativeAssetOracle(IOracle indexed oldOracle, IOracle indexed newOracle);
 
     function setSigner(address _newVerifyingSigner) external payable;
-
-    function setFeeCollector(address _newFeeCollector) external payable;
 
     function setUnaccountedGas(uint256 value) external payable;
 
