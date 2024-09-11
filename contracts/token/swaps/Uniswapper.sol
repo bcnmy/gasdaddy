@@ -45,6 +45,7 @@ abstract contract Uniswapper {
     }
 
     function _setTokenPool(address _token, uint24 _feeTier) internal {
+        IERC20(_token).approve(address(uniswapRouter), type(uint256).max); // one time max approval
         tokenToPools[_token] = _feeTier; // set mapping of token to uniswap pool to use for swap
     }
 
