@@ -15,8 +15,7 @@ import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.so
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
 import "@account-abstraction/contracts/core/Helpers.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "./swaps/Uniswapper.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -36,10 +35,11 @@ import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
  * to manage the assets received by the paymaster.
  */
 contract BiconomyTokenPaymaster is
+    IBiconomyTokenPaymaster,
     BasePaymaster,
     ReentrancyGuardTransient,
     BiconomyTokenPaymasterErrors,
-    IBiconomyTokenPaymaster
+    Uniswapper
 {
     using UserOperationLib for PackedUserOperation;
     using TokenPaymasterParserLib for bytes;
@@ -66,10 +66,15 @@ contract BiconomyTokenPaymaster is
         uint256 _priceMarkup,
         uint256 _priceExpiryDuration,
         IOracle _nativeAssetToUsdOracle,
-        address[] memory _tokens, // Array of token addresses
-        IOracle[] memory _oracles // Array of corresponding oracle addresses
+        ISwapRouter _uniswapRouter,
+        address _wrappedNative,
+        address[] memory _tokens, // Array of token addresses supported by the paymaster
+        IOracle[] memory _oracles, // Array of corresponding oracle addresses
+        address[] memory _swappableTokens, // Array of tokens that you want swappable by the uniswapper
+        uint24[] memory _swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
     )
         BasePaymaster(_owner, _entryPoint)
+        Uniswapper(_uniswapRouter, _wrappedNative, _swappableTokens, _swappableTokenPoolFeeTiers)
     {
         if (_isContract(_verifyingSigner)) {
             revert VerifyingSignerCanNotBeContract();
@@ -301,14 +306,41 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Swap a token in the paymaster for ETH to increase its entry point deposit
-     * @param _swapRouter The address of the swap router to use to facilitate the swap
-     * @param _tokenAddress The token address of the token to swap for ETH
+     * @dev Swap a token in the paymaster for ETH and deposit the amount received into the entry point
+     * @param _tokenAddresses The token address to add/update to/for uniswapper
+     * @param _poolFeeTiers The pool fee tiers for the corresponding token address to use
+     * @notice only to be called by the owner of the contract.
+     */
+    function updateSwappableTokens(
+        address[] memory _tokenAddresses,
+        uint24[] memory _poolFeeTiers
+    )
+        external
+        payable
+        onlyOwner
+    {
+        if (_tokenAddresses.length != _poolFeeTiers.length) {
+            revert TokensAndPoolsLengthMismatch();
+        }
+
+        for (uint256 i = 0; i < _tokenAddresses.length; ++i) {
+            _setTokenPool(_tokenAddresses[i], _poolFeeTiers[i]);
+        }
+    }
+
+    /**
+     * @dev Swap a token in the paymaster for ETH and deposit the amount received into the entry point
+     * @param _tokenAddress The token address of the token to swap
      * @param _tokenAmount The amount of the token to swap
      * @notice only to be called by the owner of the contract.
      */
-    function swapTokenAndDeposit(ISwapRouter _swapRouter, address _tokenAddress, uint256 _tokenAmount) external payable onlyOwner { 
-
+    function swapTokenAndDeposit(address _tokenAddress, uint256 _tokenAmount) external payable onlyOwner {
+        // Swap tokens
+        uint256 amountOut = _swapTokenToWeth(_tokenAddress, _tokenAmount);
+        // Unwrap WETH to ETH
+        unwrapWeth(amountOut);
+        // Deposit into EP
+        entryPoint.depositTo{ value: amountOut }(address(this));
     }
 
     /**

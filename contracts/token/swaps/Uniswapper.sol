@@ -20,18 +20,18 @@ abstract contract Uniswapper {
     // Token address -> Fee tier of the pool to swap through
     mapping(address => uint24) public tokenToPools;
 
-    event UniswapReverted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn);
-
-    error TokensAndAmountsLengthMismatch();
+    // Errors
+    error UniswapReverted(address tokenIn, address tokenOut, uint256 amountIn);
+    error TokensAndPoolsLengthMismatch();
 
     constructor(
         ISwapRouter _uniswapRouter,
         address _wrappedNative,
         address[] memory _tokens,
-        uint24[] memory _tokenPools
+        uint24[] memory _tokenPoolFeeTiers
     ) {
-        if (_tokens.length != _tokenPools.length) {
-            revert TokensAndAmountsLengthMismatch();
+        if (_tokens.length != _tokenPoolFeeTiers.length) {
+            revert TokensAndPoolsLengthMismatch();
         }
 
         // Set router and native wrapped asset addresses
@@ -40,13 +40,13 @@ abstract contract Uniswapper {
 
         for (uint256 i = 0; i < _tokens.length; ++i) {
             IERC20(_tokens[i]).approve(address(_uniswapRouter), type(uint256).max); // one time max approval
-            tokenToPools[_tokens[i]] = _tokenPools[i]; // set mapping of token to uniswap pool to use for swap
+            tokenToPools[_tokens[i]] = _tokenPoolFeeTiers[i]; // set mapping of token to uniswap pool to use for swap
         }
     }
 
-    function _setTokenPool(address _token, uint24 _feeTier) internal {
+    function _setTokenPool(address _token, uint24 _poolFeeTier) internal {
         IERC20(_token).approve(address(uniswapRouter), type(uint256).max); // one time max approval
-        tokenToPools[_token] = _feeTier; // set mapping of token to uniswap pool to use for swap
+        tokenToPools[_token] = _poolFeeTier; // set mapping of token to uniswap pool to use for swap
     }
 
     function _swapTokenToWeth(address _tokenIn, uint256 _amountIn) internal returns (uint256 amountOut) {
@@ -65,8 +65,7 @@ abstract contract Uniswapper {
         try uniswapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
             amountOut = _amountOut;
         } catch {
-            emit UniswapReverted(_tokenIn, wrappedNative, _amountIn);
-            amountOut = 0;
+            revert UniswapReverted(_tokenIn, wrappedNative, _amountIn);
         }
     }
 
