@@ -306,7 +306,7 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Swap a token in the paymaster for ETH and deposit the amount received into the entry point
+     * @dev Update or add a swappable token to the Uniswapper
      * @param _tokenAddresses The token address to add/update to/for uniswapper
      * @param _poolFeeTiers The pool fee tiers for the corresponding token address to use
      * @notice only to be called by the owner of the contract.
