@@ -51,7 +51,7 @@ contract BiconomyTokenPaymaster is
     uint256 public priceMarkup;
     uint256 public priceExpiryDuration;
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
-    mapping(address => TokenInfo) tokenDirectory;
+    mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in independent mode
 
     // PAYMASTER_ID_OFFSET
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
@@ -68,8 +68,8 @@ contract BiconomyTokenPaymaster is
         IOracle _nativeAssetToUsdOracle,
         ISwapRouter _uniswapRouter,
         address _wrappedNative,
-        address[] memory _tokens, // Array of token addresses supported by the paymaster
-        IOracle[] memory _oracles, // Array of corresponding oracle addresses
+        address[] memory _independentTokens, // Array of token addresses supported by the paymaster in independent mode
+        IOracle[] memory _oracles, // Array of corresponding oracle addresses for independently supported tokens
         address[] memory _swappableTokens, // Array of tokens that you want swappable by the uniswapper
         uint24[] memory _swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
     )
@@ -88,7 +88,7 @@ contract BiconomyTokenPaymaster is
         if (_priceMarkup > MAX_PRICE_MARKUP || _priceMarkup < PRICE_DENOMINATOR) {
             revert InvalidPriceMarkup();
         }
-        if (_tokens.length != _oracles.length) {
+        if (_independentTokens.length != _oracles.length) {
             revert TokensAndInfoLengthMismatch();
         }
         if (_nativeAssetToUsdOracle.decimals() != 8) {
@@ -106,12 +106,12 @@ contract BiconomyTokenPaymaster is
         }
 
         // Populate the tokenToOracle mapping
-        for (uint256 i = 0; i < _tokens.length; i++) {
+        for (uint256 i = 0; i < _independentTokens.length; i++) {
             if (_oracles[i].decimals() != 8) {
                 // Token -> USD will always have 8 decimals
                 revert InvalidOracleDecimals();
             }
-            tokenDirectory[_tokens[i]] = TokenInfo(_oracles[i], 10 ** IERC20Metadata(_tokens[i]).decimals());
+            independentTokenDirectory[_independentTokens[i]] = TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
         }
     }
 
@@ -288,7 +288,7 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
-     * @dev Set or update a TokenInfo entry in the tokenDirectory mapping.
+     * @dev Set or update a TokenInfo entry in the independentTokenDirectory mapping.
      * @param _tokenAddress The token address to add or update in directory
      * @param _oracle The oracle to use for the specified token
      * @notice only to be called by the owner of the contract.
@@ -300,7 +300,7 @@ contract BiconomyTokenPaymaster is
         }
 
         uint8 decimals = IERC20Metadata(_tokenAddress).decimals();
-        tokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
+        independentTokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
 
         emit UpdatedTokenDirectory(_tokenAddress, _oracle, decimals);
     }
@@ -531,7 +531,7 @@ contract BiconomyTokenPaymaster is
     /// @return price The latest token price fetched from the oracles.
     function getPrice(address tokenAddress) internal view returns (uint192 price) {
         // Fetch token information from directory
-        TokenInfo memory tokenInfo = tokenDirectory[tokenAddress];
+        TokenInfo memory tokenInfo = independentTokenDirectory[tokenAddress];
 
         if (address(tokenInfo.oracle) == address(0)) {
             // If oracle not set, token isn't supported
