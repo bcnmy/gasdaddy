@@ -46,24 +46,18 @@ abstract contract Uniswapper {
         tokenToPools[_token] = _poolFeeTier; // set mapping of token to uniswap pool to use for swap
     }
 
-    function _swapTokenToWeth(address _tokenIn, uint256 _amountIn) internal returns (uint256 amountOut) {
-        uint24 poolFee = tokenToPools[_tokenIn];
-
+    function _swapTokenToWeth(address _tokenIn, uint256 _amountIn) internal returns (uint256) {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: _tokenIn,
             tokenOut: wrappedNative,
-            fee: poolFee,
+            fee: tokenToPools[_tokenIn],
             recipient: address(this),
             deadline: block.timestamp,
             amountIn: _amountIn,
             amountOutMinimum: 0,
             sqrtPriceLimitX96: 0
         });
-        try uniswapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
-            amountOut = _amountOut;
-        } catch {
-            revert UniswapReverted(_tokenIn, wrappedNative, _amountIn);
-        }
+        return uniswapRouter.exactInputSingle(params);
     }
 
     function addSlippage(uint256 amount, uint8 slippage) private pure returns (uint256) {
