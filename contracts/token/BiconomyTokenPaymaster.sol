@@ -88,6 +88,7 @@ contract BiconomyTokenPaymaster is
             revert UnaccountedGasTooHigh();
         }
         if (_independentPriceMarkup > MAX_PRICE_MARKUP || _independentPriceMarkup < PRICE_DENOMINATOR) {
+            // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
         if (_independentTokens.length != _oracles.length) {
@@ -248,7 +249,8 @@ contract BiconomyTokenPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable override onlyOwner {
-        if (_newPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
+        if (_newIndependentPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
+            // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
         uint256 oldIndependentPriceMarkup = independentPriceMarkup;
@@ -485,7 +487,8 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, independentPriceMarkup, userOpHash);
+            context =
+                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }

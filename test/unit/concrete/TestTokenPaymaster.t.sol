@@ -11,10 +11,11 @@ import {
 import { MockOracle } from "../../mocks/MockOracle.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
+import "../../../contracts/token/swaps/Uniswapper.sol";
 
 contract TestTokenPaymaster is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
+    ISwapRouter swapRouter;
     MockOracle public nativeAssetToUsdOracle;
     MockToken public testToken;
     MockToken public testToken2;
@@ -24,11 +25,11 @@ contract TestTokenPaymaster is TestBase {
         setupPaymasterTestEnvironment();
 
         // Deploy mock oracles and tokens
+        swapRouter = ISwapRouter(address(SWAP_ROUTER_ADDRESS));
         nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH
         tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token
         testToken = new MockToken("Test Token", "TKN");
         testToken2 = new MockToken("Test Token 2", "TKN2");
-
 
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
@@ -37,24 +38,33 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT,
             5000, // unaccounted gas
             1e6, // price markup
-            nativeAssetToUsdOracle,
             1 days, // price expiry duration
+            nativeAssetToUsdOracle,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
     function test_Deploy() external {
+        // Deploy the token paymaster
         BiconomyTokenPaymaster testArtifact = new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            5000,
-            1e6,
+            5000, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
             nativeAssetToUsdOracle,
-            1 days,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
 
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
@@ -62,36 +72,46 @@ contract TestTokenPaymaster is TestBase {
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(address(testArtifact.nativeAssetToUsdOracle()), address(nativeAssetToUsdOracle));
         assertEq(testArtifact.unaccountedGas(), 5000);
-        assertEq(testArtifact.priceMarkup(), 1e6);
+        assertEq(testArtifact.independentPriceMarkup(), 1e6);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
         vm.expectRevert(BiconomyTokenPaymasterErrors.VerifyingSignerCanNotBeZero.selector);
+        // Deploy the token paymaster
         new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,
             address(0),
             ENTRYPOINT,
-            5000,
-            1e6,
+            5000, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
             nativeAssetToUsdOracle,
-            1 days,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
     function test_RevertIf_DeployWithSignerAsContract() external {
         vm.expectRevert(BiconomyTokenPaymasterErrors.VerifyingSignerCanNotBeContract.selector);
+        // Deploy the token paymaster
         new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,
-            address(ENTRYPOINT),
+            ENTRYPOINT_ADDRESS,
             ENTRYPOINT,
-            5000,
-            1e6,
+            5000, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
             nativeAssetToUsdOracle,
-            1 days,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
@@ -101,12 +121,16 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            50_001, // too high unaccounted gas
-            1e6,
+            500_001, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
             nativeAssetToUsdOracle,
-            1 days,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
@@ -116,12 +140,16 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            5000,
-            2e6 + 1, // too high price markup
+            5000, // unaccounted gas
+            2e6 + 1, // price markup
+            1 days, // price expiry duration
             nativeAssetToUsdOracle,
-            1 days,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
@@ -178,19 +206,43 @@ contract TestTokenPaymaster is TestBase {
         assertEq(testToken.balanceOf(ALICE_ADDRESS), mintAmount);
     }
 
-    function test_RevertIf_InvalidOracleDecimals() external {
+    function test_RevertIf_InvalidNativeOracleDecimals() external {
         MockOracle invalidOracle = new MockOracle(100_000_000, 18); // invalid oracle with 18 decimals
         vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidOracleDecimals.selector);
         new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            5000,
-            1e6,
-            invalidOracle, // incorrect oracle decimals
-            1 days,
+            5000, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
+            invalidOracle,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle)))
+            _toSingletonArray(IOracle(address(tokenOracle))),
+            new address[](0),
+            new uint24[](0)
+        );
+    }
+
+    function test_RevertIf_InvalidTokenOracleDecimals() external {
+        MockOracle invalidOracle = new MockOracle(100_000_000, 18); // invalid oracle with 18 decimals
+        vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidOracleDecimals.selector);
+        new BiconomyTokenPaymaster(
+            PAYMASTER_OWNER.addr,
+            PAYMASTER_SIGNER.addr,
+            ENTRYPOINT,
+            50000, // unaccounted gas
+            1e6, // price markup
+            1 days, // price expiry duration
+            nativeAssetToUsdOracle,
+            swapRouter,
+            WRAPPED_NATIVE_ADDRESS,
+            _toSingletonArray(address(testToken)),
+            _toSingletonArray(IOracle(address(invalidOracle))),
+            new address[](0),
+            new uint24[](0)
         );
     }
 
@@ -395,5 +447,4 @@ contract TestTokenPaymaster is TestBase {
         vm.expectRevert();
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
-
 }
