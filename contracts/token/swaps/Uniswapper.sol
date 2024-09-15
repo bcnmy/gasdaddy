@@ -5,6 +5,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
 
+/**
+ * @title Uniswapper
+ * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
+ * @notice An abstract contract to assist the paymaster in swapping tokens to WETH and unwrapping WETH
+ * @notice Based on Infinitism's Uniswap Helper contract
+ */
 abstract contract Uniswapper {
     uint256 private constant SWAP_PRICE_DENOMINATOR = 1e26;
 
@@ -46,7 +52,7 @@ abstract contract Uniswapper {
         tokenToPools[_token] = _poolFeeTier; // set mapping of token to uniswap pool to use for swap
     }
 
-    function _swapTokenToWeth(address _tokenIn, uint256 _amountIn) internal returns (uint256) {
+    function _swapTokenToWeth(address _tokenIn, uint256 _amountIn, uint256 _minAmountOut) internal returns (uint256) {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: _tokenIn,
             tokenOut: wrappedNative,
@@ -54,25 +60,13 @@ abstract contract Uniswapper {
             recipient: address(this),
             deadline: block.timestamp,
             amountIn: _amountIn,
-            amountOutMinimum: 0,
+            amountOutMinimum: _minAmountOut,
             sqrtPriceLimitX96: 0
         });
         return uniswapRouter.exactInputSingle(params);
     }
 
-    function addSlippage(uint256 amount, uint8 slippage) private pure returns (uint256) {
-        return amount * (1000 - slippage) / 1000;
-    }
-
-    function tokenToWei(uint256 amount, uint256 price) public pure returns (uint256) {
-        return amount * price / SWAP_PRICE_DENOMINATOR;
-    }
-
-    function weiToToken(uint256 amount, uint256 price) public pure returns (uint256) {
-        return amount * SWAP_PRICE_DENOMINATOR / price;
-    }
-
-    function unwrapWeth(uint256 _amount) internal {
+    function _unwrapWeth(uint256 _amount) internal {
         IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(_amount, address(this));
     }
 }

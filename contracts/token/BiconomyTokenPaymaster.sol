@@ -22,13 +22,14 @@ import "./swaps/Uniswapper.sol";
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
  * @author livingrockrises<chirag@biconomy.io>
  * @notice Biconomy's Token Paymaster for Entry Point v0.7
- * @dev  A paymaster that allows user to pay gas fees in ERC20 tokens. The paymaster uses the precharge and refund model
+ * @dev  A paymaster that allows users to pay gas fees in ERC20 tokens. The paymaster uses the precharge and refund
+ * model
  * to handle gas remittances.
  *
  * Currently, the paymaster supports two modes:
  * 1. EXTERNAL - Relies on a quoted token price from a trusted entity (verifyingSigner).
- * 2. INDEPENDENT - Relies purely on price oracles (Offchain and TWAP) which implement the IOracle interface. This mode
- * doesn't require a signature and is always "available" to use.
+ * 2. INDEPENDENT - Relies purely on price oracles (Chainlink and TWAP) which implement the IOracle interface. This mode
+ * doesn't require a signature and is "always available" to use.
  *
  * The paymaster's owner has full discretion over the supported tokens (for independent mode), price adjustments
  * applied, and how
@@ -51,7 +52,8 @@ contract BiconomyTokenPaymaster is
     uint256 public priceMarkup;
     uint256 public priceExpiryDuration;
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
-    mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in independent mode
+    mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in
+        // independent mode
 
     // PAYMASTER_ID_OFFSET
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
@@ -111,7 +113,8 @@ contract BiconomyTokenPaymaster is
                 // Token -> USD will always have 8 decimals
                 revert InvalidOracleDecimals();
             }
-            independentTokenDirectory[_independentTokens[i]] = TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
+            independentTokenDirectory[_independentTokens[i]] =
+                TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
         }
     }
 
@@ -332,14 +335,23 @@ contract BiconomyTokenPaymaster is
      * @dev Swap a token in the paymaster for ETH and deposit the amount received into the entry point
      * @param _tokenAddress The token address of the token to swap
      * @param _tokenAmount The amount of the token to swap
+     * @param _minEthAmountRecevied The minimum amount of ETH amount recevied post-swap
      * @notice only to be called by the owner of the contract.
      */
-    function swapTokenAndDeposit(address _tokenAddress, uint256 _tokenAmount) external payable onlyOwner {
-        // Swap tokens
-        uint256 amountOut = _swapTokenToWeth(_tokenAddress, _tokenAmount);
+    function swapTokenAndDeposit(
+        address _tokenAddress,
+        uint256 _tokenAmount,
+        uint256 _minEthAmountRecevied
+    )
+        external
+        payable
+        onlyOwner
+    {
+        // Swap tokens for WETH
+        uint256 amountOut = _swapTokenToWeth(_tokenAddress, _tokenAmount, _minEthAmountRecevied);
         // Unwrap WETH to ETH
-        unwrapWeth(amountOut);
-        // Deposit into EP
+        _unwrapWeth(amountOut);
+        // Deposit ETH into EP
         entryPoint.depositTo{ value: amountOut }(address(this));
     }
 
