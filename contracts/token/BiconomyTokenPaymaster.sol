@@ -47,10 +47,10 @@ contract BiconomyTokenPaymaster is
     using SignatureCheckerLib for address;
 
     // State variables
-    address public verifyingSigner;
+    address public verifyingSigner; // entity used to provide external token price and markup
     uint256 public unaccountedGas;
-    uint256 public priceMarkup;
-    uint256 public priceExpiryDuration;
+    uint256 public independentPriceMarkup; // price markup used for independent mode
+    uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
     mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in
         // independent mode
@@ -65,7 +65,7 @@ contract BiconomyTokenPaymaster is
         address _verifyingSigner,
         IEntryPoint _entryPoint,
         uint256 _unaccountedGas,
-        uint256 _priceMarkup,
+        uint256 _independentPriceMarkup, // price markup used for independent mode
         uint256 _priceExpiryDuration,
         IOracle _nativeAssetToUsdOracle,
         ISwapRouter _uniswapRouter,
@@ -87,7 +87,7 @@ contract BiconomyTokenPaymaster is
         if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        if (_priceMarkup > MAX_PRICE_MARKUP || _priceMarkup < PRICE_DENOMINATOR) {
+        if (_independentPriceMarkup > MAX_PRICE_MARKUP || _independentPriceMarkup < PRICE_DENOMINATOR) {
             revert InvalidPriceMarkup();
         }
         if (_independentTokens.length != _oracles.length) {
@@ -102,7 +102,7 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, _verifyingSigner)
             sstore(unaccountedGas.slot, _unaccountedGas)
-            sstore(priceMarkup.slot, _priceMarkup)
+            sstore(independentPriceMarkup.slot, _independentPriceMarkup)
             sstore(priceExpiryDuration.slot, _priceExpiryDuration)
             sstore(nativeAssetToUsdOracle.slot, _nativeAssetToUsdOracle)
         }
@@ -244,18 +244,18 @@ contract BiconomyTokenPaymaster is
 
     /**
      * @dev Set a new priceMarkup value.
-     * @param _newPriceMarkup The new value to be set as the price markup
+     * @param _newIndependentPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceMarkup(uint256 _newPriceMarkup) external payable override onlyOwner {
-        if (_newPriceMarkup > MAX_PRICE_MARKUP || _newPriceMarkup < PRICE_DENOMINATOR) {
+    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable override onlyOwner {
+        if (_newPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
             revert InvalidPriceMarkup();
         }
-        uint256 oldPriceMarkup = priceMarkup;
+        uint256 oldIndependentPriceMarkup = independentPriceMarkup;
         assembly ("memory-safe") {
-            sstore(priceMarkup.slot, _newPriceMarkup)
+            sstore(independentPriceMarkup.slot, _newIndependentPriceMarkup)
         }
-        emit UpdatedFixedPriceMarkup(oldPriceMarkup, _newPriceMarkup);
+        emit UpdatedFixedPriceMarkup(oldIndependentPriceMarkup, _newIndependentPriceMarkup);
     }
 
     /**
@@ -478,14 +478,14 @@ contract BiconomyTokenPaymaster is
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * priceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * independentPriceMarkup * tokenPrice)
                     / (1e18 * PRICE_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, priceMarkup, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
