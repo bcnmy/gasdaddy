@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.26;
 
-import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import { ReentrancyGuardTransient } from "@openzeppelin/utils/ReentrancyGuardTransient.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20 } from "@openzeppelin/token/ERC20/ERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";

@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 /* solhint-disable reason-string */
 
 import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/utils/introspection/IERC165.sol";
 import { IPaymaster } from "@account-abstraction/interfaces/IPaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import "@account-abstraction/core/UserOperationLib.sol";
