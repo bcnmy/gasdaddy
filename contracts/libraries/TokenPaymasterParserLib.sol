@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
-import "@account-abstraction/contracts/core/UserOperationLib.sol";
+import "@account-abstraction/core/UserOperationLib.sol";
 
 // A helper library to parse paymaster and data
 library TokenPaymasterParserLib {

@@ -7,9 +7,9 @@ import { Vm } from "forge-std/src/Vm.sol";
 import "@solady/src/utils/ECDSA.sol";
 import "./TestHelper.sol";
 
-import { IAccount } from "@account-abstraction/contracts/interfaces/IAccount.sol";
-import { Exec } from "@account-abstraction/contracts/utils/Exec.sol";
-import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
+import { IAccount } from "@account-abstraction/interfaces/IAccount.sol";
+import { Exec } from "@account-abstraction/utils/Exec.sol";
+import { IPaymaster } from "@account-abstraction/interfaces/IPaymaster.sol";
 
 import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";

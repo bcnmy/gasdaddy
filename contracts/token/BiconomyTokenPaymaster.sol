@@ -2,8 +2,8 @@
 pragma solidity ^0.8.26;
 
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
+import { PackedUserOperation, UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
@@ -14,7 +14,7 @@ import { IOracle } from "../interfaces/oracles/IOracle.sol";
 import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.sol";
 import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
-import "@account-abstraction/contracts/core/Helpers.sol";
+import "@account-abstraction/core/Helpers.sol";
 
 /**
  * @title BiconomyTokenPaymaster
