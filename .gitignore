@@ -34,6 +34,9 @@ node_modules
 /coverage
 /coverage.json
 
+/deploy.txt
+deploy.txt
+
 node_modules
 .env
 

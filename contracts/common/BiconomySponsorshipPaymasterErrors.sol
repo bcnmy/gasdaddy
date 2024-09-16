@@ -50,7 +50,7 @@ contract BiconomySponsorshipPaymasterErrors {
     /**
      * @notice Throws when invalid signature length in paymasterAndData
      */
-    error InvalidDynamicAdjustment();
+    error InvalidPriceMarkup();
 
     /**
      * @notice Throws when insufficient funds for paymasterid

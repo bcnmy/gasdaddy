@@ -5,9 +5,9 @@ pragma solidity ^0.8.26;
 
 import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IPaymaster } from "account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { IEntryPoint } from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "account-abstraction/contracts/core/UserOperationLib.sol";
+import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
+import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import "@account-abstraction/contracts/core/UserOperationLib.sol";
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
@@ -163,7 +163,10 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
         require(msg.sender == address(entryPoint), "Sender not EntryPoint");
     }
 
-    function isContract(address _addr) internal view returns (bool) {
+    /**
+     * Check if address is a contract
+     */
+    function _isContract(address _addr) internal view returns (bool) {
         uint256 size;
         assembly ("memory-safe") {
             size := extcodesize(_addr)
