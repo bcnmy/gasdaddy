@@ -7,11 +7,17 @@
     "url": "https://github.com/bcnmy"
   },
   "dependencies": {
-    "@biconomy-devx/erc7579-msa": "^0.0.4"
+    "@biconomy-devx/erc7579-msa": "^0.0.4",
+    "@uniswap/v3-core": "https://github.com/Uniswap/v3-core#0.8",
+    "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
+    "accountabstraction": "https://github.com/eth-infinitism/account-abstraction#develop",
+    "excessively-safe-call": "github:nomad-xyz/ExcessivelySafeCall",
+    "nexus": "https://github.com/bcnmy/nexus#feat/remap-fix"
   },
   "devDependencies": {
     "@bonadocs/docgen": "^1.0.1-alpha.1",
     "@ethersproject/abstract-provider": "^5.7.0",
+    "@openzeppelin": "https://github.com/OpenZeppelin/openzeppelin-contracts/",
     "@prb/test": "^0.6.4",
     "@typechain/ethers-v6": "^0.5.1",
     "@types/chai": "^4.3.11",
@@ -19,7 +25,6 @@
     "@types/node": ">=20.11.19",
     "account-abstraction": "github:eth-infinitism/account-abstraction#develop",
     "chai": "^4.3.7",
-    "@openzeppelin": "https://github.com/OpenZeppelin/openzeppelin-contracts/",
     "codecov": "^3.8.3",
     "ethers": "^6.11.1",
     "modulekit": "github:rhinestonewtf/modulekit",
