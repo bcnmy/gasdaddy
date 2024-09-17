@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import { Test } from "forge-std/src/Test.sol";
 import { Vm } from "forge-std/src/Vm.sol";
 
-import "@solady/src/utils/ECDSA.sol";
+import "@solady/utils/ECDSA.sol";
 import "./TestHelper.sol";
 
 import { IAccount } from "@account-abstraction/interfaces/IAccount.sol";

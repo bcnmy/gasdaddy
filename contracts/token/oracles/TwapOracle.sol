@@ -3,8 +3,8 @@ pragma solidity ^0.8.26;
 
 import {IOracle} from "../../interfaces/oracles/IOracle.sol";
 import {IERC20Metadata} from "@openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
-import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
-import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
+import {OracleLibrary} from "@uniswap/v3-periphery/libraries/OracleLibrary.sol";
+import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/interfaces/pool/IUniswapV3PoolImmutables.sol";
 
 
 contract TwapOracle is IOracle {
