@@ -7,8 +7,7 @@
     "url": "https://github.com/bcnmy"
   },
   "dependencies": {
-    "@biconomy-devx/erc7579-msa": "^0.0.4",
-    "@openzeppelin/contracts": "^5.0.1"
+    "@biconomy-devx/erc7579-msa": "^0.0.4"
   },
   "devDependencies": {
     "@bonadocs/docgen": "^1.0.1-alpha.1",
@@ -20,6 +19,7 @@
     "@types/node": ">=20.11.19",
     "account-abstraction": "github:eth-infinitism/account-abstraction#develop",
     "chai": "^4.3.7",
+    "@openzeppelin": "https://github.com/OpenZeppelin/openzeppelin-contracts/",
     "codecov": "^3.8.3",
     "ethers": "^6.11.1",
     "modulekit": "github:rhinestonewtf/modulekit",

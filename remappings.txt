@@ -1,4 +1,4 @@
-@openzeppelin/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/=node_modules/@openzeppelin/contracts/
 @prb/test/=node_modules/@prb/test/
 @nexus/=lib/nexus/
 @forge-std/=lib/forge-std/
