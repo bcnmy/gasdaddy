@@ -6,14 +6,14 @@ import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { PackedUserOperation, UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeTransferLib } from "@solady/utils/SafeTransferLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
 import { IOracle } from "../interfaces/oracles/IOracle.sol";
 import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.sol";
-import { SignatureCheckerLib } from "@solady/utils/SignatureCheckerLib.sol";
-import { ECDSA as ECDSA_solady } from "@solady/utils/ECDSA.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "@account-abstraction/core/Helpers.sol";
 
 /**
