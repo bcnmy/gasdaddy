@@ -10,7 +10,7 @@ import {
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
 import { MockOracle } from "../../mocks/MockOracle.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
-import { IERC20 } from "@openzeppelin/token/ERC20/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
 contract TestTokenPaymaster is TestBase {
