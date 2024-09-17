@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 import "lib/forge-std/src/Test.sol";
 import "../../../contracts/libraries/TokenPaymasterParserLib.sol";

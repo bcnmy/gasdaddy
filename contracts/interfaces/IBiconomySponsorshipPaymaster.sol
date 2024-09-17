@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/token/ERC20/IERC20.sol";
 import { PackedUserOperation } from "@account-abstraction/core/UserOperationLib.sol";
