@@ -60,6 +60,12 @@ contract BiconomyTokenPaymaster is
     uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint256 private constant MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
+    // Note: _priceExpiryDuration is common for all the feeds.
+    // Note: _independentPriceMarkup is common for all the independent tokens.
+    // Todo: add cases when uniswap is not available
+    // Note: swapTokenAndDeposit: we may not need to keep this onlyOwner
+
+
     constructor(
         address _owner,
         address _verifyingSigner,
@@ -521,7 +527,7 @@ contract BiconomyTokenPaymaster is
 
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
-            (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedPriceMarkup * tokenPrice
+            (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * PRICE_DENOMINATOR);
 
         if (prechargedAmount > actualTokenAmount) {
