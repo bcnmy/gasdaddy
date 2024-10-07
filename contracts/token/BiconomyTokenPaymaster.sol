@@ -35,9 +35,6 @@ import "./swaps/Uniswapper.sol";
  * applied, and how
  * to manage the assets received by the paymaster.
  */
-
-// TODO: Review unnecessary overrides
-
 contract BiconomyTokenPaymaster is
     IBiconomyTokenPaymaster,
     BasePaymaster,
@@ -224,7 +221,7 @@ contract BiconomyTokenPaymaster is
      * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
-    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
+    function setSigner(address _newVerifyingSigner) external payable onlyOwner {
         if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
@@ -241,7 +238,7 @@ contract BiconomyTokenPaymaster is
      * @param _newUnaccountedGas The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable override onlyOwner {
+    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable onlyOwner {
         if (_newUnaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
@@ -257,7 +254,7 @@ contract BiconomyTokenPaymaster is
      * @param _newIndependentPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable override onlyOwner {
+    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable onlyOwner {
         if (_newIndependentPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
@@ -274,7 +271,7 @@ contract BiconomyTokenPaymaster is
      * @param _newPriceExpiryDuration The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable override onlyOwner {
+    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable onlyOwner {
         uint256 oldPriceExpiryDuration = priceExpiryDuration;
         assembly ("memory-safe") {
             sstore(priceExpiryDuration.slot, _newPriceExpiryDuration)
@@ -307,7 +304,7 @@ contract BiconomyTokenPaymaster is
      * @param _oracle The oracle to use for the specified token
      * @notice only to be called by the owner of the contract.
      */
-    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable override onlyOwner {
+    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable onlyOwner {
         if (_oracle.decimals() != 8) {
             // Token -> USD will always have 8 decimals
             revert InvalidOracleDecimals();

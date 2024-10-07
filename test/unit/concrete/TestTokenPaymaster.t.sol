@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import "../../base/TestBase.sol";
-import { console2 } from "forge-std/src/console2.sol";
 import {
     BiconomyTokenPaymaster,
     IBiconomyTokenPaymaster,
