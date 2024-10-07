@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { PackedUserOperation } from "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { PackedUserOperation } from "account-abstraction/core/UserOperationLib.sol";
 
 interface IBiconomySponsorshipPaymaster{
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);

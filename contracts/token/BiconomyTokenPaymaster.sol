@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { PackedUserOperation, UserOperationLib } from "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
+import { PackedUserOperation, UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
 import { BiconomyTokenPaymasterErrors } from "../common/BiconomyTokenPaymasterErrors.sol";
 import { IBiconomyTokenPaymaster } from "../interfaces/IBiconomyTokenPaymaster.sol";
 import { IOracle } from "../interfaces/oracles/IOracle.sol";
 import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.sol";
-import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
-import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
-import "@account-abstraction/contracts/core/Helpers.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
+import "account-abstraction/core/Helpers.sol";
 import "./swaps/Uniswapper.sol";
 
 /**
@@ -35,6 +35,9 @@ import "./swaps/Uniswapper.sol";
  * applied, and how
  * to manage the assets received by the paymaster.
  */
+
+// TODO: Review unnecessary overrides
+
 contract BiconomyTokenPaymaster is
     IBiconomyTokenPaymaster,
     BasePaymaster,
@@ -278,7 +281,7 @@ contract BiconomyTokenPaymaster is
      * @param _oracle The new native asset oracle
      * @notice only to be called by the owner of the contract.
      */
-    function setNativeAssetToUsdOracle(IOracle _oracle) external payable override onlyOwner {
+    function setNativeAssetToUsdOracle(IOracle _oracle) external payable onlyOwner {
         if (_oracle.decimals() != 8) {
             // Native -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
