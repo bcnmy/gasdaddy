@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 /* solhint-disable reason-string */
 
 import "../base/BasePaymaster.sol";
-import "@account-abstraction/contracts/core/UserOperationLib.sol";
-import "@account-abstraction/contracts/core/Helpers.sol";
-import { SignatureCheckerLib } from "@solady/src/utils/SignatureCheckerLib.sol";
-import { ECDSA as ECDSA_solady } from "@solady/src/utils/ECDSA.sol";
+import "account-abstraction/core/UserOperationLib.sol";
+import "account-abstraction/core/Helpers.sol";
+import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
+import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import { BiconomySponsorshipPaymasterErrors } from "../common/BiconomySponsorshipPaymasterErrors.sol";
 import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeTransferLib } from "@solady/src/utils/SafeTransferLib.sol";
+import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
 /**

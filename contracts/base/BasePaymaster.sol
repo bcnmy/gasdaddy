@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.27;
 
 /* solhint-disable reason-string */
 
 import { SoladyOwnable } from "../utils/SoladyOwnable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IPaymaster } from "@account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import "@account-abstraction/contracts/core/UserOperationLib.sol";
+import { IPaymaster } from "account-abstraction/interfaces/IPaymaster.sol";
+import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
+import "account-abstraction/core/UserOperationLib.sol";
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
