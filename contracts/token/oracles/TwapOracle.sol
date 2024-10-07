@@ -9,15 +9,6 @@ import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/interfaces/pool/IUniswa
 
 contract TwapOracle is IOracle {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                       CUSTOM ERRORS                        */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-    /// @dev Invalid TWAP age, either too low or too high
-    error InvalidTwapAge();
-
-    /// @dev Pool doesn't contain the base token
-    error InvalidTokenOrPool();
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
     /// @dev The Uniswap V3 pool address
@@ -43,6 +34,15 @@ contract TwapOracle is IOracle {
 
     uint256 public constant ORACLE_DECIMALS = 1e8;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    /// @dev Invalid TWAP age, either too low or too high
+    error InvalidTwapAge();
+
+    /// @dev Pool doesn't contain the base token
+    error InvalidTokenOrPool();
+
     constructor(
         address _pool,
         uint32 _twapAge,
@@ -65,10 +65,6 @@ contract TwapOracle is IOracle {
         quoteTokenDecimals = 10 ** IERC20Metadata(quoteToken).decimals();
     }
 
-    function decimals() external override pure returns (uint8) {
-        return 8;
-    }
-
     function latestRoundData() external override view returns (
         uint80 roundId,
         int256 answer,
@@ -82,6 +78,10 @@ contract TwapOracle is IOracle {
         uint256 price = _price * ORACLE_DECIMALS / quoteTokenDecimals;
 
         return _buildLatestRoundData(price);
+    }
+
+    function decimals() external override pure returns (uint8) {
+        return 8;
     }
 
     function _buildLatestRoundData(uint256 price) internal view returns (

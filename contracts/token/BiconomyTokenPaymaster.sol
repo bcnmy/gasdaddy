@@ -52,7 +52,7 @@ contract BiconomyTokenPaymaster is
     uint256 public independentPriceMarkup; // price markup used for independent mode
     uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
-    mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in
+    mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens supported in
         // independent mode
 
     // PAYMASTER_ID_OFFSET
@@ -123,25 +123,6 @@ contract BiconomyTokenPaymaster is
             independentTokenDirectory[_independentTokens[i]] =
                 TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
         }
-    }
-
-    /**
-     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
-     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
-     */
-    function deposit() public payable virtual override nonReentrant {
-        entryPoint.depositTo{ value: msg.value }(address(this));
-    }
-
-    /**
-     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
-     * specified address.
-     * @param withdrawAddress The address to which the gas tokens should be transferred.
-     * @param amount The amount of gas tokens to withdraw.
-     */
-    function withdrawTo(address payable withdrawAddress, uint256 amount) public override onlyOwner nonReentrant {
-        if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
-        entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
     /**
@@ -364,6 +345,25 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
+     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
+     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
+     */
+    function deposit() public payable virtual override nonReentrant {
+        entryPoint.depositTo{ value: msg.value }(address(this));
+    }
+
+    /**
+     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
+     * specified address.
+     * @param withdrawAddress The address to which the gas tokens should be transferred.
+     * @param amount The amount of gas tokens to withdraw.
+     */
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public override onlyOwner nonReentrant {
+        if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
+        entryPoint.withdrawTo(withdrawAddress, amount);
+    }
+
+    /**
      * return the hash we're going to sign off-chain (and validate on-chain)
      * this method is called by the off-chain service, to sign the request.
      * it is called on-chain from the validatePaymasterUserOp, to validate the signature.
@@ -542,12 +542,6 @@ contract BiconomyTokenPaymaster is
         );
     }
 
-    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
-        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
-        SafeTransferLib.safeTransfer(address(token), target, amount);
-        emit TokensWithdrawn(address(token), target, amount, msg.sender);
-    }
-
     /// @notice Fetches the latest token price.
     /// @return price The latest token price fetched from the oracles.
     function getPrice(address tokenAddress) internal view returns (uint192 price) {
@@ -581,4 +575,11 @@ contract BiconomyTokenPaymaster is
         }
         price = uint192(int192(answer));
     }
+
+    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
+        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
+        SafeTransferLib.safeTransfer(address(token), target, amount);
+        emit TokensWithdrawn(address(token), target, amount, msg.sender);
+    }
+
 }

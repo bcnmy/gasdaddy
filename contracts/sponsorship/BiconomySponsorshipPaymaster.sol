@@ -338,12 +338,6 @@ contract BiconomySponsorshipPaymaster is
         return (context, _packValidationData(false, validUntil, validAfter));
     }
 
-    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
-        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
-        SafeTransferLib.safeTransfer(address(token), target, amount);
-        emit TokensWithdrawn(address(token), target, amount, msg.sender);
-    }
-
     function _checkConstructorArgs(
         address _verifyingSigner,
         address _feeCollector,
@@ -363,5 +357,11 @@ contract BiconomySponsorshipPaymaster is
         } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
+    }
+
+    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
+        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
+        SafeTransferLib.safeTransfer(address(token), target, amount);
+        emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
 }
