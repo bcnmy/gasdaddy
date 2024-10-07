@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn cache clean && yarn install
 
       - name: Create a fake .secret file
         run: echo "primary twist rack vendor diagram image used route theme frown either will" > .secret
