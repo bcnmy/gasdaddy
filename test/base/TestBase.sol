@@ -27,6 +27,10 @@ import {
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
 
+    address constant WRAPPED_NATIVE_ADDRESS = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+
+    address constant SWAP_ROUTER_ADDRESS = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+
     Vm.Wallet internal PAYMASTER_OWNER;
     Vm.Wallet internal PAYMASTER_SIGNER;
     Vm.Wallet internal PAYMASTER_FEE_COLLECTOR;

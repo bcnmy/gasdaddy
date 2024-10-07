@@ -46,7 +46,7 @@ interface IBiconomyTokenPaymaster {
 
     function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable;
 
-    function setNativeOracle(IOracle _oracle) external payable;
+    function setNativeAssetToUsdOracle(IOracle _oracle) external payable;
 
     function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable;
 }
