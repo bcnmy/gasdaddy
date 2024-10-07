@@ -92,7 +92,7 @@ contract BiconomySponsorshipPaymaster is
      * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
-    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
+    function setSigner(address _newVerifyingSigner) external payable onlyOwner {
         if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
@@ -124,7 +124,7 @@ contract BiconomySponsorshipPaymaster is
      * @param value The new value to be set as the unaccountedEPGasOverhead.
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint256 value) external payable override onlyOwner {
+    function setUnaccountedGas(uint256 value) external payable onlyOwner {
         if (value > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
@@ -338,12 +338,6 @@ contract BiconomySponsorshipPaymaster is
         return (context, _packValidationData(false, validUntil, validAfter));
     }
 
-    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
-        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
-        SafeTransferLib.safeTransfer(address(token), target, amount);
-        emit TokensWithdrawn(address(token), target, amount, msg.sender);
-    }
-
     function _checkConstructorArgs(
         address _verifyingSigner,
         address _feeCollector,
@@ -363,5 +357,11 @@ contract BiconomySponsorshipPaymaster is
         } else if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
+    }
+
+    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
+        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
+        SafeTransferLib.safeTransfer(address(token), target, amount);
+        emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
 }

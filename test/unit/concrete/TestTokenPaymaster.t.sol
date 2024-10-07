@@ -256,84 +256,6 @@ contract TestTokenPaymaster is TestBase {
         assertEq(address(tokenPaymaster.nativeAssetToUsdOracle()), address(newOracle));
     }
 
-    function test_ValidatePaymasterUserOp_ExternalMode() external {
-        tokenPaymaster.deposit{ value: 10 ether }();
-        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
-        vm.startPrank(address(ALICE_ACCOUNT));
-        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
-        vm.stopPrank();
-
-        // Build the user operation for external mode
-        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        uint48 validUntil = uint48(block.timestamp + 1 days);
-        uint48 validAfter = uint48(block.timestamp);
-        uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
-        uint32 externalPriceMarkup = 1e6;
-
-        // Generate and sign the token paymaster data
-        (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
-            userOp,
-            PAYMASTER_SIGNER,
-            tokenPaymaster,
-            3e6, // assumed gas limit for test
-            3e6, // assumed verification gas for test
-            IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
-            validUntil,
-            validAfter,
-            address(testToken),
-            tokenPrice,
-            externalPriceMarkup
-        );
-
-        userOp.paymasterAndData = paymasterAndData;
-        userOp.signature = signUserOp(ALICE, userOp);
-
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        ops[0] = userOp;
-
-        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
-
-        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
-
-        // Execute the operation
-        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
-    }
-
-    function test_ValidatePaymasterUserOp_IndependentMode() external {
-        tokenPaymaster.deposit{ value: 10 ether }();
-        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
-        vm.startPrank(address(ALICE_ACCOUNT));
-        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
-        vm.stopPrank();
-
-        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-
-        // Encode paymasterAndData for independent mode
-        bytes memory paymasterAndData = abi.encodePacked(
-            address(tokenPaymaster),
-            uint128(3e6), // assumed gas limit for test
-            uint128(3e6), // assumed verification gas for test
-            uint8(IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT),
-            address(testToken)
-        );
-
-        userOp.paymasterAndData = paymasterAndData;
-        userOp.signature = signUserOp(ALICE, userOp);
-
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        ops[0] = userOp;
-
-        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
-
-        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
-
-        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
-    }
-
     // Test multiple ERC20 token withdrawals
     function test_WithdrawMultipleERC20Tokens() external prankModifier(PAYMASTER_OWNER.addr) {
         // Mint tokens to paymaster
@@ -441,10 +363,96 @@ contract TestTokenPaymaster is TestBase {
         paymasterAndData[paymasterAndData.length - 1] = bytes1(uint8(paymasterAndData[paymasterAndData.length - 1]) + 1);
         userOp.paymasterAndData = paymasterAndData;
 
+        userOp.signature = signUserOp(ALICE, userOp);
+
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
 
-        vm.expectRevert();
+        bytes memory expectedRevertReason = abi.encodeWithSelector(
+            FailedOp.selector, 
+            0, 
+            "AA34 signature error"
+        );
+        
+        vm.expectRevert(expectedRevertReason);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+    }
+
+    function test_ValidatePaymasterUserOp_ExternalMode() external {
+        tokenPaymaster.deposit{ value: 10 ether }();
+        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
+        vm.startPrank(address(ALICE_ACCOUNT));
+        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        // Build the user operation for external mode
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+        uint48 validUntil = uint48(block.timestamp + 1 days);
+        uint48 validAfter = uint48(block.timestamp);
+        uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
+        uint32 externalPriceMarkup = 1e6;
+
+        // Generate and sign the token paymaster data
+        (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
+            userOp,
+            PAYMASTER_SIGNER,
+            tokenPaymaster,
+            3e6, // assumed gas limit for test
+            3e6, // assumed verification gas for test
+            IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
+            validUntil,
+            validAfter,
+            address(testToken),
+            tokenPrice,
+            externalPriceMarkup
+        );
+
+        userOp.paymasterAndData = paymasterAndData;
+        userOp.signature = signUserOp(ALICE, userOp);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
+
+        // Execute the operation
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+    }
+
+    function test_ValidatePaymasterUserOp_IndependentMode() external {
+        tokenPaymaster.deposit{ value: 10 ether }();
+        testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
+        vm.startPrank(address(ALICE_ACCOUNT));
+        testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+
+        // Encode paymasterAndData for independent mode
+        bytes memory paymasterAndData = abi.encodePacked(
+            address(tokenPaymaster),
+            uint128(3e6), // assumed gas limit for test
+            uint128(3e6), // assumed verification gas for test
+            uint8(IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT),
+            address(testToken)
+        );
+
+        userOp.paymasterAndData = paymasterAndData;
+        userOp.signature = signUserOp(ALICE, userOp);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
+
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
 }

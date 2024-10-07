@@ -35,9 +35,6 @@ import "./swaps/Uniswapper.sol";
  * applied, and how
  * to manage the assets received by the paymaster.
  */
-
-// TODO: Review unnecessary overrides
-
 contract BiconomyTokenPaymaster is
     IBiconomyTokenPaymaster,
     BasePaymaster,
@@ -55,13 +52,19 @@ contract BiconomyTokenPaymaster is
     uint256 public independentPriceMarkup; // price markup used for independent mode
     uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
-    mapping(address => TokenInfo) independentTokenDirectory; // mapping of token address => info for tokens supported in
+    mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens supported in
         // independent mode
 
     // PAYMASTER_ID_OFFSET
     uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
     uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint256 private constant MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
+
+    // Note: _priceExpiryDuration is common for all the feeds.
+    // Note: _independentPriceMarkup is common for all the independent tokens.
+    // Todo: add cases when uniswap is not available
+    // Note: swapTokenAndDeposit: we may not need to keep this onlyOwner
+
 
     constructor(
         address _owner,
@@ -120,25 +123,6 @@ contract BiconomyTokenPaymaster is
             independentTokenDirectory[_independentTokens[i]] =
                 TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
         }
-    }
-
-    /**
-     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
-     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
-     */
-    function deposit() public payable virtual override nonReentrant {
-        entryPoint.depositTo{ value: msg.value }(address(this));
-    }
-
-    /**
-     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
-     * specified address.
-     * @param withdrawAddress The address to which the gas tokens should be transferred.
-     * @param amount The amount of gas tokens to withdraw.
-     */
-    function withdrawTo(address payable withdrawAddress, uint256 amount) public override onlyOwner nonReentrant {
-        if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
-        entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
     /**
@@ -218,7 +202,7 @@ contract BiconomyTokenPaymaster is
      * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
-    function setSigner(address _newVerifyingSigner) external payable override onlyOwner {
+    function setSigner(address _newVerifyingSigner) external payable onlyOwner {
         if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
         if (_newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
@@ -235,7 +219,7 @@ contract BiconomyTokenPaymaster is
      * @param _newUnaccountedGas The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable override onlyOwner {
+    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable onlyOwner {
         if (_newUnaccountedGas > UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
@@ -251,7 +235,7 @@ contract BiconomyTokenPaymaster is
      * @param _newIndependentPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable override onlyOwner {
+    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable onlyOwner {
         if (_newIndependentPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
@@ -268,7 +252,7 @@ contract BiconomyTokenPaymaster is
      * @param _newPriceExpiryDuration The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable override onlyOwner {
+    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable onlyOwner {
         uint256 oldPriceExpiryDuration = priceExpiryDuration;
         assembly ("memory-safe") {
             sstore(priceExpiryDuration.slot, _newPriceExpiryDuration)
@@ -301,7 +285,7 @@ contract BiconomyTokenPaymaster is
      * @param _oracle The oracle to use for the specified token
      * @notice only to be called by the owner of the contract.
      */
-    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable override onlyOwner {
+    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable onlyOwner {
         if (_oracle.decimals() != 8) {
             // Token -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
@@ -358,6 +342,25 @@ contract BiconomyTokenPaymaster is
         _unwrapWeth(amountOut);
         // Deposit ETH into EP
         entryPoint.depositTo{ value: amountOut }(address(this));
+    }
+
+    /**
+     * Add a deposit in native currency for this paymaster, used for paying for transaction fees.
+     * This is ideally done by the entity who is managing the received ERC20 gas tokens.
+     */
+    function deposit() public payable virtual override nonReentrant {
+        entryPoint.depositTo{ value: msg.value }(address(this));
+    }
+
+    /**
+     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
+     * specified address.
+     * @param withdrawAddress The address to which the gas tokens should be transferred.
+     * @param amount The amount of gas tokens to withdraw.
+     */
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public override onlyOwner nonReentrant {
+        if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
+        entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
     /**
@@ -524,7 +527,7 @@ contract BiconomyTokenPaymaster is
 
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
-            (actualGasCost + (unaccountedGas) * actualUserOpFeePerGas) * appliedPriceMarkup * tokenPrice
+            (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * PRICE_DENOMINATOR);
 
         if (prechargedAmount > actualTokenAmount) {
@@ -537,12 +540,6 @@ contract BiconomyTokenPaymaster is
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, userOpHash
         );
-    }
-
-    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
-        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
-        SafeTransferLib.safeTransfer(address(token), target, amount);
-        emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
 
     /// @notice Fetches the latest token price.
@@ -578,4 +575,11 @@ contract BiconomyTokenPaymaster is
         }
         price = uint192(int192(answer));
     }
+
+    function _withdrawERC20(IERC20 token, address target, uint256 amount) private {
+        if (target == address(0)) revert CanNotWithdrawToZeroAddress();
+        SafeTransferLib.safeTransfer(address(token), target, amount);
+        emit TokensWithdrawn(address(token), target, amount, msg.sender);
+    }
+
 }

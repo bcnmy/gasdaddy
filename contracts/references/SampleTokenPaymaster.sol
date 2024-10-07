@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.27;
 
 // Import the required libraries and contracts
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -41,16 +41,16 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
         uint48 priceMaxAge;
     }
 
+    /// @notice All 'price' variables are multiplied by this value to avoid rounding up
+    uint256 private constant PRICE_DENOMINATOR = 1e26;
+
+    TokenPaymasterConfig public tokenPaymasterConfig;
+
     event ConfigUpdated(TokenPaymasterConfig tokenPaymasterConfig);
 
     event UserOperationSponsored(address indexed user, uint256 actualTokenCharge, uint256 actualGasCost, uint256 actualTokenPriceWithMarkup);
 
     event Received(address indexed sender, uint256 value);
-
-    /// @notice All 'price' variables are multiplied by this value to avoid rounding up
-    uint256 private constant PRICE_DENOMINATOR = 1e26;
-
-    TokenPaymasterConfig public tokenPaymasterConfig;
 
     /// @notice Initializes the TokenPaymaster contract with the given parameters.
     /// @param _token The ERC20 token used for transaction fee payments.
@@ -88,15 +88,13 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
         transferOwnership(_owner);
     }
 
-    /// @notice Updates the configuration for the Token Paymaster.
-    /// @param _tokenPaymasterConfig The new configuration struct.
-    function setTokenPaymasterConfig(
-        TokenPaymasterConfig memory _tokenPaymasterConfig
-    ) public onlyOwner {
-        require(_tokenPaymasterConfig.priceMarkup <= 2 * PRICE_DENOMINATOR, "TPM: price markup too high");
-        require(_tokenPaymasterConfig.priceMarkup >= PRICE_DENOMINATOR, "TPM: price markup too low");
-        tokenPaymasterConfig = _tokenPaymasterConfig;
-        emit ConfigUpdated(_tokenPaymasterConfig);
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    function withdrawEth(address payable recipient, uint256 amount) external onlyOwner {
+        (bool success,) = recipient.call{value: amount}("");
+        require(success, "withdraw failed");
     }
 
     function setUniswapConfiguration(
@@ -110,6 +108,17 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     /// @param amount The amount of tokens to transfer.
     function withdrawToken(address to, uint256 amount) external onlyOwner {
         SafeERC20.safeTransfer(token, to, amount);
+    }
+
+    /// @notice Updates the configuration for the Token Paymaster.
+    /// @param _tokenPaymasterConfig The new configuration struct.
+    function setTokenPaymasterConfig(
+        TokenPaymasterConfig memory _tokenPaymasterConfig
+    ) public onlyOwner {
+        require(_tokenPaymasterConfig.priceMarkup <= 2 * PRICE_DENOMINATOR, "TPM: price markup too high");
+        require(_tokenPaymasterConfig.priceMarkup >= PRICE_DENOMINATOR, "TPM: price markup too low");
+        tokenPaymasterConfig = _tokenPaymasterConfig;
+        emit ConfigUpdated(_tokenPaymasterConfig);
     }
 
     /// @notice Validates a paymaster user operation and calculates the required token amount for the transaction.
@@ -204,14 +213,5 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
             unwrapWeth(swappedWeth);
             entryPoint.depositTo{value: address(this).balance}(address(this));
         }
-    }
-
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
-    }
-
-    function withdrawEth(address payable recipient, uint256 amount) external onlyOwner {
-        (bool success,) = recipient.call{value: amount}("");
-        require(success, "withdraw failed");
     }
 }
