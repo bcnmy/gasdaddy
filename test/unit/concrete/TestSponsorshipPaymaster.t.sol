@@ -194,8 +194,13 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
     }
 
+    function test_RevertIf_WithdrawZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 0 ether);
+    }
+
     function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
+        vm.expectRevert(abi.encodeWithSelector(InsufficientFunds.selector));
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
 

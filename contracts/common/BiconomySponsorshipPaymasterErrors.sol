@@ -40,7 +40,7 @@ contract BiconomySponsorshipPaymasterErrors {
     /**
      * @notice Throws when insufficient funds to withdraw
      */
-    error InsufficientFundsInGasTank();
+    error InsufficientFunds();
 
     /**
      * @notice Throws when invalid signature length in paymasterAndData
@@ -66,6 +66,11 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Throws when trying to withdraw to address(0)
      */
     error CanNotWithdrawToZeroAddress();
+
+    /**
+     * @notice Throws when trying to withdraw zero amount
+     */
+    error CanNotWithdrawZeroAmount();
 
     /**
      * @notice Throws when trying unaccountedGas is too high
