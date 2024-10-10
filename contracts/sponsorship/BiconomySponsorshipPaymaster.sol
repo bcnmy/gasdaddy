@@ -313,12 +313,13 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidSignatureLength();
         }
 
+        // Note: may not need to cache and forward in the context
         uint256 unaccountedGasCatched = unaccountedGas;
 
-        // WIP
-        // if(unaccountedGasCatched >= userOp.unpackPostOpGasLimit()) {
-        //     revert PostOpGasLimitTooLow();
-        // } 
+
+        if(unaccountedGasCatched >= userOp.unpackPostOpGasLimit()) {
+            revert PostOpGasLimitTooLow();
+        } 
 
         bool validSig = verifyingSigner.isValidSignatureNow(
             ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),

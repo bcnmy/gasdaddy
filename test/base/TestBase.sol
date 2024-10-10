@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import { Test } from "forge-std/Test.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { console2 } from "forge-std/console2.sol";
 
 import "solady/utils/ECDSA.sol";
 import "./TestHelper.sol";
@@ -130,7 +131,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
         (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, priceMarkup
+            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 8e3, DAPP_ACCOUNT.addr, validUntil, validAfter, priceMarkup
         );
         userOp.signature = signUserOp(sender, userOp);
 
@@ -139,10 +140,20 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         (, uint256 postopGasUsed, uint256 validationGasLimit, uint256 postopGasLimit) =
             estimatePaymasterGasCosts(paymaster, userOp, 5e4);
 
+        // console2.log("postOpGasUsed");
+        // console2.logUint(postopGasUsed); 
+
+        // uint256 prevValUnaccountedGas = paymaster.unaccountedGas();
+        // console2.logUint(prevValUnaccountedGas);
+
+        // Below may not be needed if unaccountedGas is set correctly
         vm.startPrank(paymaster.owner());
         // Set unaccounted gas to be gas used in postop + 1000 for EP overhead and penalty
-        paymaster.setUnaccountedGas(uint16(postopGasUsed + 1000));
+        paymaster.setUnaccountedGas(postopGasUsed + 500);
         vm.stopPrank();
+
+        // uint256 currentValUnaccountedGas = paymaster.unaccountedGas();
+        // console2.logUint(currentValUnaccountedGas);
 
         // Ammend the userop to have new gas limits and signature
         userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(verificationGasLimit), uint128(callGasLimit)));

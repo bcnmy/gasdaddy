@@ -13,19 +13,19 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e4
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
         );
     }
 
     function test_Deploy() external {
         BiconomySponsorshipPaymaster testArtifact = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e4
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
         );
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(testArtifact.unaccountedGas(), 7e4);
+        assertEq(testArtifact.unaccountedGas(), 7e3);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
@@ -65,7 +65,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(bicoPaymaster.unaccountedGas(), 7e4);
+        assertEq(bicoPaymaster.unaccountedGas(), 7e3);
     }
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
