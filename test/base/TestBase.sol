@@ -349,6 +349,9 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         assertEq(expectedPriceMarkup, actualPriceMarkup);
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
+
+        // TODO
+        // Review: fix this properly. avoid out of stack errors
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
         // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
