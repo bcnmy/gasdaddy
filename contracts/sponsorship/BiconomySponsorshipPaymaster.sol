@@ -266,9 +266,9 @@ contract BiconomySponsorshipPaymaster is
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / PRICE_DENOMINATOR;
 
-            if(prechargedAmount - adjustedGasCost > 0) {
-            // If overcharged refund the excess
-            paymasterIdBalances[paymasterId] += (prechargedAmount -adjustedGasCost);
+            if (prechargedAmount > adjustedGasCost) {
+                // If overcharged refund the excess
+                paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
             }
 
             // Should always be true
