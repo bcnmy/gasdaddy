@@ -37,6 +37,7 @@ contract BiconomySponsorshipPaymaster is
 {
     using UserOperationLib for PackedUserOperation;
     using SignatureCheckerLib for address;
+    using ECDSA_solady for bytes32;
 
     address public verifyingSigner;
     address public feeCollector;
@@ -47,7 +48,8 @@ contract BiconomySponsorshipPaymaster is
     // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant PAYMASTER_ID_OFFSET = PAYMASTER_DATA_OFFSET;
     // Limit for unaccounted gas cost
-    uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000;
+    // Review cap
+    uint256 private constant UNACCOUNTED_GAS_LIMIT = 100_000;
 
     mapping(address => uint256) public paymasterIdBalances;
 
@@ -256,26 +258,30 @@ contract BiconomySponsorshipPaymaster is
         override
     {
         unchecked {
-            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash) =
-                abi.decode(context, (address, uint32, bytes32));
+            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash, uint256 prechargedAmount, uint256 unaccountedGasCatched) =
+                abi.decode(context, (address, uint32, bytes32, uint256, uint256));
 
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
-            actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
+            actualGasCost = actualGasCost + (unaccountedGasCatched * actualUserOpFeePerGas);
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / PRICE_DENOMINATOR;
 
-            // Deduct the adjusted cost
-            paymasterIdBalances[paymasterId] -= adjustedGasCost;
-
-            if (adjustedGasCost > actualGasCost) {
-                // Apply priceMarkup to fee collector balance
-                uint256 premium = adjustedGasCost - actualGasCost;
-                paymasterIdBalances[feeCollector] += premium;
-                // Review if we should emit adjustedGasCost as well
-                emit PriceMarkupCollected(paymasterId, premium);
+            if (prechargedAmount > adjustedGasCost) {
+                // If overcharged refund the excess
+                paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
             }
 
+            // Should always be true
+            // if (adjustedGasCost > actualGasCost) {
+            // Apply priceMarkup to fee collector balance
+            uint256 premium = adjustedGasCost - actualGasCost;
+            paymasterIdBalances[feeCollector] += premium;
+            // Review:  if we should emit adjustedGasCost as well
+            emit PriceMarkupCollected(paymasterId, premium);
+            // }
+
+            // Review: emit min required information
             emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
         }
     }
@@ -296,7 +302,6 @@ contract BiconomySponsorshipPaymaster is
         uint256 requiredPreFund
     )
         internal
-        view
         override
         returns (bytes memory context, uint256 validationData)
     {
@@ -309,29 +314,36 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidSignatureLength();
         }
 
-        bool validSig = verifyingSigner.isValidSignatureNow(
-            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
-            signature
-        );
+        // Note: may not need to cache and forward in the context
+        uint256 unaccountedGasCatched = unaccountedGas;
+
+
+        if(unaccountedGasCatched >= userOp.unpackPostOpGasLimit()) {
+            revert PostOpGasLimitTooLow();
+        } 
+
+        bool validSig = ((getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup).toEthSignedMessageHash()).tryRecover(signature)) == verifyingSigner ? true : false;
 
         //don't revert on signature failure: return SIG_VALIDATION_FAILED
         if (!validSig) {
             return ("", _packValidationData(true, validUntil, validAfter));
         }
 
-        if (priceMarkup > 2e6 || priceMarkup == 0) {
+        // Send 1e6 for No markup
+        if (priceMarkup > 2e6 || priceMarkup < 1e6) {
             revert InvalidPriceMarkup();
         }
 
-        // Send 1e6 for No markup
-        // Send between 0 and 1e6 for discount
-        uint256 effectiveCost = (requiredPreFund * priceMarkup) / PRICE_DENOMINATOR;
+        // Deduct the max gas cost.
+        uint256 effectiveCost = (requiredPreFund + unaccountedGasCatched * userOp.unpackMaxFeePerGas()) * priceMarkup / PRICE_DENOMINATOR;
 
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
 
-        context = abi.encode(paymasterId, priceMarkup, userOpHash);
+        paymasterIdBalances[paymasterId] -= effectiveCost;
+
+        context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost, unaccountedGasCatched);
 
         //no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.

@@ -71,4 +71,9 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Throws when trying unaccountedGas is too high
      */
     error UnaccountedGasTooHigh();
+
+    /**
+     * @notice Throws when postOp gas limit is too low
+     */
+    error PostOpGasLimitTooLow();
 }
