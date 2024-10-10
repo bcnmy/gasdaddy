@@ -37,6 +37,7 @@ contract BiconomySponsorshipPaymaster is
 {
     using UserOperationLib for PackedUserOperation;
     using SignatureCheckerLib for address;
+    using ECDSA_solady for bytes32;
 
     address public verifyingSigner;
     address public feeCollector;
@@ -321,10 +322,7 @@ contract BiconomySponsorshipPaymaster is
             revert PostOpGasLimitTooLow();
         } 
 
-        bool validSig = verifyingSigner.isValidSignatureNow(
-            ECDSA_solady.toEthSignedMessageHash(getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup)),
-            signature
-        );
+        bool validSig = ((getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup).toEthSignedMessageHash()).tryRecover(signature)) == verifyingSigner ? true : false;
 
         //don't revert on signature failure: return SIG_VALIDATION_FAILED
         if (!validSig) {
