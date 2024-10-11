@@ -7,7 +7,7 @@
   evm_version = "cancun"           # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
   gas_reports = ["*"]
   optimizer = true
-  optimizer_runs = 1_000_000
+  optimizer_runs = 800
   out = "out"
   script = "scripts"
   solc = "0.8.27"
