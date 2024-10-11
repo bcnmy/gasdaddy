@@ -9,9 +9,8 @@ sentinellist/=node_modules/sentinellist/src/
 solady/=node_modules/solady/src/
 @uniswap/v3-periphery/=node_modules/@uniswap/v3-periphery/contracts
 @uniswap/v3-core/=node_modules/@uniswap/v3-core/contracts/
-
 @uniswap/v3-periphery/contracts/=node_modules/@uniswap/v3-periphery/contracts
 @uniswap/v3-core/contracts/=node_modules/@uniswap/v3-core/contracts/
-
 solady/src/=node_modules/solady/src/
 excessively-safe-call/=node_modules/excessively-safe-call/src/
+modulekit/=node_modules/@rhinestone/modulekit/src/

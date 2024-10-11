@@ -12,7 +12,8 @@
     "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
     "accountabstraction": "https://github.com/eth-infinitism/account-abstraction#develop",
     "excessively-safe-call": "github:nomad-xyz/ExcessivelySafeCall",
-    "nexus": "https://github.com/bcnmy/nexus#dev"
+    "nexus": "https://github.com/bcnmy/nexus#dev",
+    "@rhinestone/modulekit": "^0.4.10"
   },
   "devDependencies": {
     "@bonadocs/docgen": "^1.0.1-alpha.1",
@@ -50,22 +51,22 @@
   "private": true,
   "scripts": {
     "clean:forge": "forge clean",
-    "clean": "yarn run clean:forge && rm -rf cache docs coverage storageLayout coverage.json",
+    "clean": "pnpm run clean:forge && rm -rf cache docs coverage storageLayout coverage.json",
     "build:forge": "forge build",
-    "build": "yarn run build:forge",
+    "build": "pnpm run build:forge",
     "test:forge": "forge test",
-    "test": "yarn run test:forge",
+    "test": "pnpm run test:forge",
     "test:gas:forge": "forge test --gas-report",
-    "test:gas": "yarn test:gas:forge",
+    "test:gas": "pnpm test:gas:forge",
     "coverage:forge": "forge coverage --ir-minimum",
-    "coverage": "yarn run coverage:forge",
+    "coverage": "pnpm run coverage:forge",
     "coverage:report": "forge coverage --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage/foundry && mv lcov.info coverage/foundry",
     "deploy:forge": "forge script scripts/solidity/Deploy.s.sol --broadcast --rpc-url http://localhost:8545",
-    "lint:sol": "yarn solhint 'contracts/**/*.sol' && forge fmt --check",
-    "lint:sol-fix": "yarn prettier --write 'contracts/**/*.sol' && yarn solhint 'contracts/**/*.sol' --fix --noPrompt && forge fmt",
-    "lint:ts": "yarn prettier --check 'test/**/*.ts' 'scripts/**/*.ts'",
-    "lint:ts-fix": "yarn prettier --write 'test/**/*.ts' 'scripts/**/*.ts'",
-    "lint": "yarn run lint:sol && yarn run lint:ts",
-    "lint:fix": "yarn run lint:sol-fix && yarn run lint:ts-fix"
+    "lint:sol": "pnpm solhint 'contracts/**/*.sol' && forge fmt --check",
+    "lint:sol-fix": "pnpm prettier --write 'contracts/**/*.sol' && pnpm solhint 'contracts/**/*.sol' --fix --noPrompt && forge fmt",
+    "lint:ts": "pnpm prettier --check 'test/**/*.ts' 'scripts/**/*.ts'",
+    "lint:ts-fix": "pnpm prettier --write 'test/**/*.ts' 'scripts/**/*.ts'",
+    "lint": "pnpm run lint:sol && pnpm run lint:ts",
+    "lint:fix": "pnpm run lint:sol-fix && pnpm run lint:ts-fix"
   }
 }
