@@ -258,12 +258,12 @@ contract BiconomySponsorshipPaymaster is
         override
     {
         unchecked {
-            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash, uint256 prechargedAmount, uint256 unaccountedGasCatched) =
-                abi.decode(context, (address, uint32, bytes32, uint256, uint256));
+            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash, uint256 prechargedAmount) =
+                abi.decode(context, (address, uint32, bytes32, uint256));
 
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
-            actualGasCost = actualGasCost + (unaccountedGasCatched * actualUserOpFeePerGas);
+            actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / PRICE_DENOMINATOR;
 
@@ -314,11 +314,7 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidSignatureLength();
         }
 
-        // Note: may not need to cache and forward in the context
-        uint256 unaccountedGasCatched = unaccountedGas;
-
-
-        if(unaccountedGasCatched >= userOp.unpackPostOpGasLimit()) {
+        if(unaccountedGas >= userOp.unpackPostOpGasLimit()) {
             revert PostOpGasLimitTooLow();
         } 
 
@@ -335,7 +331,7 @@ contract BiconomySponsorshipPaymaster is
         }
 
         // Deduct the max gas cost.
-        uint256 effectiveCost = (requiredPreFund + unaccountedGasCatched * userOp.unpackMaxFeePerGas()) * priceMarkup / PRICE_DENOMINATOR;
+        uint256 effectiveCost = (requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup / PRICE_DENOMINATOR;
 
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
@@ -343,7 +339,7 @@ contract BiconomySponsorshipPaymaster is
 
         paymasterIdBalances[paymasterId] -= effectiveCost;
 
-        context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost, unaccountedGasCatched);
+        context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost);
 
         //no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.
