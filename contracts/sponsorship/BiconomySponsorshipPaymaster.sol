@@ -122,8 +122,8 @@ contract BiconomySponsorshipPaymaster is
     }
 
     /**
-     * @dev Set a new unaccountedEPGasOverhead value.
-     * @param value The new value to be set as the unaccountedEPGasOverhead.
+     * @dev Set a new unaccountedGas value.
+     * @param value The new value to be set as the unaccountedGas.
      * @notice only to be called by the owner of the contract.
      */
     function setUnaccountedGas(uint256 value) external payable onlyOwner {
@@ -160,9 +160,10 @@ contract BiconomySponsorshipPaymaster is
      */
     function withdrawTo(address payable withdrawAddress, uint256 amount) external override nonReentrant {
         if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
+        if (amount == 0) revert CanNotWithdrawZeroAmount();
         uint256 currentBalance = paymasterIdBalances[msg.sender];
         if (amount > currentBalance) {
-            revert InsufficientFundsInGasTank();
+            revert InsufficientFunds();
         }
         paymasterIdBalances[msg.sender] = currentBalance - amount;
         entryPoint.withdrawTo(withdrawAddress, amount);
