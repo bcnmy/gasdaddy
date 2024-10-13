@@ -1,6 +1,6 @@
-@openzeppelin/contracts/=node_modules/@openzeppelin/.ignored_contracts/
-@openzeppelin/=node_modules/@openzeppelin/.ignored_contracts
-@openzeppelin/contracts/contracts/=node_modules/@openzeppelin/.ignored_contracts/
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@openzeppelin/=node_modules/@openzeppelin/contracts
+@openzeppelin/contracts/contracts/=node_modules/@openzeppelin/contracts/
 @prb/test/=node_modules/@prb/test/
 @nexus/=node_modules/nexus/
 forge-std/=lib/forge-std/src/
