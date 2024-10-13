@@ -7,7 +7,6 @@
     "url": "https://github.com/bcnmy"
   },
   "dependencies": {
-    "@biconomy-devx/erc7579-msa": "^0.0.4",
     "@uniswap/v3-core": "https://github.com/Uniswap/v3-core#0.8",
     "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
     "accountabstraction": "https://github.com/eth-infinitism/account-abstraction#develop",
