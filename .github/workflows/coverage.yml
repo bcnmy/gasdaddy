@@ -16,7 +16,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y lcov
 
       - name: Install JavaScript Dependencies
-        run: yarn cache clean && yarn install
+        run: pnpm install
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -27,7 +27,7 @@ jobs:
         run: forge install
 
       - name: Generate Foundry Coverage Report
-        run: yarn coverage:report
+        run: pnpm coverage:report
 
       - name: Upload Foundry Coverage Report to Codecov
         uses: codecov/codecov-action@v3
