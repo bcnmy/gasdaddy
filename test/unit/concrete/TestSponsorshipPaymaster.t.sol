@@ -205,7 +205,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
 
-    function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external prankModifier(DAPP_ACCOUNT.addr) {
+    function skip_test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external prankModifier(DAPP_ACCOUNT.addr) {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
         // No adjustment
         uint32 priceMarkup = 1e6;

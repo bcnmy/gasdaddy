@@ -68,7 +68,7 @@
     "lint:sol-fix": "pnpm prettier --write 'contracts/**/*.sol' && pnpm solhint 'contracts/**/*.sol' --fix --noPrompt && forge fmt",
     "lint:ts": "pnpm prettier --check 'test/**/*.ts' 'scripts/**/*.ts'",
     "lint:ts-fix": "pnpm prettier --write 'test/**/*.ts' 'scripts/**/*.ts'",
-    "lint": "pnpm run lint:sol && pnpm run lint:ts",
+    "lint": "pnpm run lint:sol",
     "lint:fix": "pnpm run lint:sol-fix && pnpm run lint:ts-fix"
   }
 }

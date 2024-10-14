@@ -55,12 +55,12 @@ contract BiconomySponsorshipPaymaster is
 
     constructor(
         address owner,
-        IEntryPoint entryPoint,
+        IEntryPoint entryPointArg,
         address verifyingSignerArg,
         address feeCollectorArg,
         uint256 unaccountedGasArg
     )
-        BasePaymaster(owner, entryPoint)
+        BasePaymaster(owner, entryPointArg)
     {
         _checkConstructorArgs(verifyingSignerArg, feeCollectorArg, unaccountedGasArg);
         assembly ("memory-safe") {

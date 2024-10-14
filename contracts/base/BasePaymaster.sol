@@ -21,9 +21,9 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     uint256 internal constant _PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
     uint256 internal constant _PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
-    constructor(address owner, IEntryPoint entryPoint) SoladyOwnable(owner) {
-        _validateEntryPointInterface(entryPoint);
-        entryPoint = entryPoint;
+    constructor(address owner, IEntryPoint entryPointArg) SoladyOwnable(owner) {
+        _validateEntryPointInterface(entryPointArg);
+        entryPoint = entryPointArg;
     }
 
     /**
