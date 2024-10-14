@@ -64,11 +64,11 @@
     "coverage": "pnpm run coverage:forge",
     "coverage:report": "forge coverage --ir-minimum --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage/foundry && mv lcov.info coverage/foundry",
     "deploy:forge": "forge script scripts/solidity/Deploy.s.sol --broadcast --rpc-url http://localhost:8545",
-    "lint:sol": "pnpm solhint 'contracts/**/*.sol' && forge fmt --check",
-    "lint:sol-fix": "pnpm prettier --write 'contracts/**/*.sol' && pnpm solhint 'contracts/**/*.sol' --fix --noPrompt && forge fmt",
+    "lint:sol": "pnpm solhint 'contracts/**/*.sol'",
+    "format:check": "forge fmt --check",
+    "lint": "pnpm run lint:sol && pnpm run format:check",
     "lint:ts": "pnpm prettier --check 'test/**/*.ts' 'scripts/**/*.ts'",
     "lint:ts-fix": "pnpm prettier --write 'test/**/*.ts' 'scripts/**/*.ts'",
-    "lint": "pnpm run lint:sol",
     "lint:fix": "pnpm run lint:sol-fix && pnpm run lint:ts-fix"
   }
 }

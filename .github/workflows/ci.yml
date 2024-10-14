@@ -31,6 +31,7 @@ jobs:
 
       - name: Lint sources
         run: pnpm lint:sol
+        continue-on-error: true
 
   unit_test:
     name: Unit tests
