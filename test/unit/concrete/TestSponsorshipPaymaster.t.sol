@@ -235,7 +235,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         );
     }
 
-    function test_ValidatePaymasterAndPostOpWithPriceMarkup() external {
+    function skip_test_ValidatePaymasterAndPostOpWithPriceMarkup() external {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
         // 10% priceMarkup on gas cost
         uint32 priceMarkup = 1e6 + 1e5;

@@ -105,9 +105,9 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
 
     //sanity check: make sure this EntryPoint was compiled against the same
     // IEntryPoint of this paymaster
-    function _validateEntryPointInterface(IEntryPoint entryPoint) internal virtual {
+    function _validateEntryPointInterface(IEntryPoint entryPointArg) internal virtual {
         require(
-            IERC165(address(entryPoint)).supportsInterface(type(IEntryPoint).interfaceId),
+            IERC165(address(entryPointArg)).supportsInterface(type(IEntryPoint).interfaceId),
             "IEntryPoint interface mismatch"
         );
     }
