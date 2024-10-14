@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PackedUserOperation } from "account-abstraction/core/UserOperationLib.sol";
 
-interface IBiconomySponsorshipPaymaster{
+interface IBiconomySponsorshipPaymaster {
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FixedPriceMarkupChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
@@ -18,9 +18,9 @@ interface IBiconomySponsorshipPaymaster{
 
     function depositFor(address paymasterId) external payable;
 
-    function setSigner(address _newVerifyingSigner) external payable;
+    function setSigner(address newVerifyingSigner) external payable;
 
-    function setFeeCollector(address _newFeeCollector) external payable;
+    function setFeeCollector(address newFeeCollector) external payable;
 
     function setUnaccountedGas(uint256 value) external payable;
 
@@ -41,7 +41,9 @@ interface IBiconomySponsorshipPaymaster{
         view
         returns (bytes32);
 
-    function parsePaymasterAndData(bytes calldata paymasterAndData)
+    function parsePaymasterAndData(
+        bytes calldata paymasterAndData
+    )
         external
         pure
         returns (

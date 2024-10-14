@@ -38,15 +38,15 @@ interface IBiconomyTokenPaymaster {
     event UpdatedTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);
     event UpdatedNativeAssetOracle(IOracle indexed oldOracle, IOracle indexed newOracle);
 
-    function setSigner(address _newVerifyingSigner) external payable;
+    function setSigner(address newVerifyingSigner) external payable;
 
     function setUnaccountedGas(uint256 value) external payable;
 
-    function setPriceMarkup(uint256 _newUnaccountedGas) external payable;
+    function setPriceMarkup(uint256 newUnaccountedGas) external payable;
 
-    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable;
+    function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable;
 
-    function setNativeAssetToUsdOracle(IOracle _oracle) external payable;
+    function setNativeAssetToUsdOracle(IOracle oracle) external payable;
 
-    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable;
+    function updateTokenDirectory(address tokenAddress, IOracle oracle) external payable;
 }

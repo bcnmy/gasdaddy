@@ -46,7 +46,10 @@ contract MockOracle is IOracle {
         require(minPrice <= maxPrice, "Min price must be less than or equal to max price");
 
         // Generate a random price within the range [minPrice, maxPrice]
-        price = minPrice + int256(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % uint256(maxPrice - minPrice + 1));
+        price = minPrice
+            + int256(
+                uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % uint256(maxPrice - minPrice + 1)
+            );
     }
 
     /**
@@ -61,20 +64,14 @@ contract MockOracle is IOracle {
         external
         view
         override
-        returns (
-            uint80 _roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 _updatedAt,
-            uint80 answeredInRound
-        )
+        returns (uint80 _roundId, int256 answer, uint256 startedAt, uint256 _updatedAt, uint80 answeredInRound)
     {
         return (
-            73786976294838215802, // Mock round ID
+            73_786_976_294_838_215_802, // Mock round ID
             price, // The current price
             block.timestamp, // Simulate round started at the current block timestamp
             block.timestamp - updatedAtDelay, // Simulate price last updated with delay
-            73786976294838215802 // Mock round ID for answeredInRound
+            73_786_976_294_838_215_802 // Mock round ID for answeredInRound
         );
     }
 }

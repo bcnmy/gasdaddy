@@ -17,13 +17,13 @@ import "account-abstraction/core/UserOperationLib.sol";
 abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     IEntryPoint public immutable entryPoint;
 
-    uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
-    uint256 internal constant PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
-    uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
+    uint256 internal constant _PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
+    uint256 internal constant _PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
+    uint256 internal constant _PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
-    constructor(address _owner, IEntryPoint _entryPoint) SoladyOwnable(_owner) {
-        _validateEntryPointInterface(_entryPoint);
-        entryPoint = _entryPoint;
+    constructor(address owner, IEntryPoint entryPoint) SoladyOwnable(owner) {
+        _validateEntryPointInterface(entryPoint);
+        entryPoint = entryPoint;
     }
 
     /**
@@ -105,9 +105,9 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
 
     //sanity check: make sure this EntryPoint was compiled against the same
     // IEntryPoint of this paymaster
-    function _validateEntryPointInterface(IEntryPoint _entryPoint) internal virtual {
+    function _validateEntryPointInterface(IEntryPoint entryPoint) internal virtual {
         require(
-            IERC165(address(_entryPoint)).supportsInterface(type(IEntryPoint).interfaceId),
+            IERC165(address(entryPoint)).supportsInterface(type(IEntryPoint).interfaceId),
             "IEntryPoint interface mismatch"
         );
     }
@@ -166,10 +166,10 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     /**
      * Check if address is a contract
      */
-    function _isContract(address _addr) internal view returns (bool) {
+    function _isContract(address addr) internal view returns (bool) {
         uint256 size;
         assembly ("memory-safe") {
-            size := extcodesize(_addr)
+            size := extcodesize(addr)
         }
         return size > 0;
     }

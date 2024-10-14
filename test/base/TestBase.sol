@@ -70,7 +70,9 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         FACTORY_OWNER = createAndFundWallet("FACTORY_OWNER", 1000 ether);
     }
 
-    function estimateUserOpGasCosts(PackedUserOperation memory userOp)
+    function estimateUserOpGasCosts(
+        PackedUserOperation memory userOp
+    )
         internal
         prankModifier(ENTRYPOINT_ADDRESS)
         returns (uint256 verificationGasUsed, uint256 callGasUsed, uint256 verificationGasLimit, uint256 callGasLimit)
@@ -141,7 +143,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             estimatePaymasterGasCosts(paymaster, userOp, 5e4);
 
         // console2.log("postOpGasUsed");
-        // console2.logUint(postopGasUsed); 
+        // console2.logUint(postopGasUsed);
 
         // uint256 prevValUnaccountedGas = paymaster.unaccountedGas();
         // console2.logUint(prevValUnaccountedGas);
@@ -337,9 +339,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         internal
         view
     {
-        (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) = getPriceMarkups(
-            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup
-        );
+        (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) =
+            getPriceMarkups(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup);
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
         uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
 
@@ -369,5 +370,4 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         array[0] = oracle;
         return array;
     }
-
 }

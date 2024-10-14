@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {IOracle} from "../../interfaces/oracles/IOracle.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {OracleLibrary} from "@uniswap/v3-periphery/libraries/OracleLibrary.sol";
-import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/interfaces/pool/IUniswapV3PoolImmutables.sol";
-
+import { IOracle } from "../../interfaces/oracles/IOracle.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { OracleLibrary } from "@uniswap/v3-periphery/libraries/OracleLibrary.sol";
+import { IUniswapV3PoolImmutables } from "@uniswap/v3-core/interfaces/pool/IUniswapV3PoolImmutables.sol";
 
 contract TwapOracle is IOracle {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -43,54 +42,49 @@ contract TwapOracle is IOracle {
     /// @dev Pool doesn't contain the base token
     error InvalidTokenOrPool();
 
-    constructor(
-        address _pool,
-        uint32 _twapAge,
-        address _baseToken
-    ) {
-        pool = _pool;
+    constructor(address poolArg, uint32 twapAgeArg, address baseTokenArg) {
+        pool = poolArg;
 
-        if (_twapAge < MINIMUM_TWAP_AGE || _twapAge > MAXIMUM_TWAP_AGE) revert InvalidTwapAge();
-        twapAge = _twapAge;
+        if (twapAgeArg < MINIMUM_TWAP_AGE || twapAgeArg > MAXIMUM_TWAP_AGE) revert InvalidTwapAge();
+        twapAge = twapAgeArg;
 
-        address token0 = IUniswapV3PoolImmutables(_pool).token0();
-        address token1 = IUniswapV3PoolImmutables(_pool).token1();
+        address token0 = IUniswapV3PoolImmutables(poolArg).token0();
+        address token1 = IUniswapV3PoolImmutables(poolArg).token1();
 
-        if (_baseToken != token0 && _baseToken != token1) revert InvalidTokenOrPool();
+        if (baseTokenArg != token0 && baseTokenArg != token1) revert InvalidTokenOrPool();
 
-        baseToken = _baseToken;
-        baseTokenDecimals = 10 ** IERC20Metadata(baseToken).decimals();
+        baseToken = baseTokenArg;
+        baseTokenDecimals = 10 ** IERC20Metadata(baseTokenArg).decimals();
 
         quoteToken = token0 == baseToken ? token1 : token0;
         quoteTokenDecimals = 10 ** IERC20Metadata(quoteToken).decimals();
     }
 
-    function latestRoundData() external override view returns (
-        uint80 roundId,
-        int256 answer,
-        uint256 startedAt,
-        uint256 updatedAt,
-        uint80 answeredInRound
-    ) {
-        uint256 _price = _fetchTwap();
+    function latestRoundData()
+        external
+        view
+        override
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
+        uint256 price = _fetchTwap();
 
         // Normalize the price to the oracle decimals
-        uint256 price = _price * ORACLE_DECIMALS / quoteTokenDecimals;
+        uint256 normalizedPrice = (price * ORACLE_DECIMALS) / quoteTokenDecimals;
 
-        return _buildLatestRoundData(price);
+        return _buildLatestRoundData(normalizedPrice);
     }
 
-    function decimals() external override pure returns (uint8) {
+    function decimals() external pure override returns (uint8) {
         return 8;
     }
 
-    function _buildLatestRoundData(uint256 price) internal view returns (
-        uint80 roundId,
-        int256 answer,
-        uint256 startedAt,
-        uint256 updatedAt,
-        uint80 answeredInRound
-    ) {
+    function _buildLatestRoundData(
+        uint256 price
+    )
+        internal
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
         return (0, int256(price), 0, block.timestamp, 0);
     }
 

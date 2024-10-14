@@ -233,7 +233,7 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            50000, // unaccounted gas
+            50_000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
             nativeAssetToUsdOracle,
@@ -368,12 +368,8 @@ contract TestTokenPaymaster is TestBase {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
 
-        bytes memory expectedRevertReason = abi.encodeWithSelector(
-            FailedOp.selector, 
-            0, 
-            "AA34 signature error"
-        );
-        
+        bytes memory expectedRevertReason = abi.encodeWithSelector(FailedOp.selector, 0, "AA34 signature error");
+
         vm.expectRevert(expectedRevertReason);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }

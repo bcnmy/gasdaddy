@@ -9,7 +9,9 @@ library TokenPaymasterParserLib {
     // Start offset of mode in PND
     uint256 private constant PAYMASTER_MODE_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
-    function parsePaymasterAndData(bytes calldata paymasterAndData)
+    function parsePaymasterAndData(
+        bytes calldata paymasterAndData
+    )
         external
         pure
         returns (IBiconomyTokenPaymaster.PaymasterMode mode, bytes memory modeSpecificData)
@@ -20,7 +22,9 @@ library TokenPaymasterParserLib {
         }
     }
 
-    function parseExternalModeSpecificData(bytes calldata modeSpecificData)
+    function parseExternalModeSpecificData(
+        bytes calldata modeSpecificData
+    )
         external
         pure
         returns (
@@ -40,7 +44,9 @@ library TokenPaymasterParserLib {
         signature = modeSpecificData[52:];
     }
 
-    function parseIndependentModeSpecificData(bytes calldata modeSpecificData)
+    function parseIndependentModeSpecificData(
+        bytes calldata modeSpecificData
+    )
         external
         pure
         returns (address tokenAddress)

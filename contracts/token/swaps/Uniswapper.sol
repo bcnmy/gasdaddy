@@ -12,7 +12,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
  * @notice Based on Infinitism's Uniswap Helper contract
  */
 abstract contract Uniswapper {
-    uint256 private constant SWAP_PRICE_DENOMINATOR = 1e26;
+    uint256 private constant _SWAP_PRICE_DENOMINATOR = 1e26;
 
     /// @notice The Uniswap V3 SwapRouter contract
     ISwapRouter public immutable uniswapRouter;
@@ -28,45 +28,45 @@ abstract contract Uniswapper {
     error TokensAndPoolsLengthMismatch();
 
     constructor(
-        ISwapRouter _uniswapRouter,
-        address _wrappedNative,
-        address[] memory _tokens,
-        uint24[] memory _tokenPoolFeeTiers
+        ISwapRouter uniswapRouterArg,
+        address wrappedNativeArg,
+        address[] memory tokens,
+        uint24[] memory tokenPoolFeeTiers
     ) {
-        if (_tokens.length != _tokenPoolFeeTiers.length) {
+        if (tokens.length != tokenPoolFeeTiers.length) {
             revert TokensAndPoolsLengthMismatch();
         }
 
         // Set router and native wrapped asset addresses
-        uniswapRouter = _uniswapRouter;
-        wrappedNative = _wrappedNative;
+        uniswapRouter = uniswapRouterArg;
+        wrappedNative = wrappedNativeArg;
 
-        for (uint256 i = 0; i < _tokens.length; ++i) {
-            IERC20(_tokens[i]).approve(address(_uniswapRouter), type(uint256).max); // one time max approval
-            tokenToPools[_tokens[i]] = _tokenPoolFeeTiers[i]; // set mapping of token to uniswap pool to use for swap
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            IERC20(tokens[i]).approve(address(uniswapRouter), type(uint256).max); // one time max approval
+            tokenToPools[tokens[i]] = tokenPoolFeeTiers[i]; // set mapping of token to uniswap pool to use for swap
         }
     }
 
-    function _setTokenPool(address _token, uint24 _poolFeeTier) internal {
-        IERC20(_token).approve(address(uniswapRouter), type(uint256).max); // one time max approval
-        tokenToPools[_token] = _poolFeeTier; // set mapping of token to uniswap pool to use for swap
+    function _setTokenPool(address token, uint24 poolFeeTier) internal {
+        IERC20(token).approve(address(uniswapRouter), type(uint256).max); // one time max approval
+        tokenToPools[token] = poolFeeTier; // set mapping of token to uniswap pool to use for swap
     }
 
-    function _swapTokenToWeth(address _tokenIn, uint256 _amountIn, uint256 _minAmountOut) internal returns (uint256) {
+    function _swapTokenToWeth(address tokenIn, uint256 amountIn, uint256 minAmountOut) internal returns (uint256) {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: _tokenIn,
+            tokenIn: tokenIn,
             tokenOut: wrappedNative,
-            fee: tokenToPools[_tokenIn],
+            fee: tokenToPools[tokenIn],
             recipient: address(this),
             deadline: block.timestamp,
-            amountIn: _amountIn,
-            amountOutMinimum: _minAmountOut,
+            amountIn: amountIn,
+            amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0
         });
         return uniswapRouter.exactInputSingle(params);
     }
 
-    function _unwrapWeth(uint256 _amount) internal {
-        IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(_amount, address(this));
+    function _unwrapWeth(uint256 amount) internal {
+        IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(amount, address(this));
     }
 }
