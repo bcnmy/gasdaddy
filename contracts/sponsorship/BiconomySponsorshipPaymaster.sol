@@ -315,7 +315,7 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidSignatureLength();
         }
 
-        if(unaccountedGas >= userOp.unpackPostOpGasLimit()) {
+        if(unaccountedGas > userOp.unpackPostOpGasLimit()) {
             revert PostOpGasLimitTooLow();
         } 
 
