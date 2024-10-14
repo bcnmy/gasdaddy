@@ -13,7 +13,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 27000
         );
     }
 
@@ -97,7 +97,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, priceMarkup);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, "", bicoPaymaster, priceMarkup);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -110,7 +110,9 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         emit IBiconomySponsorshipPaymaster.PriceMarkupCollected(DAPP_ACCOUNT.addr, 0);
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        vm.stopPrank();
 
         // Calculate and assert price markups and gas payments
         calculateAndAssertAdjustments(

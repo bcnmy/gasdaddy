@@ -13,44 +13,44 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 27000
         );
     }
 
     function test_Deploy() external {
         BiconomySponsorshipPaymaster testArtifact = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 27000
         );
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(testArtifact.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(testArtifact.unaccountedGas(), 7e3);
+        assertEq(testArtifact.unaccountedGas(), 27000);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeZero.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr, 27000
         );
     }
 
     function test_RevertIf_DeployWithSignerAsContract() external {
         vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeContract.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, address(ENTRYPOINT), PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, address(ENTRYPOINT), PAYMASTER_FEE_COLLECTOR.addr, 27000
         );
     }
 
 
     function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
-        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3);
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 27000);
     }
 
     function test_RevertIf_DeployWithFeeCollectorAsContract() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeContract.selector));
-        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(ENTRYPOINT), 7e3);
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(ENTRYPOINT), 27000);
     }
 
     function test_RevertIf_DeployWithUnaccountedGasCostTooHigh() external {
@@ -65,7 +65,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(bicoPaymaster.unaccountedGas(), 7e3);
+        assertEq(bicoPaymaster.unaccountedGas(), 27000);
     }
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -204,10 +204,13 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
 
-    function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external prankModifier(DAPP_ACCOUNT.addr) {
+    function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external {
+        startPrank(DAPP_ACCOUNT.addr);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
+        stopPrank();
+
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, "", bicoPaymaster, 1e6);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -218,7 +221,9 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         // submit userops
         vm.expectEmit(true, false, true, true, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
         // Calculate and assert price markups and gas payments
         calculateAndAssertAdjustments(
@@ -237,7 +242,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint32 priceMarkup = 1e6 + 1e5;
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, priceMarkup);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, "", bicoPaymaster, priceMarkup);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
