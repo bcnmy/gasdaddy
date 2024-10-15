@@ -13,7 +13,15 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            {
+                owner: PAYMASTER_OWNER.addr, 
+                entryPointArg: ENTRYPOINT, 
+                verifyingSignerArg: PAYMASTER_SIGNER.addr, 
+                feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr, 
+                unaccountedGasArg: 7e3,
+                _paymasterIdWithdrawalDelay: 3600,
+                _minDeposit: 1e15
+            }
         );
     }
 

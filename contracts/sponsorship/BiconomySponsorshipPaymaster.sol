@@ -42,6 +42,8 @@ contract BiconomySponsorshipPaymaster is
     address public verifyingSigner;
     address public feeCollector;
     uint256 public unaccountedGas;
+    uint256 public paymasterIdWithdrawalDelay;
+    uint256 public minDeposit;
 
     // Denominator to prevent precision errors when applying price markup
     uint256 private constant _PRICE_DENOMINATOR = 1e6;
@@ -52,13 +54,17 @@ contract BiconomySponsorshipPaymaster is
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 100_000;
 
     mapping(address => uint256) public paymasterIdBalances;
+    mapping(address => bool) internal trustedPaymasterIds;
+    mapping (address paymasterId => WithdrawalRequest request) requests;
 
     constructor(
         address owner,
         IEntryPoint entryPointArg,
         address verifyingSignerArg,
         address feeCollectorArg,
-        uint256 unaccountedGasArg
+        uint256 unaccountedGasArg,
+        uint256 _paymasterIdWithdrawalDelay,
+        uint256 _minDeposit
     )
         BasePaymaster(owner, entryPointArg)
     {
@@ -68,6 +74,8 @@ contract BiconomySponsorshipPaymaster is
         }
         feeCollector = feeCollectorArg;
         unaccountedGas = unaccountedGasArg;
+        paymasterIdWithdrawalDelay = _paymasterIdWithdrawalDelay;
+        minDeposit = _minDeposit;
     }
 
     receive() external payable {
@@ -82,6 +90,8 @@ contract BiconomySponsorshipPaymaster is
     function depositFor(address paymasterId) external payable nonReentrant {
         if (paymasterId == address(0)) revert PaymasterIdCanNotBeZero();
         if (msg.value == 0) revert DepositCanNotBeZero();
+        if(paymasterIdBalances[paymasterId] + msg.value < minDeposit)
+            revert LowDeposit();
         paymasterIdBalances[paymasterId] += msg.value;
         entryPoint.depositTo{ value: msg.value }(address(this));
         emit GasDeposited(paymasterId, msg.value);
@@ -152,22 +162,26 @@ contract BiconomySponsorshipPaymaster is
         _withdrawERC20(token, target, amount);
     }
 
-    /**
-     * @dev Withdraws the specified amount of gas tokens from the paymaster's balance and transfers them to the
-     * specified address.
-     * @param withdrawAddress The address to which the gas tokens should be transferred.
-     * @param amount The amount of gas tokens to withdraw.
-     */
-    function withdrawTo(address payable withdrawAddress, uint256 amount) external override nonReentrant {
+    function submitWithdrawalRequest(address withdrawAddress, uint256 amount) external {
         if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
-        if (amount == 0) revert CanNotWithdrawZeroAmount();
         uint256 currentBalance = paymasterIdBalances[msg.sender];
-        if (amount > currentBalance) {
-            revert InsufficientFunds();
-        }
-        paymasterIdBalances[msg.sender] = currentBalance - amount;
-        entryPoint.withdrawTo(withdrawAddress, amount);
-        emit GasWithdrawn(msg.sender, withdrawAddress, amount);
+        if (amount > currentBalance)
+            revert InsufficientFundsInGasTank();
+        requests[msg.sender] = WithdrawalRequest({amount: amount, to: withdrawAddress, requestSubmittedTimestamp: block.timestamp });
+        emit WithdrawalRequestSubmitted(withdrawAddress, amount);
+    }
+
+    function executeWithdrawalRequest(address paymasterId) external nonReentrant {
+        WithdrawalRequest memory req = requests[paymasterId];
+        uint256 clearanceTimestamp = req.requestSubmittedTimestamp + getDelay(paymasterId);
+        if (block.timestamp < clearanceTimestamp) 
+            revert RequestNotClearedYet(clearanceTimestamp);
+        uint256 currentBalance = paymasterIdBalances[paymasterId];
+        if (req.amount > currentBalance) 
+            revert InsufficientFundsInGasTank();
+        paymasterIdBalances[paymasterId] = currentBalance - req.amount;
+        entryPoint.withdrawTo(payable(req.to), req.amount);
+        emit GasWithdrawn(paymasterId, req.to, req.amount);
     }
 
     function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {
@@ -379,5 +393,11 @@ contract BiconomySponsorshipPaymaster is
         if (target == address(0)) revert CanNotWithdrawToZeroAddress();
         SafeTransferLib.safeTransfer(address(token), target, amount);
         emit TokensWithdrawn(address(token), target, amount, msg.sender);
+    }
+
+    function getDelay(address paymasterId) internal view returns (uint256) {
+        if (trustedPaymasterIds[paymasterId]) 
+            return 0;
+        return paymasterIdWithdrawalDelay;
     }
 }

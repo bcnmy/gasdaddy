@@ -13,13 +13,21 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
         bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            {
+                owner: PAYMASTER_OWNER.addr, 
+                entryPointArg: ENTRYPOINT, 
+                verifyingSignerArg: PAYMASTER_SIGNER.addr, 
+                feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr, 
+                unaccountedGasArg: 7e3,
+                _paymasterIdWithdrawalDelay: 3600,
+                _minDeposit: 1e15
+            }
         );
     }
 
     function test_Deploy() external {
         BiconomySponsorshipPaymaster testArtifact = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3, 3600, 1e15
         );
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
         assertEq(address(testArtifact.entryPoint()), ENTRYPOINT_ADDRESS);
@@ -31,33 +39,33 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     function test_RevertIf_DeployWithSignerSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeZero.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, address(0), PAYMASTER_FEE_COLLECTOR.addr, 7e3, 3600, 1e15
         );
     }
 
     function test_RevertIf_DeployWithSignerAsContract() external {
         vm.expectRevert(abi.encodeWithSelector(VerifyingSignerCanNotBeContract.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, address(ENTRYPOINT), PAYMASTER_FEE_COLLECTOR.addr, 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, address(ENTRYPOINT), PAYMASTER_FEE_COLLECTOR.addr, 7e3, 3600, 1e15
         );
     }
 
     function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
-        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3);
+        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3, 3600, 1e15);
     }
 
     function test_RevertIf_DeployWithFeeCollectorAsContract() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeContract.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(ENTRYPOINT), 7e3
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(ENTRYPOINT), 7e3, 3600, 1e15
         );
     }
 
     function test_RevertIf_DeployWithUnaccountedGasCostTooHigh() external {
         vm.expectRevert(abi.encodeWithSelector(UnaccountedGasTooHigh.selector));
         new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 100_001
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 100_001, 3600, 1e15
         );
     }
 
