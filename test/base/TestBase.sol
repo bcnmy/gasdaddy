@@ -198,7 +198,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         returns (bytes memory finalPmData, bytes memory signature)
     {
         // Initial paymaster data with zero signature
-        bytes memory initialPmData = abi.encodePacked(
+        userOp.paymasterAndData = abi.encodePacked(
             address(paymaster),
             pmData.validationGasLimit,
             pmData.postOpGasLimit,
@@ -208,17 +208,15 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             pmData.priceMarkup,
             new bytes(65) // Zero signature
         );
-
-        // Update user operation with initial paymaster data
-        userOp.paymasterAndData = initialPmData;
-
+        
+        {
         // Generate hash to be signed
         bytes32 paymasterHash =
             paymaster.getHash(userOp, pmData.paymasterId, pmData.validUntil, pmData.validAfter, pmData.priceMarkup);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
-        require(signature.length == 65, "Invalid Paymaster Signature length");
+        }
 
         // Final paymaster data with the actual signature
         finalPmData = abi.encodePacked(

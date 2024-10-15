@@ -209,12 +209,12 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         startPrank(PAYMASTER_OWNER.addr);
-        bicoPaymaster.setUnaccountedGas(9e3);
+        bicoPaymaster.setUnaccountedGas(1e4);
         stopPrank();
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         // price markup of 1e6
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 10_000);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 15_000);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -244,12 +244,12 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
         startPrank(PAYMASTER_OWNER.addr);
-        bicoPaymaster.setUnaccountedGas(25_000);
+        bicoPaymaster.setUnaccountedGas(27_000);
         stopPrank();
 
         // 10% priceMarkup on gas cost
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1_100_000, 35_000);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1_100_000, 40_000);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
