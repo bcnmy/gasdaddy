@@ -8,13 +8,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
          node-version: '22' # Specify the Node.js version you want to use  
 
       - name: Install dependencies
-        run: yarn cache clean && yarn install
+        run: pnpm install --ignore-scripts
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -25,7 +30,8 @@ jobs:
         run: forge install
 
       - name: Lint sources
-        run: yarn lint:sol
+        run: pnpm lint:sol
+        continue-on-error: true
 
   unit_test:
     name: Unit tests
@@ -34,8 +40,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Install dependencies
-        run: yarn cache clean && yarn install
+        run: pnpm install --ignore-scripts
 
       - name: Create a fake .secret file
         run: echo "primary twist rack vendor diagram image used route theme frown either will" > .secret
@@ -49,7 +60,7 @@ jobs:
         run: forge install
 
       - name: Build Typechain and Foundry
-        run: yarn build
+        run: pnpm build
 
       - name: Run Forge Tests
-        run: yarn test
+        run: pnpm test

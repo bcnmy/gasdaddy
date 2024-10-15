@@ -52,76 +52,76 @@ contract BiconomyTokenPaymaster is
     uint256 public independentPriceMarkup; // price markup used for independent mode
     uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
-    mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens supported in
-        // independent mode
+    mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens
+    // supported in // independent mode
 
     // PAYMASTER_ID_OFFSET
-    uint256 private constant UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
-    uint256 private constant PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
-    uint256 private constant MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
+    uint256 private constant _UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
+    uint256 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
+    uint256 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
     // Note: _priceExpiryDuration is common for all the feeds.
     // Note: _independentPriceMarkup is common for all the independent tokens.
     // Todo: add cases when uniswap is not available
     // Note: swapTokenAndDeposit: we may not need to keep this onlyOwner
 
-
     constructor(
-        address _owner,
-        address _verifyingSigner,
-        IEntryPoint _entryPoint,
-        uint256 _unaccountedGas,
-        uint256 _independentPriceMarkup, // price markup used for independent mode
-        uint256 _priceExpiryDuration,
-        IOracle _nativeAssetToUsdOracle,
-        ISwapRouter _uniswapRouter,
-        address _wrappedNative,
-        address[] memory _independentTokens, // Array of token addresses supported by the paymaster in independent mode
-        IOracle[] memory _oracles, // Array of corresponding oracle addresses for independently supported tokens
-        address[] memory _swappableTokens, // Array of tokens that you want swappable by the uniswapper
-        uint24[] memory _swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
+        address owner,
+        address verifyingSignerArg,
+        IEntryPoint entryPoint,
+        uint256 unaccountedGasArg,
+        uint256 independentPriceMarkupArg, // price markup used for independent mode
+        uint256 priceExpiryDurationArg,
+        IOracle nativeAssetToUsdOracleArg,
+        ISwapRouter uniswapRouterArg,
+        address wrappedNativeArg,
+        address[] memory independentTokensArg, // Array of token addresses supported by the paymaster in independent
+        // mode
+        IOracle[] memory oraclesArg, // Array of corresponding oracle addresses for independently supported tokens
+        address[] memory swappableTokens, // Array of tokens that you want swappable by the uniswapper
+        uint24[] memory swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
     )
-        BasePaymaster(_owner, _entryPoint)
-        Uniswapper(_uniswapRouter, _wrappedNative, _swappableTokens, _swappableTokenPoolFeeTiers)
+        BasePaymaster(owner, entryPoint)
+        Uniswapper(uniswapRouterArg, wrappedNativeArg, swappableTokens, swappableTokenPoolFeeTiers)
     {
-        if (_isContract(_verifyingSigner)) {
+        if (_isContract(verifyingSignerArg)) {
             revert VerifyingSignerCanNotBeContract();
         }
-        if (_verifyingSigner == address(0)) {
+        if (verifyingSignerArg == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         }
-        if (_unaccountedGas > UNACCOUNTED_GAS_LIMIT) {
+        if (unaccountedGasArg > _UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        if (_independentPriceMarkup > MAX_PRICE_MARKUP || _independentPriceMarkup < PRICE_DENOMINATOR) {
+        if (independentPriceMarkupArg > _MAX_PRICE_MARKUP || independentPriceMarkupArg < _PRICE_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
-        if (_independentTokens.length != _oracles.length) {
+        if (independentTokensArg.length != oraclesArg.length) {
             revert TokensAndInfoLengthMismatch();
         }
-        if (_nativeAssetToUsdOracle.decimals() != 8) {
+        if (nativeAssetToUsdOracleArg.decimals() != 8) {
             // ETH -> USD will always have 8 decimals for Chainlink and TWAP
             revert InvalidOracleDecimals();
         }
 
         // Set state variables
         assembly ("memory-safe") {
-            sstore(verifyingSigner.slot, _verifyingSigner)
-            sstore(unaccountedGas.slot, _unaccountedGas)
-            sstore(independentPriceMarkup.slot, _independentPriceMarkup)
-            sstore(priceExpiryDuration.slot, _priceExpiryDuration)
-            sstore(nativeAssetToUsdOracle.slot, _nativeAssetToUsdOracle)
+            sstore(verifyingSigner.slot, verifyingSignerArg)
+            sstore(unaccountedGas.slot, unaccountedGasArg)
+            sstore(independentPriceMarkup.slot, independentPriceMarkupArg)
+            sstore(priceExpiryDuration.slot, priceExpiryDurationArg)
+            sstore(nativeAssetToUsdOracle.slot, nativeAssetToUsdOracleArg)
         }
 
         // Populate the tokenToOracle mapping
-        for (uint256 i = 0; i < _independentTokens.length; i++) {
-            if (_oracles[i].decimals() != 8) {
+        for (uint256 i = 0; i < independentTokensArg.length; i++) {
+            if (oraclesArg[i].decimals() != 8) {
                 // Token -> USD will always have 8 decimals
                 revert InvalidOracleDecimals();
             }
-            independentTokenDirectory[_independentTokens[i]] =
-                TokenInfo(_oracles[i], 10 ** IERC20Metadata(_independentTokens[i]).decimals());
+            independentTokenDirectory[independentTokensArg[i]] =
+                TokenInfo(oraclesArg[i], 10 ** IERC20Metadata(independentTokensArg[i]).decimals());
         }
     }
 
@@ -198,146 +198,146 @@ contract BiconomyTokenPaymaster is
     /**
      * @dev Set a new verifying signer address.
      * Can only be called by the owner of the contract.
-     * @param _newVerifyingSigner The new address to be set as the verifying signer.
+     * @param newVerifyingSigner The new address to be set as the verifying signer.
      * @notice If _newVerifyingSigner is set to zero address, it will revert with an error.
      * After setting the new signer address, it will emit an event VerifyingSignerChanged.
      */
-    function setSigner(address _newVerifyingSigner) external payable onlyOwner {
-        if (_isContract(_newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
-        if (_newVerifyingSigner == address(0)) {
+    function setSigner(address newVerifyingSigner) external payable onlyOwner {
+        if (_isContract(newVerifyingSigner)) revert VerifyingSignerCanNotBeContract();
+        if (newVerifyingSigner == address(0)) {
             revert VerifyingSignerCanNotBeZero();
         }
         address oldSigner = verifyingSigner;
         assembly ("memory-safe") {
-            sstore(verifyingSigner.slot, _newVerifyingSigner)
+            sstore(verifyingSigner.slot, newVerifyingSigner)
         }
-        emit UpdatedVerifyingSigner(oldSigner, _newVerifyingSigner, msg.sender);
+        emit UpdatedVerifyingSigner(oldSigner, newVerifyingSigner, msg.sender);
     }
 
     /**
      * @dev Set a new unaccountedEPGasOverhead value.
-     * @param _newUnaccountedGas The new value to be set as the unaccounted gas value
+     * @param newUnaccountedGas The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setUnaccountedGas(uint256 _newUnaccountedGas) external payable onlyOwner {
-        if (_newUnaccountedGas > UNACCOUNTED_GAS_LIMIT) {
+    function setUnaccountedGas(uint256 newUnaccountedGas) external payable onlyOwner {
+        if (newUnaccountedGas > _UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
         uint256 oldUnaccountedGas = unaccountedGas;
         assembly ("memory-safe") {
-            sstore(unaccountedGas.slot, _newUnaccountedGas)
+            sstore(unaccountedGas.slot, newUnaccountedGas)
         }
-        emit UpdatedUnaccountedGas(oldUnaccountedGas, _newUnaccountedGas);
+        emit UpdatedUnaccountedGas(oldUnaccountedGas, newUnaccountedGas);
     }
 
     /**
      * @dev Set a new priceMarkup value.
-     * @param _newIndependentPriceMarkup The new value to be set as the price markup
+     * @param newIndependentPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceMarkup(uint256 _newIndependentPriceMarkup) external payable onlyOwner {
-        if (_newIndependentPriceMarkup > MAX_PRICE_MARKUP || _newIndependentPriceMarkup < PRICE_DENOMINATOR) {
+    function setPriceMarkup(uint256 newIndependentPriceMarkup) external payable onlyOwner {
+        if (newIndependentPriceMarkup > _MAX_PRICE_MARKUP || newIndependentPriceMarkup < _PRICE_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
         uint256 oldIndependentPriceMarkup = independentPriceMarkup;
         assembly ("memory-safe") {
-            sstore(independentPriceMarkup.slot, _newIndependentPriceMarkup)
+            sstore(independentPriceMarkup.slot, newIndependentPriceMarkup)
         }
-        emit UpdatedFixedPriceMarkup(oldIndependentPriceMarkup, _newIndependentPriceMarkup);
+        emit UpdatedFixedPriceMarkup(oldIndependentPriceMarkup, newIndependentPriceMarkup);
     }
 
     /**
      * @dev Set a new priceMarkup value.
-     * @param _newPriceExpiryDuration The new value to be set as the unaccounted gas value
+     * @param newPriceExpiryDuration The new value to be set as the unaccounted gas value
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceExpiryDuration(uint256 _newPriceExpiryDuration) external payable onlyOwner {
+    function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable onlyOwner {
         uint256 oldPriceExpiryDuration = priceExpiryDuration;
         assembly ("memory-safe") {
-            sstore(priceExpiryDuration.slot, _newPriceExpiryDuration)
+            sstore(priceExpiryDuration.slot, newPriceExpiryDuration)
         }
-        emit UpdatedPriceExpiryDuration(oldPriceExpiryDuration, _newPriceExpiryDuration);
+        emit UpdatedPriceExpiryDuration(oldPriceExpiryDuration, newPriceExpiryDuration);
     }
 
     /**
      * @dev Update the native oracle address
-     * @param _oracle The new native asset oracle
+     * @param oracle The new native asset oracle
      * @notice only to be called by the owner of the contract.
      */
-    function setNativeAssetToUsdOracle(IOracle _oracle) external payable onlyOwner {
-        if (_oracle.decimals() != 8) {
+    function setNativeAssetToUsdOracle(IOracle oracle) external payable onlyOwner {
+        if (oracle.decimals() != 8) {
             // Native -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
         }
 
         IOracle oldNativeAssetToUsdOracle = nativeAssetToUsdOracle;
         assembly ("memory-safe") {
-            sstore(nativeAssetToUsdOracle.slot, _oracle)
+            sstore(nativeAssetToUsdOracle.slot, oracle)
         }
 
-        emit UpdatedNativeAssetOracle(oldNativeAssetToUsdOracle, _oracle);
+        emit UpdatedNativeAssetOracle(oldNativeAssetToUsdOracle, oracle);
     }
 
     /**
      * @dev Set or update a TokenInfo entry in the independentTokenDirectory mapping.
-     * @param _tokenAddress The token address to add or update in directory
-     * @param _oracle The oracle to use for the specified token
+     * @param tokenAddress The token address to add or update in directory
+     * @param oracle The oracle to use for the specified token
      * @notice only to be called by the owner of the contract.
      */
-    function updateTokenDirectory(address _tokenAddress, IOracle _oracle) external payable onlyOwner {
-        if (_oracle.decimals() != 8) {
+    function updateTokenDirectory(address tokenAddress, IOracle oracle) external payable onlyOwner {
+        if (oracle.decimals() != 8) {
             // Token -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
         }
 
-        uint8 decimals = IERC20Metadata(_tokenAddress).decimals();
-        independentTokenDirectory[_tokenAddress] = TokenInfo(_oracle, 10 ** decimals);
+        uint8 decimals = IERC20Metadata(tokenAddress).decimals();
+        independentTokenDirectory[tokenAddress] = TokenInfo(oracle, 10 ** decimals);
 
-        emit UpdatedTokenDirectory(_tokenAddress, _oracle, decimals);
+        emit UpdatedTokenDirectory(tokenAddress, oracle, decimals);
     }
 
     /**
      * @dev Update or add a swappable token to the Uniswapper
-     * @param _tokenAddresses The token address to add/update to/for uniswapper
-     * @param _poolFeeTiers The pool fee tiers for the corresponding token address to use
+     * @param tokenAddresses The token address to add/update to/for uniswapper
+     * @param poolFeeTiers The pool fee tiers for the corresponding token address to use
      * @notice only to be called by the owner of the contract.
      */
     function updateSwappableTokens(
-        address[] memory _tokenAddresses,
-        uint24[] memory _poolFeeTiers
+        address[] memory tokenAddresses,
+        uint24[] memory poolFeeTiers
     )
         external
         payable
         onlyOwner
     {
-        if (_tokenAddresses.length != _poolFeeTiers.length) {
+        if (tokenAddresses.length != poolFeeTiers.length) {
             revert TokensAndPoolsLengthMismatch();
         }
 
-        for (uint256 i = 0; i < _tokenAddresses.length; ++i) {
-            _setTokenPool(_tokenAddresses[i], _poolFeeTiers[i]);
+        for (uint256 i = 0; i < tokenAddresses.length; ++i) {
+            _setTokenPool(tokenAddresses[i], poolFeeTiers[i]);
         }
     }
 
     /**
      * @dev Swap a token in the paymaster for ETH and deposit the amount received into the entry point
-     * @param _tokenAddress The token address of the token to swap
-     * @param _tokenAmount The amount of the token to swap
-     * @param _minEthAmountRecevied The minimum amount of ETH amount recevied post-swap
+     * @param tokenAddress The token address of the token to swap
+     * @param tokenAmount The amount of the token to swap
+     * @param minEthAmountRecevied The minimum amount of ETH amount recevied post-swap
      * @notice only to be called by the owner of the contract.
      */
     function swapTokenAndDeposit(
-        address _tokenAddress,
-        uint256 _tokenAmount,
-        uint256 _minEthAmountRecevied
+        address tokenAddress,
+        uint256 tokenAmount,
+        uint256 minEthAmountRecevied
     )
         external
         payable
         onlyOwner
     {
         // Swap tokens for WETH
-        uint256 amountOut = _swapTokenToWeth(_tokenAddress, _tokenAmount, _minEthAmountRecevied);
+        uint256 amountOut = _swapTokenToWeth(tokenAddress, tokenAmount, minEthAmountRecevied);
         // Unwrap WETH to ETH
         _unwrapWeth(amountOut);
         // Deposit ETH into EP
@@ -391,7 +391,7 @@ contract BiconomyTokenPaymaster is
                 keccak256(userOp.initCode),
                 keccak256(userOp.callData),
                 userOp.accountGasLimits,
-                uint256(bytes32(userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET:PAYMASTER_DATA_OFFSET])),
+                uint256(bytes32(userOp.paymasterAndData[_PAYMASTER_VALIDATION_GAS_OFFSET:_PAYMASTER_DATA_OFFSET])),
                 userOp.preVerificationGas,
                 userOp.gasFees,
                 block.chainid,
@@ -456,7 +456,7 @@ contract BiconomyTokenPaymaster is
                 return ("", _packValidationData(true, validUntil, validAfter));
             }
 
-            if (externalPriceMarkup > MAX_PRICE_MARKUP || externalPriceMarkup < PRICE_DENOMINATOR) {
+            if (externalPriceMarkup > _MAX_PRICE_MARKUP || externalPriceMarkup < _PRICE_DENOMINATOR) {
                 revert InvalidPriceMarkup();
             }
 
@@ -464,7 +464,7 @@ contract BiconomyTokenPaymaster is
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalPriceMarkup * tokenPrice)
-                    / (1e18 * PRICE_DENOMINATOR);
+                    / (1e18 * _PRICE_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
@@ -480,14 +480,14 @@ contract BiconomyTokenPaymaster is
 
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
-            uint192 tokenPrice = getPrice(tokenAddress);
+            uint192 tokenPrice = _getPrice(tokenAddress);
             uint256 tokenAmount;
 
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * independentPriceMarkup * tokenPrice)
-                    / (1e18 * PRICE_DENOMINATOR);
+                    / (1e18 * _PRICE_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
@@ -528,7 +528,7 @@ contract BiconomyTokenPaymaster is
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
-        ) / (1e18 * PRICE_DENOMINATOR);
+        ) / (1e18 * _PRICE_DENOMINATOR);
 
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
@@ -544,7 +544,7 @@ contract BiconomyTokenPaymaster is
 
     /// @notice Fetches the latest token price.
     /// @return price The latest token price fetched from the oracles.
-    function getPrice(address tokenAddress) internal view returns (uint192 price) {
+    function _getPrice(address tokenAddress) internal view returns (uint192 price) {
         // Fetch token information from directory
         TokenInfo memory tokenInfo = independentTokenDirectory[tokenAddress];
 
@@ -558,15 +558,15 @@ contract BiconomyTokenPaymaster is
         uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
 
         // Adjust to token  decimals
-        price = nativeAssetPrice * uint192(tokenInfo.decimals) / tokenPrice;
+        price = (nativeAssetPrice * uint192(tokenInfo.decimals)) / tokenPrice;
     }
 
     /// @notice Fetches the latest price from the given oracle.
     /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetToUsdOracle.
-    /// @param _oracle The oracle contract to fetch the price from.
+    /// @param oracle The oracle contract to fetch the price from.
     /// @return price The latest price fetched from the oracle.
-    function _fetchPrice(IOracle _oracle) internal view returns (uint192 price) {
-        (, int256 answer,, uint256 updatedAt,) = _oracle.latestRoundData();
+    function _fetchPrice(IOracle oracle) internal view returns (uint192 price) {
+        (, int256 answer,, uint256 updatedAt,) = oracle.latestRoundData();
         if (answer <= 0) {
             revert OraclePriceNotPositive();
         }
@@ -581,5 +581,4 @@ contract BiconomyTokenPaymaster is
         SafeTransferLib.safeTransfer(address(token), target, amount);
         emit TokensWithdrawn(address(token), target, amount, msg.sender);
     }
-
 }
