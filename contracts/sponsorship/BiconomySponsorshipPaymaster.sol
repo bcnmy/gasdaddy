@@ -267,6 +267,7 @@ contract BiconomySponsorshipPaymaster is
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
             actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
+            emit ActualGasCostBeforePaymasterPremium(actualGasCost);
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
 
@@ -337,9 +338,15 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidPriceMarkup();
         }
 
+        // callGasLimit + paymasterPostOpGas
+        uint256 maxPenalty = (
+            uint128(uint256(userOp.accountGasLimits)) + 
+            uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
+        ) * 10 / 100 * userOp.unpackMaxFeePerGas();
+
         // Deduct the max gas cost.
         uint256 effectiveCost =
-            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup) / _PRICE_DENOMINATOR;
+            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup / _PRICE_DENOMINATOR) + maxPenalty;
 
         if (effectiveCost > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();

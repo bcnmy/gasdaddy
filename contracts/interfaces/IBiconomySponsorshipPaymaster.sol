@@ -15,6 +15,7 @@ interface IBiconomySponsorshipPaymaster {
     event PriceMarkupCollected(address indexed paymasterId, uint256 indexed priceMarkup);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
+    event ActualGasCostBeforePaymasterPremium(uint256 actualGasCost);
 
     function depositFor(address paymasterId) external payable;
 
