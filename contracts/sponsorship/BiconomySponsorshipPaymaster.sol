@@ -335,17 +335,17 @@ contract BiconomySponsorshipPaymaster is
         uint256 maxPenalty = (
             uint128(uint256(userOp.accountGasLimits)) + 
             uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
-        ) * 10 / 100 * userOp.unpackMaxFeePerGas();
+        ) * 10 * userOp.unpackMaxFeePerGas() / 100;
 
         // Deduct the max gas cost.
         uint256 effectiveCost =
-            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup / _PRICE_DENOMINATOR) + maxPenalty;
+            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup / _PRICE_DENOMINATOR);
 
-        if (effectiveCost > paymasterIdBalances[paymasterId]) {
+        if (effectiveCost + maxPenalty > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
 
-        paymasterIdBalances[paymasterId] -= effectiveCost;
+        paymasterIdBalances[paymasterId] -= (effectiveCost + maxPenalty);
 
         context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost);
 
