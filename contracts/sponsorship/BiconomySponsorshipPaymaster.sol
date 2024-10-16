@@ -180,6 +180,7 @@ contract BiconomySponsorshipPaymaster is
         if (req.amount > currentBalance) 
             revert InsufficientFundsInGasTank();
         paymasterIdBalances[paymasterId] = currentBalance - req.amount;
+        delete requests[paymasterId];
         entryPoint.withdrawTo(payable(req.to), req.amount);
         emit GasWithdrawn(paymasterId, req.to, req.amount);
     }
