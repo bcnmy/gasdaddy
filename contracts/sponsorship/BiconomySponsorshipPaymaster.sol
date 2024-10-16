@@ -267,7 +267,6 @@ contract BiconomySponsorshipPaymaster is
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
             actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
-            emit ActualGasCostBeforePaymasterPremium(actualGasCost);
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
 
@@ -275,18 +274,12 @@ contract BiconomySponsorshipPaymaster is
                 // If overcharged refund the excess
                 paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
             }
+        
+            // Add priceMarkup to fee collector balance
+            paymasterIdBalances[feeCollector] += adjustedGasCost - actualGasCost;
 
-            // Should always be true
-            // if (adjustedGasCost > actualGasCost) {
-            // Apply priceMarkup to fee collector balance
-            uint256 premium = adjustedGasCost - actualGasCost;
-            paymasterIdBalances[feeCollector] += premium;
-            // Review:  if we should emit adjustedGasCost as well
-            emit PriceMarkupCollected(paymasterId, premium);
-            // }
-
-            // Review: emit min required information
-            emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
+            // premium = adjustedGasCost - actualGasCost => do not need to emit it explicitly
+            emit GasBalanceDeducted(paymasterId, actualGasCost, adjustedGasCost, userOpHash);
         }
     }
 
