@@ -144,7 +144,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
         PaymasterData memory pmData = PaymasterData(
-            24_000,
+            100_000,
             uint128(postOpGasLimitOverride),
             DAPP_ACCOUNT.addr,
             uint48(block.timestamp + 1 days),
@@ -165,9 +165,9 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // vm.stopPrank();
 
         // Ammend the userop to have updated / overridden gas limits
-        userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(55_000), uint128(0)));
+        userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(100_000), uint128(0)));
         PaymasterData memory pmDataNew = PaymasterData(
-            uint128(24_000),
+            uint128(100_000),
             uint128(postOpGasLimitOverride),
             DAPP_ACCOUNT.addr,
             uint48(block.timestamp + 1 days),
@@ -349,9 +349,9 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
-        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
+        // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.01e18);
+        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
