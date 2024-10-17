@@ -142,7 +142,14 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         view
     {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        PaymasterData memory pmData = PaymasterData(3e6, 3e6, paymasterId, validUntil, validAfter, priceMarkup);
+        PaymasterData memory pmData = PaymasterData({
+        validationGasLimit: 3e6,
+        postOpGasLimit: 3e6,
+        paymasterId: paymasterId,
+        validUntil: validUntil,
+        validAfter: validAfter, 
+        priceMarkup: priceMarkup
+    });
         (bytes memory paymasterAndData, bytes memory signature) =
             generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
 
