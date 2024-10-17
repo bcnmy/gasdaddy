@@ -143,14 +143,14 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Create userOp with no gas estimates
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
-        PaymasterData memory pmData = PaymasterData(
-            100_000,
-            uint128(postOpGasLimitOverride),
-            DAPP_ACCOUNT.addr,
-            uint48(block.timestamp + 1 days),
-            uint48(block.timestamp),
-            priceMarkup
-        );
+        PaymasterData memory pmData = PaymasterData({
+            validationGasLimit: 100_000,
+            postOpGasLimit: uint128(postOpGasLimitOverride),
+            paymasterId: DAPP_ACCOUNT.addr,
+            validUntil: uint48(block.timestamp + 1 days),
+            validAfter: uint48(block.timestamp),
+            priceMarkup: priceMarkup
+        });
         (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, paymaster, pmData);
         userOp.signature = signUserOp(sender, userOp);
 
