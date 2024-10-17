@@ -214,7 +214,12 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         // price markup of 1e6
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp({
+        sender: ALICE, 
+        paymaster: bicoPaymaster,
+        pariceMarkup: 1e6,
+        postOpGasLimitOverride: 55_000
+  });
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
