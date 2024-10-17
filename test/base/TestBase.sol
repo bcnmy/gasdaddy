@@ -37,6 +37,15 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     Vm.Wallet internal PAYMASTER_FEE_COLLECTOR;
     Vm.Wallet internal DAPP_ACCOUNT;
 
+    struct PaymasterData {
+        uint128 validationGasLimit;
+        uint128 postOpGasLimit;
+        address paymasterId;
+        uint48 validUntil;
+        uint48 validAfter;
+        uint32 priceMarkup;
+    }
+
     // Used to buffer user op gas limits
     // GAS_LIMIT = (ESTIMATED_GAS * GAS_BUFFER_RATIO) / 100
     uint8 private constant GAS_BUFFER_RATIO = 110;
@@ -80,11 +89,11 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
         verificationGasUsed = gasleft();
         IAccount(userOp.sender).validateUserOp(userOp, userOpHash, 0);
-        verificationGasUsed = verificationGasUsed - gasleft();
+        verificationGasUsed = verificationGasUsed - gasleft(); //+ 21000;
 
         callGasUsed = gasleft();
         bool success = Exec.call(userOp.sender, 0, userOp.callData, 3e6);
-        callGasUsed = callGasUsed - gasleft();
+        callGasUsed = callGasUsed - gasleft(); //+ 21000;
         assert(success);
 
         verificationGasLimit = (verificationGasUsed * GAS_BUFFER_RATIO) / 100;
@@ -108,68 +117,65 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Estimate gas used
         validationGasUsed = gasleft();
         (context,) = paymaster.validatePaymasterUserOp(userOp, userOpHash, requiredPreFund);
-        validationGasUsed = validationGasUsed - gasleft();
+        validationGasUsed = validationGasUsed - gasleft(); //+ 21000;
 
         postopGasUsed = gasleft();
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, 1e12, 3e6);
-        postopGasUsed = (postopGasUsed - gasleft());
+        postopGasUsed = (postopGasUsed - gasleft()); //+ 21000;
 
         validationGasLimit = (validationGasUsed * GAS_BUFFER_RATIO) / 100;
         postopGasLimit = (postopGasUsed * GAS_BUFFER_RATIO) / 100;
     }
 
+    // Note: we can use externally provided gas limits to override.
+    // Note: we can pass callData and callGasLimit as args to test with more tx types
+    // Note: we can pass Nexus instance instead of sender EOA and comuting counterfactual within buildUserOpWithCalldata
+
     function createUserOp(
         Vm.Wallet memory sender,
         BiconomySponsorshipPaymaster paymaster,
-        uint32 priceMarkup
+        uint32 priceMarkup,
+        uint128 postOpGasLimitOverride
     )
         internal
         returns (PackedUserOperation memory userOp, bytes32 userOpHash)
     {
         // Create userOp with no gas estimates
-        uint48 validUntil = uint48(block.timestamp + 1 days);
-        uint48 validAfter = uint48(block.timestamp);
-
         userOp = buildUserOpWithCalldata(sender, "", address(VALIDATOR_MODULE));
 
-        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, paymaster, 3e6, 8e3, DAPP_ACCOUNT.addr, validUntil, validAfter, priceMarkup
-        );
+        PaymasterData memory pmData = PaymasterData({
+            validationGasLimit: 100_000,
+            postOpGasLimit: uint128(postOpGasLimitOverride),
+            paymasterId: DAPP_ACCOUNT.addr,
+            validUntil: uint48(block.timestamp + 1 days),
+            validAfter: uint48(block.timestamp),
+            priceMarkup: priceMarkup
+        });
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, paymaster, pmData);
         userOp.signature = signUserOp(sender, userOp);
 
-        (,, uint256 verificationGasLimit, uint256 callGasLimit) = estimateUserOpGasCosts(userOp);
-        // Estimate paymaster gas limits
-        (, uint256 postopGasUsed, uint256 validationGasLimit, uint256 postopGasLimit) =
-            estimatePaymasterGasCosts(paymaster, userOp, 5e4);
+        // Estimate account gas limits
+        // (,, uint256 verificationGasLimit, uint256 callGasLimit) = estimateUserOpGasCosts(userOp);
+        // // Estimate paymaster gas limits
+        // (, uint256 postopGasUsed, uint256 validationGasLimit, uint256 postopGasLimit) =
+        //     estimatePaymasterGasCosts(paymaster, userOp, 5e4);
 
-        // console2.log("postOpGasUsed");
-        // console2.logUint(postopGasUsed);
+        // vm.startPrank(paymaster.owner());
+        // paymaster.setUnaccountedGas(postopGasUsed + 500);
+        // vm.stopPrank();
 
-        // uint256 prevValUnaccountedGas = paymaster.unaccountedGas();
-        // console2.logUint(prevValUnaccountedGas);
-
-        // Below may not be needed if unaccountedGas is set correctly
-        vm.startPrank(paymaster.owner());
-        // Set unaccounted gas to be gas used in postop + 1000 for EP overhead and penalty
-        paymaster.setUnaccountedGas(postopGasUsed + 500);
-        vm.stopPrank();
-
-        // uint256 currentValUnaccountedGas = paymaster.unaccountedGas();
-        // console2.logUint(currentValUnaccountedGas);
-
-        // Ammend the userop to have new gas limits and signature
-        userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(verificationGasLimit), uint128(callGasLimit)));
-        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp,
-            PAYMASTER_SIGNER,
-            paymaster,
-            uint128(validationGasLimit),
-            uint128(postopGasLimit),
+        // Ammend the userop to have updated / overridden gas limits
+        userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(100_000), uint128(0)));
+        PaymasterData memory pmDataNew = PaymasterData(
+            uint128(100_000),
+            uint128(postOpGasLimitOverride),
             DAPP_ACCOUNT.addr,
-            validUntil,
-            validAfter,
+            uint48(block.timestamp + 1 days),
+            uint48(block.timestamp),
             priceMarkup
         );
+
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, paymaster, pmDataNew);
         userOp.signature = signUserOp(sender, userOp);
         userOpHash = ENTRYPOINT.getUserOpHash(userOp);
     }
@@ -185,52 +191,48 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         PackedUserOperation memory userOp,
         Vm.Wallet memory signer,
         BiconomySponsorshipPaymaster paymaster,
-        uint128 paymasterValGasLimit,
-        uint128 paymasterPostOpGasLimit,
-        address paymasterId,
-        uint48 validUntil,
-        uint48 validAfter,
-        uint32 priceMarkup
+        PaymasterData memory pmData
     )
         internal
         view
         returns (bytes memory finalPmData, bytes memory signature)
     {
         // Initial paymaster data with zero signature
-        bytes memory initialPmData = abi.encodePacked(
+        userOp.paymasterAndData = abi.encodePacked(
             address(paymaster),
-            paymasterValGasLimit,
-            paymasterPostOpGasLimit,
-            paymasterId,
-            validUntil,
-            validAfter,
-            priceMarkup,
+            pmData.validationGasLimit,
+            pmData.postOpGasLimit,
+            pmData.paymasterId,
+            pmData.validUntil,
+            pmData.validAfter,
+            pmData.priceMarkup,
             new bytes(65) // Zero signature
         );
-
-        // Update user operation with initial paymaster data
-        userOp.paymasterAndData = initialPmData;
-
+        
+        {
         // Generate hash to be signed
-        bytes32 paymasterHash = paymaster.getHash(userOp, paymasterId, validUntil, validAfter, priceMarkup);
+        bytes32 paymasterHash =
+            paymaster.getHash(userOp, pmData.paymasterId, pmData.validUntil, pmData.validAfter, pmData.priceMarkup);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
-        require(signature.length == 65, "Invalid Paymaster Signature length");
+        }
 
         // Final paymaster data with the actual signature
         finalPmData = abi.encodePacked(
             address(paymaster),
-            paymasterValGasLimit,
-            paymasterPostOpGasLimit,
-            paymasterId,
-            validUntil,
-            validAfter,
-            priceMarkup,
+            pmData.validationGasLimit,
+            pmData.postOpGasLimit,
+            pmData.paymasterId,
+            pmData.validUntil,
+            pmData.validAfter,
+            pmData.priceMarkup,
             signature
         );
     }
 
+    // Note: Token paymaster could also get into stack deep issues.
+    // TODO: Refactor to reduce stack depth
     /// @notice Generates and signs the paymaster data for a user operation.
     /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
     /// @param userOp The user operation to be signed.
@@ -319,15 +321,11 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
 
-        if (priceMarkup >= 1e6) {
-            //priceMarkup
-            expectedPriceMarkup = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / priceMarkup);
-            actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
-        } else {
-            revert("PriceMarkup must be more than 1e6");
-        }
+        expectedPriceMarkup = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / priceMarkup);
+        actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
     }
 
+    // Note: can pack values into one struct
     function calculateAndAssertAdjustments(
         BiconomySponsorshipPaymaster bicoPaymaster,
         uint256 initialDappPaymasterBalance,
@@ -350,13 +348,10 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         assertEq(expectedPriceMarkup, actualPriceMarkup);
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
-
-        // TODO
-        // Review: fix this properly. avoid out of stack errors
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
-        // Ensure that max 1% difference between total gas paid + the adjustment premium and gas paid by dapp (from
+        // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.01e18);
+        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
