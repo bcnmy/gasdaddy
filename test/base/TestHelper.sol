@@ -251,6 +251,41 @@ contract TestHelper is CheatCodes, EventsAndErrors {
         userOp.signature = signature;
     }
 
+    function buildPackedUserOperation(
+        Vm.Wallet memory wallet,
+        Nexus account,
+        ExecType execType,
+        Execution[] memory executions,
+        address validator,
+        uint256 nonce
+    )
+        internal
+        view
+        returns (PackedUserOperation[] memory userOps)
+    {
+        // Validate execType
+        require(execType == EXECTYPE_DEFAULT || execType == EXECTYPE_TRY, "Invalid ExecType");
+
+        // Initialize the userOps array with one operation
+        userOps = new PackedUserOperation[](1);
+
+        uint256 nonceToUse;
+        if (nonce == 0) {
+            nonceToUse = getNonce(address(account), MODE_VALIDATION, validator);
+        } else {
+            nonceToUse = nonce;
+        }
+
+        // Build the UserOperation
+        userOps[0] = buildPackedUserOp(address(account), nonceToUse);
+        userOps[0].callData = prepareERC7579ExecuteCallData(execType, executions);
+
+        // Sign the operation
+        bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOps[0]);
+        userOps[0].signature = signMessage(wallet, userOpHash);
+        return userOps;
+    }
+
     /// @notice Retrieves the nonce for a given account and validator
     /// @param account The account address
     /// @param vMode Validation Mode
