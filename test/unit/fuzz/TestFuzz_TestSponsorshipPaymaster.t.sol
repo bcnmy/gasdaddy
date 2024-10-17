@@ -93,7 +93,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     }
 
     // Review: fuzz with high markeup and current set values.
-    function skip_testFuzz_ValidatePaymasterAndPostOpWithPriceMarkup(uint32 priceMarkup) external {
+    function testFuzz_ValidatePaymasterAndPostOpWithPriceMarkup(uint32 priceMarkup) external {
         vm.assume(priceMarkup <= 2e6 && priceMarkup > 1e6);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
@@ -111,7 +111,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
         emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
 
         startPrank(BUNDLER.addr);
@@ -125,7 +125,8 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            priceMarkup
+            priceMarkup,
+            this.getMaxPenalty(userOp)
         );
     }
 

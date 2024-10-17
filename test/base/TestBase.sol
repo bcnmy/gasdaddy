@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
-
 import { Test } from "forge-std/Test.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import "solady/utils/ECDSA.sol";
 import "./TestHelper.sol";
+import "account-abstraction/core/UserOperationLib.sol";
 
 import { IAccount } from "account-abstraction/interfaces/IAccount.sol";
 import { Exec } from "account-abstraction/utils/Exec.sol";
@@ -26,16 +26,20 @@ import {
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
 
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
+
+    using UserOperationLib for PackedUserOperation;
+
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-
     address constant WRAPPED_NATIVE_ADDRESS = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
     address constant SWAP_ROUTER_ADDRESS = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
 
     Vm.Wallet internal PAYMASTER_OWNER;
     Vm.Wallet internal PAYMASTER_SIGNER;
     Vm.Wallet internal PAYMASTER_FEE_COLLECTOR;
     Vm.Wallet internal DAPP_ACCOUNT;
+
+    uint256 internal constant _PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
+    uint256 internal constant _PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
     struct PaymasterData {
         uint128 validationGasLimit;
@@ -310,7 +314,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         BiconomySponsorshipPaymaster paymaster,
         uint256 initialDappPaymasterBalance,
         uint256 initialFeeCollectorBalance,
-        uint32 priceMarkup
+        uint32 priceMarkup,
+        uint256 maxPenalty
     )
         internal
         view
@@ -320,9 +325,17 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 resultingFeeCollectorPaymasterBalance = paymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         uint256 totalGasFeesCharged = initialDappPaymasterBalance - resultingDappPaymasterBalance;
+        uint256 accountableGasFeesCharged = totalGasFeesCharged - maxPenalty;
 
-        expectedPriceMarkup = totalGasFeesCharged - ((totalGasFeesCharged * 1e6) / priceMarkup);
+        expectedPriceMarkup = accountableGasFeesCharged - ((accountableGasFeesCharged * 1e6) / priceMarkup);
         actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
+    }
+
+    function getMaxPenalty(PackedUserOperation calldata userOp) public view returns (uint256) {
+        return (
+            uint128(uint256(userOp.accountGasLimits)) + 
+            uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
+        ) * 10 * userOp.unpackMaxFeePerGas() / 100;
     }
 
     // Note: can pack values into one struct
@@ -332,26 +345,34 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 initialFeeCollectorBalance,
         uint256 initialBundlerBalance,
         uint256 initialPaymasterEpBalance,
-        uint32 priceMarkup
+        uint32 priceMarkup,
+        uint256 maxPenalty
     )
         internal
         view
     {
         (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) =
-            getPriceMarkups(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup);
+            getPriceMarkups(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup, maxPenalty);
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
         uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
 
+        console2.log("1");
         // Assert that what paymaster paid is the same as what the bundler received
         assertEq(totalGasFeePaid, initialPaymasterEpBalance - bicoPaymaster.getDeposit());
+
+        console2.log("2");
         // Assert that adjustment collected (if any) is correct
         assertEq(expectedPriceMarkup, actualPriceMarkup);
+
+        console2.log("3");
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
+
+        console2.log("4");
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup, gasPaidByDapp, 0.02e18);
+        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
