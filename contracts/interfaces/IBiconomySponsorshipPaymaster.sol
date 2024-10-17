@@ -11,8 +11,7 @@ interface IBiconomySponsorshipPaymaster {
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event GasDeposited(address indexed paymasterId, uint256 indexed value);
     event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
-    event GasBalanceDeducted(address indexed paymasterId, uint256 indexed charge, bytes32 indexed userOpHash);
-    event PriceMarkupCollected(address indexed paymasterId, uint256 indexed priceMarkup);
+    event GasBalanceDeducted(address indexed paymasterId, uint256 actualGasCost, uint256 indexed adjustedGasCost, bytes32 indexed userOpHash);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
 

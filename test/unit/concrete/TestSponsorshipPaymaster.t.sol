@@ -223,8 +223,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         // submit userops
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
         stopPrank();
@@ -236,7 +236,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            1e6
+            1e6, // priceMarkup
+            this.getMaxPenalty(userOp)
         );
     }
 
@@ -258,10 +259,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         // submit userops
-        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PriceMarkupCollected(DAPP_ACCOUNT.addr, 0);
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
 
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
@@ -274,7 +273,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            1_100_000
+            1_100_000, //price markup, +10% paymaster fee
+            this.getMaxPenalty(userOp)
         );
     }
 
