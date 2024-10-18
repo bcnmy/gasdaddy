@@ -81,4 +81,19 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Throws when postOp gas limit is too low
      */
     error PostOpGasLimitTooLow();
+
+    /**
+     * @notice Thrown when deposit is too low to reach minDeposit
+     */
+    error LowDeposit();
+
+    /**
+     * @notice Thrown when trying to withdraw more than the balance
+     */
+    error InsufficientFundsInGasTank();
+
+    /**
+     * @notice Thrown when trying to execute withdrawal request before delay has passed
+     */
+    error RequestNotClearedYet(uint256 clearanceTime);
 }
