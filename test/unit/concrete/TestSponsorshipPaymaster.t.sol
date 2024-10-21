@@ -232,7 +232,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
         // submit userops
         vm.expectEmit(true, false, false, false, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0);
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
         stopPrank();
@@ -268,7 +268,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
         // submit userops
         vm.expectEmit(true, false, false, false, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0);
 
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
@@ -411,6 +411,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             uint48 parsedValidUntil,
             uint48 parsedValidAfter,
             uint32 parsedPriceMarkup,
+            uint128 parsedPaymasterValidationGasLimit,
+            uint128 parsedPaymasterPostOpGasLimit,
             bytes memory parsedSignature
         ) = bicoPaymaster.parsePaymasterAndData(paymasterAndData);
 
@@ -418,6 +420,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(validUntil, parsedValidUntil);
         assertEq(validAfter, parsedValidAfter);
         assertEq(priceMarkup, parsedPriceMarkup);
+        assertEq(pmData.validationGasLimit, parsedPaymasterValidationGasLimit);
+        assertEq(pmData.postOpGasLimit, parsedPaymasterPostOpGasLimit);
         assertEq(signature, parsedSignature);
     }
 }
