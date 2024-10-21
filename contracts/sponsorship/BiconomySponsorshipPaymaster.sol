@@ -162,6 +162,11 @@ contract BiconomySponsorshipPaymaster is
         _withdrawERC20(token, target, amount);
     }
 
+    /**
+     * @dev Submit a withdrawal request for the paymasterId (Dapp Depositor address)
+     * @param withdrawAddress address to send the funds to
+     * @param amount amount to withdraw
+     */
     function submitWithdrawalRequest(address withdrawAddress, uint256 amount) external {
         if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
         uint256 currentBalance = paymasterIdBalances[msg.sender];
@@ -171,6 +176,11 @@ contract BiconomySponsorshipPaymaster is
         emit WithdrawalRequestSubmitted(withdrawAddress, amount);
     }
 
+    /**
+     * @dev Execute a withdrawal request for the paymasterId (Dapp Depositor address)
+     * Request must be cleared by the withdrawal delay period
+     * @param paymasterId paymasterId (Dapp Depositor address)
+     */
     function executeWithdrawalRequest(address paymasterId) external nonReentrant {
         WithdrawalRequest memory req = requests[paymasterId];
         uint256 clearanceTimestamp = req.requestSubmittedTimestamp + getDelay(paymasterId);
@@ -182,6 +192,14 @@ contract BiconomySponsorshipPaymaster is
         delete requests[paymasterId];
         entryPoint.withdrawTo(payable(req.to), req.amount);
         emit GasWithdrawn(paymasterId, req.to, req.amount);
+    }
+
+    /**
+     * @dev Cancel a withdrawal request for the paymasterId (Dapp Depositor address)
+     */
+    function cancelWithdrawalRequest() external {
+        delete requests[msg.sender];
+        emit WithdrawalRequestCancelledFor(msg.sender);
     }
 
     function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {

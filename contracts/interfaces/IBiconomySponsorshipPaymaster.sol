@@ -22,6 +22,7 @@ interface IBiconomySponsorshipPaymaster {
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
     event WithdrawalRequestSubmitted(address withdrawAddress, uint256 amount);
+    event WithdrawalRequestCancelledFor(address paymasterId);
 
     function depositFor(address paymasterId) external payable;
 
