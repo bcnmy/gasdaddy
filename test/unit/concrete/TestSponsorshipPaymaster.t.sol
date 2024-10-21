@@ -213,13 +213,16 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
 
-    function skip_test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external prankModifier(DAPP_ACCOUNT.addr) {
+    function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
-        // No adjustment
-        uint32 priceMarkup = 1e6;
+
+        startPrank(PAYMASTER_OWNER.addr);
+        bicoPaymaster.setUnaccountedGas(18_700);
+        stopPrank();
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, priceMarkup);
+        // price markup of 1e6
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -228,9 +231,11 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         // submit userops
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
         // Calculate and assert price markups and gas payments
         calculateAndAssertAdjustments(
@@ -239,17 +244,21 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            priceMarkup
+            1e6, // priceMarkup
+            this.getMaxPenalty(userOp)
         );
     }
 
-    function skip_test_ValidatePaymasterAndPostOpWithPriceMarkup() external {
+    function test_ValidatePaymasterAndPostOpWithPriceMarkup() external {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
-        // 10% priceMarkup on gas cost
-        uint32 priceMarkup = 1e6 + 1e5;
 
+        startPrank(PAYMASTER_OWNER.addr);
+        bicoPaymaster.setUnaccountedGas(35_000);
+        stopPrank();
+
+        // 10% priceMarkup on gas cost
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, priceMarkup);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1_100_000, 100_000);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -258,11 +267,12 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         // submit userops
-        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PriceMarkupCollected(DAPP_ACCOUNT.addr, 0);
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
         // Calculate and assert price markups and gas payments
         calculateAndAssertAdjustments(
@@ -271,7 +281,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            priceMarkup
+            1_100_000, //price markup, +10% paymaster fee
+            this.getMaxPenalty(userOp)
         );
     }
 
@@ -282,9 +293,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint48 validAfter = uint48(block.timestamp);
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6
-        );
+        PaymasterData memory pmData = PaymasterData(3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6);
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
         userOp.paymasterAndData = excludeLastNBytes(userOp.paymasterAndData, 2);
         userOp.signature = signUserOp(ALICE, userOp);
 
@@ -301,9 +311,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint48 validAfter = uint48(block.timestamp);
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6
-        );
+        PaymasterData memory pmData = PaymasterData(3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6);
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
         userOp.signature = signUserOp(ALICE, userOp);
 
         ops[0] = userOp;
@@ -319,9 +328,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint48 validAfter = uint48(block.timestamp);
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        (userOp.paymasterAndData,) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6
-        );
+        PaymasterData memory pmData = PaymasterData(3e6, 3e6, DAPP_ACCOUNT.addr, validUntil, validAfter, 1e6);
+        (userOp.paymasterAndData,) = generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
         userOp.signature = signUserOp(ALICE, userOp);
 
         ops[0] = userOp;
@@ -394,9 +402,9 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint48 validAfter = uint48(block.timestamp);
         uint32 priceMarkup = 1e6;
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        (bytes memory paymasterAndData, bytes memory signature) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, paymasterId, validUntil, validAfter, priceMarkup
-        );
+        PaymasterData memory pmData = PaymasterData(3e6, 3e6, paymasterId, validUntil, validAfter, priceMarkup);
+        (bytes memory paymasterAndData, bytes memory signature) =
+            generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
 
         (
             address parsedPaymasterId,

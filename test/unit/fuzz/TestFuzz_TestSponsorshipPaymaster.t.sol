@@ -100,12 +100,18 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
     }
 
-    function skip_testFuzz_ValidatePaymasterAndPostOpWithPriceMarkup(uint32 priceMarkup) external {
+    // Review: fuzz with high markeup and current set values.
+    function testFuzz_ValidatePaymasterAndPostOpWithPriceMarkup(uint32 priceMarkup) external {
         vm.assume(priceMarkup <= 2e6 && priceMarkup > 1e6);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
 
+        startPrank(PAYMASTER_OWNER.addr);
+        bicoPaymaster.setUnaccountedGas(40_000);
+        stopPrank();
+
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, priceMarkup);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) =
+            createUserOp(ALICE, bicoPaymaster, priceMarkup, 100_000);
         ops[0] = userOp;
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -113,12 +119,12 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
-        // submit userops
-        vm.expectEmit(true, false, false, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.PriceMarkupCollected(DAPP_ACCOUNT.addr, 0);
-        vm.expectEmit(true, false, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, userOpHash);
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
         // Calculate and assert price markups and gas payments
         calculateAndAssertAdjustments(
@@ -127,7 +133,8 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
             initialFeeCollectorBalance,
             initialBundlerBalance,
             initialPaymasterEpBalance,
-            priceMarkup
+            priceMarkup,
+            this.getMaxPenalty(userOp)
         );
     }
 
@@ -141,9 +148,16 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         view
     {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        (bytes memory paymasterAndData, bytes memory signature) = generateAndSignPaymasterData(
-            userOp, PAYMASTER_SIGNER, bicoPaymaster, 3e6, 3e6, paymasterId, validUntil, validAfter, priceMarkup
-        );
+        PaymasterData memory pmData = PaymasterData({
+        validationGasLimit: 3e6,
+        postOpGasLimit: 3e6,
+        paymasterId: paymasterId,
+        validUntil: validUntil,
+        validAfter: validAfter, 
+        priceMarkup: priceMarkup
+    });
+        (bytes memory paymasterAndData, bytes memory signature) =
+            generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
 
         (
             address parsedPaymasterId,

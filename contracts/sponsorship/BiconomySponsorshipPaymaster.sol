@@ -289,18 +289,12 @@ contract BiconomySponsorshipPaymaster is
                 // If overcharged refund the excess
                 paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
             }
+        
+            // Add priceMarkup to fee collector balance
+            paymasterIdBalances[feeCollector] += adjustedGasCost - actualGasCost;
 
-            // Should always be true
-            // if (adjustedGasCost > actualGasCost) {
-            // Apply priceMarkup to fee collector balance
-            uint256 premium = adjustedGasCost - actualGasCost;
-            paymasterIdBalances[feeCollector] += premium;
-            // Review:  if we should emit adjustedGasCost as well
-            emit PriceMarkupCollected(paymasterId, premium);
-            // }
-
-            // Review: emit min required information
-            emit GasBalanceDeducted(paymasterId, adjustedGasCost, userOpHash);
+            // premium = adjustedGasCost - actualGasCost => do not need to emit it explicitly
+            emit GasBalanceDeducted(paymasterId, actualGasCost, adjustedGasCost, userOpHash);
         }
     }
 
@@ -352,15 +346,21 @@ contract BiconomySponsorshipPaymaster is
             revert InvalidPriceMarkup();
         }
 
+        // callGasLimit + paymasterPostOpGas
+        uint256 maxPenalty = (
+            uint128(uint256(userOp.accountGasLimits)) + 
+            uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
+        ) * 10 * userOp.unpackMaxFeePerGas() / 100;
+
         // Deduct the max gas cost.
         uint256 effectiveCost =
-            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup) / _PRICE_DENOMINATOR;
+            ((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup / _PRICE_DENOMINATOR);
 
-        if (effectiveCost > paymasterIdBalances[paymasterId]) {
+        if (effectiveCost + maxPenalty > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();
         }
 
-        paymasterIdBalances[paymasterId] -= effectiveCost;
+        paymasterIdBalances[paymasterId] -= (effectiveCost + maxPenalty);
 
         context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost);
 
