@@ -235,6 +235,8 @@ contract BiconomySponsorshipPaymaster is
             uint48 validUntil,
             uint48 validAfter,
             uint32 priceMarkup,
+            uint128 paymasterValidationGasLimit,
+            uint128 paymasterPostOpGasLimit,
             bytes calldata signature
         )
     {
@@ -243,6 +245,8 @@ contract BiconomySponsorshipPaymaster is
             validUntil = uint48(bytes6(paymasterAndData[_PAYMASTER_ID_OFFSET + 20:_PAYMASTER_ID_OFFSET + 26]));
             validAfter = uint48(bytes6(paymasterAndData[_PAYMASTER_ID_OFFSET + 26:_PAYMASTER_ID_OFFSET + 32]));
             priceMarkup = uint32(bytes4(paymasterAndData[_PAYMASTER_ID_OFFSET + 32:_PAYMASTER_ID_OFFSET + 36]));
+            paymasterValidationGasLimit = uint128(bytes16(paymasterAndData[_PAYMASTER_VALIDATION_GAS_OFFSET:_PAYMASTER_POSTOP_GAS_OFFSET]));
+            paymasterPostOpGasLimit = uint128(bytes16(paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]));
             signature = paymasterAndData[_PAYMASTER_ID_OFFSET + 36:];
         }
     }
@@ -261,8 +265,8 @@ contract BiconomySponsorshipPaymaster is
         override
     {
         unchecked {
-            (address paymasterId, uint32 priceMarkup, bytes32 userOpHash, uint256 prechargedAmount) =
-                abi.decode(context, (address, uint32, bytes32, uint256));
+            (address paymasterId, uint32 priceMarkup, uint256 prechargedAmount) =
+                abi.decode(context, (address, uint32, uint256));
 
             // Include unaccountedGas since EP doesn't include this in actualGasCost
             // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
@@ -270,16 +274,20 @@ contract BiconomySponsorshipPaymaster is
             // Apply the price markup
             uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
 
+            uint256 premium = adjustedGasCost - actualGasCost;
+
+            // Add priceMarkup to fee collector balance
+            paymasterIdBalances[feeCollector] += premium;
+
             if (prechargedAmount > adjustedGasCost) {
                 // If overcharged refund the excess
                 paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
+                // here adjustedGasCost does not account for gasPenalty
+                emit GasBalanceDeducted(paymasterId, adjustedGasCost, premium);
+            } else {
+                // here chargedAmount accounts for penalty with maxGasPenalty
+                emit GasBalanceDeducted(paymasterId, prechargedAmount, premium);
             }
-        
-            // Add priceMarkup to fee collector balance
-            paymasterIdBalances[feeCollector] += adjustedGasCost - actualGasCost;
-
-            // premium = adjustedGasCost - actualGasCost => do not need to emit it explicitly
-            emit GasBalanceDeducted(paymasterId, actualGasCost, adjustedGasCost, userOpHash);
         }
     }
 
@@ -302,8 +310,11 @@ contract BiconomySponsorshipPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 priceMarkup, bytes calldata signature) =
+        (userOpHash);
+        (address paymasterId, uint48 validUntil, uint48 validAfter, uint32 priceMarkup, uint128 paymasterValidationGasLimit, uint128 paymasterPostOpGasLimit, bytes calldata signature) =
             parsePaymasterAndData(userOp.paymasterAndData);
+        (paymasterValidationGasLimit, paymasterPostOpGasLimit);
+        
         //ECDSA library supports both 64 and 65-byte long signatures.
         // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and
         // not "ECDSA"
@@ -347,7 +358,7 @@ contract BiconomySponsorshipPaymaster is
 
         paymasterIdBalances[paymasterId] -= (effectiveCost + maxPenalty);
 
-        context = abi.encode(paymasterId, priceMarkup, userOpHash, effectiveCost);
+        context = abi.encode(paymasterId, priceMarkup, effectiveCost);
 
         //no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.

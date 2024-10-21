@@ -112,7 +112,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
 
         vm.expectEmit(true, false, false, false, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0, userOpHash);
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0);
 
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
@@ -156,6 +156,8 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
             uint48 parsedValidUntil,
             uint48 parsedValidAfter,
             uint32 parsedPriceMarkup,
+            uint128 parsedPaymasterValidationGasLimit,
+            uint128 parsedPaymasterPostOpGasLimit,
             bytes memory parsedSignature
         ) = bicoPaymaster.parsePaymasterAndData(paymasterAndData);
 
@@ -164,5 +166,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(validAfter, parsedValidAfter);
         assertEq(priceMarkup, parsedPriceMarkup);
         assertEq(signature, parsedSignature);
+        assertEq(pmData.validationGasLimit, parsedPaymasterValidationGasLimit);
+        assertEq(pmData.postOpGasLimit, parsedPaymasterPostOpGasLimit);
     }
 }
