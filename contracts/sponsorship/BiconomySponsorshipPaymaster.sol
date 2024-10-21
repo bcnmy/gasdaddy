@@ -177,8 +177,7 @@ contract BiconomySponsorshipPaymaster is
         if (block.timestamp < clearanceTimestamp) 
             revert RequestNotClearedYet(clearanceTimestamp);
         uint256 currentBalance = paymasterIdBalances[paymasterId];
-        if (req.amount > currentBalance) 
-            revert InsufficientFundsInGasTank();
+        req.amount = req.amount > currentBalance ? currentBalance : req.amount;
         paymasterIdBalances[paymasterId] = currentBalance - req.amount;
         delete requests[paymasterId];
         entryPoint.withdrawTo(payable(req.to), req.amount);
