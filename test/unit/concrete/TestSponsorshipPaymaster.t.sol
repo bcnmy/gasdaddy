@@ -12,6 +12,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
     uint256 public constant WITHDRAWAL_DELAY = 3600;
     uint256 public constant MIN_DEPOSIT = 1e15;
+    uint256 public constant UNACCOUNTED_GAS = 15e3;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
@@ -21,7 +22,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             entryPointArg: ENTRYPOINT,
             verifyingSignerArg: PAYMASTER_SIGNER.addr,
             feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr,
-            unaccountedGasArg: 15e3, //if set too low, PM will lose money
+            unaccountedGasArg: UNACCOUNTED_GAS, //if set too low, PM will lose money
             paymasterIdWithdrawalDelayArg: WITHDRAWAL_DELAY,
             minDepositArg: MIN_DEPOSIT
         });
@@ -78,7 +79,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(address(bicoPaymaster.entryPoint()), ENTRYPOINT_ADDRESS);
         assertEq(bicoPaymaster.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(bicoPaymaster.feeCollector(), PAYMASTER_FEE_COLLECTOR.addr);
-        assertEq(bicoPaymaster.unaccountedGas(), 7e3);
+        assertEq(bicoPaymaster.unaccountedGas(), UNACCOUNTED_GAS);
     }
 
     function test_OwnershipTransfer() external prankModifier(PAYMASTER_OWNER.addr) {
@@ -241,9 +242,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     }
 
    // try to use balance while request is cleared
-
-   // This doesn't pass as maxPenalty calculation is wrong
-
    function test_executeWithdrawalRequest_Withdraws_WhateverIsLeft() external prankModifier(DAPP_ACCOUNT.addr) {
         uint256 depositAmount = 1 ether;
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
@@ -253,7 +251,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
         ops[0] = userOp;
-        console2.log("================");
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
         stopPrank();
@@ -265,10 +262,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         IStakeManager.DepositInfo memory depositInfo = ENTRYPOINT.getDepositInfo(address(bicoPaymaster));
         uint256 PAYMASTER_POSTOP_GAS_OFFSET = 36;
         uint256 PAYMASTER_DATA_OFFSET = 52;
-       // console2.log("deposit in EP ", depositInfo.deposit);
-       // console2.log("payId Bal Aft ", dappPaymasterBalanceAfter);
-        console2.log("max gas fee ",  uint128(uint256(userOp.gasFees)));
-        //console2.log("max gas ", this.getGasLimit(userOp));
 
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
