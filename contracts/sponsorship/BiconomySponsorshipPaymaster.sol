@@ -285,6 +285,8 @@ contract BiconomySponsorshipPaymaster is
                 // here adjustedGasCost does not account for gasPenalty
                 emit GasBalanceDeducted(paymasterId, adjustedGasCost, premium);
             } else {
+                // deduct what needs to be deducted from paymasterId
+                paymasterIdBalances[paymasterId] -= (adjustedGasCost - prechargedAmount);
                 // here chargedAmount accounts for penalty with maxGasPenalty
                 emit GasBalanceDeducted(paymasterId, prechargedAmount, premium);
             }
