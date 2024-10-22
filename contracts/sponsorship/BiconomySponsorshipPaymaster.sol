@@ -423,6 +423,9 @@ contract BiconomySponsorshipPaymaster is
             ) * 10 * userOp.unpackMaxFeePerGas()
         ) / 100;
 
+        console2.log("call gas limit in pm ", uint128(uint256(userOp.accountGasLimits)));
+        console2.log("pm gas limit in pm", uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET])));
+
         console2.log("max penalty ", maxPenalty);
 
         // Deduct the max gas cost.

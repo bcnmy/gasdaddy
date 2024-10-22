@@ -253,6 +253,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
         ops[0] = userOp;
+        console2.log("================");
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
         stopPrank();
@@ -268,9 +269,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         console2.log("payId Bal Aft ", dappPaymasterBalanceAfter);
         console2.log("max gas fee ",  uint128(uint256(userOp.gasFees)));
         console2.log("max gas ", this.getGasLimit(userOp));
-
-//max penalty in PM:  16500000000
-//actual penalty wei: 899898000000
 
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
