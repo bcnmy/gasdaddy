@@ -16,9 +16,9 @@ interface IBiconomySponsorshipPaymaster {
     event FixedPriceMarkupChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event FeeCollectorChanged(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
-    event GasDeposited(address indexed paymasterId, uint256 indexed value);
-    event GasWithdrawn(address indexed paymasterId, address indexed to, uint256 indexed value);
-    event GasBalanceDeducted(address indexed paymasterId, uint256 actualGasCost, uint256 indexed adjustedGasCost, bytes32 indexed userOpHash);
+    event GasDeposited(address indexed _paymasterId, uint256 indexed _value);
+    event GasWithdrawn(address indexed _paymasterId, address indexed _to, uint256 indexed _value);
+    event GasBalanceDeducted(address indexed _paymasterId, uint256 indexed _charge, uint256 indexed _premium);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
     event WithdrawalRequestSubmitted(address withdrawAddress, uint256 amount);
@@ -59,6 +59,8 @@ interface IBiconomySponsorshipPaymaster {
             uint48 validUntil,
             uint48 validAfter,
             uint32 priceMarkup,
+            uint128 paymasterValidationGasLimit,
+            uint128 paymasterPostOpGasLimit,
             bytes calldata signature
         );
 }
