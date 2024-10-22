@@ -5,6 +5,7 @@ import "../../base/TestBase.sol";
 import { IBiconomySponsorshipPaymaster } from "../../../contracts/interfaces/IBiconomySponsorshipPaymaster.sol";
 import { BiconomySponsorshipPaymaster } from "../../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
+import "@ERC4337/account-abstraction/contracts/interfaces/IStakeManager.sol";
 
 contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
@@ -186,32 +187,10 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.deposit{ value: 1 ether }();
     }
 
-
     function test_RevertIf_TriesWithdrawToWithoutRequest() external prankModifier(DAPP_ACCOUNT.addr) {
         vm.expectRevert(abi.encodeWithSelector(SubmitRequestInstead.selector));
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
     }
-
-    /*
-
-    function test_WithdrawTo() external prankModifier(DAPP_ACCOUNT.addr) {
-        uint256 depositAmount = 10 ether;
-        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
-        uint256 danInitialBalance = BOB_ADDRESS.balance;
-
-        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, BOB_ADDRESS, depositAmount);
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), depositAmount);
-
-        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-        assertEq(dappPaymasterBalance, 0 ether);
-        uint256 expectedDanBalance = danInitialBalance + depositAmount;
-        assertEq(BOB_ADDRESS.balance, expectedDanBalance);
-    } */
-
-    // Test submitting and executing the request with different scenarios (see above )
-
-    // test canceling the request
 
     function test_submitWithdrawalRequest_Fails_with_ZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
         vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
@@ -235,6 +214,15 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
     }
 
+    function test_cancelWithdrawalRequest_Success() external prankModifier(DAPP_ACCOUNT.addr) {
+        uint256 depositAmount = 1 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount);
+        bicoPaymaster.cancelWithdrawalRequest();
+        vm.expectRevert(abi.encodeWithSelector(NoRequestSubmitted.selector));
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
+    }
+
     function test_submitWithdrawalRequest_Happy_Scenario() external prankModifier(DAPP_ACCOUNT.addr) {
         uint256 depositAmount = 1 ether;
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
@@ -252,9 +240,51 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
     }
 
-   // try to use balance while request is cleared 
+   // try to use balance while request is cleared
 
+   // This doesn't pass as maxPenalty calculation is wrong
 
+   function test_executeWithdrawalRequest_Withdraws_WhateverIsLeft() external prankModifier(DAPP_ACCOUNT.addr) {
+        uint256 depositAmount = 1 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount);
+
+        //use balance of the paymaster
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
+        ops[0] = userOp;
+        startPrank(BUNDLER.addr);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
+
+        uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        assertLt(dappPaymasterBalanceAfter, depositAmount);
+        uint256 bobBalanceBeforeWithdrawal = BOB_ADDRESS.balance;
+
+        IStakeManager.DepositInfo memory depositInfo = ENTRYPOINT.getDepositInfo(address(bicoPaymaster));
+        uint256 PAYMASTER_POSTOP_GAS_OFFSET = 36;
+        uint256 PAYMASTER_DATA_OFFSET = 52;
+        console2.log("deposit in EP ", depositInfo.deposit);
+        console2.log("payId Bal Aft ", dappPaymasterBalanceAfter);
+        console2.log("max gas fee ",  uint128(uint256(userOp.gasFees)));
+        console2.log("max gas ", this.getGasLimit(userOp));
+
+//max penalty in PM:  16500000000
+//actual penalty wei: 899898000000
+
+        vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceAfterWithdrawal = BOB_ADDRESS.balance;
+        assertEq(bobBalanceAfterWithdrawal, bobBalanceBeforeWithdrawal + dappPaymasterBalanceAfter);
+        assertEq(bicoPaymaster.getBalance(DAPP_ACCOUNT.addr), 0 ether);
+   }
+
+   function getGasLimit(PackedUserOperation calldata userOp) public pure returns (uint256) {
+        uint256 PAYMASTER_POSTOP_GAS_OFFSET = 36;
+        uint256 PAYMASTER_DATA_OFFSET = 52;
+        return uint128(uint256(userOp.accountGasLimits)) +
+            uint128(bytes16(userOp.paymasterAndData[PAYMASTER_POSTOP_GAS_OFFSET : PAYMASTER_DATA_OFFSET]));
+   }
 
     // test minimal deposit
     function test_depositFor_RevertsIf_DepositIsLessThanMinDeposit() external {

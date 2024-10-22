@@ -14,6 +14,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
+import "forge-std/console2.sol";
+
 /**
  * @title BiconomySponsorshipPaymaster
  * @author livingrockrises<chirag@biconomy.io>
@@ -190,6 +192,7 @@ contract BiconomySponsorshipPaymaster is
             revert RequestNotClearedYet(clearanceTimestamp);
         uint256 currentBalance = paymasterIdBalances[paymasterId];
         req.amount = req.amount > currentBalance ? currentBalance : req.amount;
+        if(req.amount == 0) revert CanNotWithdrawZeroAmount();
         paymasterIdBalances[paymasterId] = currentBalance - req.amount;
         delete requests[paymasterId];
         entryPoint.withdrawTo(payable(req.to), req.amount);
@@ -319,9 +322,11 @@ contract BiconomySponsorshipPaymaster is
 
             if (prechargedAmount > adjustedGasCost) {
                 // If overcharged refund the excess
+                console2.log("overcharged ", prechargedAmount - adjustedGasCost);
                 paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
             } else {
                 // deduct what needs to be deducted from paymasterId
+                console2.log("undercharged ", (adjustedGasCost - prechargedAmount));
                 paymasterIdBalances[paymasterId] -= (adjustedGasCost - prechargedAmount);                
             }
             // here adjustedGasCost does not account for gasPenalty. prechargedAmount accounts for penalty with maxGasPenalty
@@ -385,6 +390,8 @@ contract BiconomySponsorshipPaymaster is
             uint128(uint256(userOp.accountGasLimits)) + 
             uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
         ) * 10 * userOp.unpackMaxFeePerGas() / 100;
+
+        console2.log("max penalty ", maxPenalty);
 
         // Deduct the max gas cost.
         uint256 effectiveCost =
