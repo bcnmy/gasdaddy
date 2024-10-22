@@ -356,20 +356,13 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
         uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
 
-        console2.log("1");
         // Assert that what paymaster paid is the same as what the bundler received
         assertEq(totalGasFeePaid, initialPaymasterEpBalance - bicoPaymaster.getDeposit());
-
-        console2.log("2");
         // Assert that adjustment collected (if any) is correct
         assertEq(expectedPriceMarkup, actualPriceMarkup);
-
-        console2.log("3");
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
-
-        console2.log("4");
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
         assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);

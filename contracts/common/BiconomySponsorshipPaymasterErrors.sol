@@ -73,6 +73,11 @@ contract BiconomySponsorshipPaymasterErrors {
     error CanNotWithdrawZeroAmount();
 
     /**
+     * @notice Throws when no request has been submitted
+     */
+    error NoRequestSubmitted();
+
+    /**
      * @notice Throws when trying unaccountedGas is too high
      */
     error UnaccountedGasTooHigh();

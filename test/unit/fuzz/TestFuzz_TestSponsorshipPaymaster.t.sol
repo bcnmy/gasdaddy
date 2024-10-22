@@ -8,7 +8,8 @@ import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 
 contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
-
+    uint256 public constant WITHDRAWAL_DELAY = 3600;
+    uint256 public constant MIN_DEPOSIT = 1e15;
     function setUp() public {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
@@ -41,25 +42,22 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     }
 
     // Rebuild submitting and exeuting withdraw request fuzz
-
-    /*
-    function testFuzz_WithdrawTo(uint256 withdrawAmount) external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.assume(withdrawAmount <= 1000 ether && withdrawAmount > 0 ether);
-        vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
-
-        bicoPaymaster.depositFor{ value: withdrawAmount }(DAPP_ACCOUNT.addr);
-        uint256 danInitialBalance = BOB_ADDRESS.balance;
-
-        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, BOB_ADDRESS, withdrawAmount);
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), withdrawAmount);
-
-        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-        assertEq(dappPaymasterBalance, 0 ether);
-        uint256 expectedDanBalance = danInitialBalance + withdrawAmount;
-        assertEq(BOB_ADDRESS.balance, expectedDanBalance);
+    function test_submitWithdrawalRequest_Happy_Scenario(uint256 depositAmount) external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.assume(depositAmount <= 1000 ether && depositAmount > MIN_DEPOSIT);
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount);
+        vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
+        uint256 dappPaymasterBalanceBefore = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceBefore = BOB_ADDRESS.balance;
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);  
+        uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceAfter = BOB_ADDRESS.balance;
+        assertEq(dappPaymasterBalanceAfter, dappPaymasterBalanceBefore - depositAmount);
+        assertEq(bobBalanceAfter, bobBalanceBefore + depositAmount);
+        // can not withdraw again
+        vm.expectRevert(abi.encodeWithSelector(NoRequestSubmitted.selector));
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
     }
-    */
 
     function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {
         vm.assume(ethAmount <= 1000 ether && ethAmount > 0 ether);

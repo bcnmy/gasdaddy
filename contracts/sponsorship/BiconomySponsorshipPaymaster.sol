@@ -184,6 +184,7 @@ contract BiconomySponsorshipPaymaster is
      */
     function executeWithdrawalRequest(address paymasterId) external nonReentrant {
         WithdrawalRequest memory req = requests[paymasterId];
+        if(req.requestSubmittedTimestamp == 0) revert NoRequestSubmitted();
         uint256 clearanceTimestamp = req.requestSubmittedTimestamp + getDelay(paymasterId);
         if (block.timestamp < clearanceTimestamp) 
             revert RequestNotClearedYet(clearanceTimestamp);

@@ -9,6 +9,9 @@ import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
+    uint256 public constant WITHDRAWAL_DELAY = 3600;   
+    uint256 public constant MIN_DEPOSIT = 1e15;
+
     function setUp() public {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
@@ -19,8 +22,8 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
                 verifyingSignerArg: PAYMASTER_SIGNER.addr, 
                 feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr, 
                 unaccountedGasArg: 7e3,
-                _paymasterIdWithdrawalDelay: 3600,
-                _minDeposit: 1e15
+                _paymasterIdWithdrawalDelay: WITHDRAWAL_DELAY,
+                _minDeposit: MIN_DEPOSIT
             }
         );
     }
@@ -191,16 +194,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
     /*
 
-    function test_RevertIf_WithdrawToZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
-        bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
-    }
-
-    function test_RevertIf_WithdrawZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 0 ether);
-    }
-
     function test_WithdrawTo() external prankModifier(DAPP_ACCOUNT.addr) {
         uint256 depositAmount = 10 ether;
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
@@ -220,10 +213,53 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
     // test canceling the request
 
+    function test_submitWithdrawalRequest_Fails_with_ZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, 0 ether);
+    }
+
+    function test_submitWithdrawalRequest_Fails_with_ZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
+        bicoPaymaster.submitWithdrawalRequest(address(0), 1 ether);
+    }
+
+    function test_submitWithdrawalRequest_Fails_If_not_enough_balance() external prankModifier(DAPP_ACCOUNT.addr) {
+        uint256 depositAmount = 1 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        vm.expectRevert(abi.encodeWithSelector(InsufficientFundsInGasTank.selector));
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount + 1);
+    }
+
+    function test_executeWithdrawalRequest_Fails_with_NoRequestSubmitted() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(NoRequestSubmitted.selector));
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
+    }
+
+    function test_submitWithdrawalRequest_Happy_Scenario() external prankModifier(DAPP_ACCOUNT.addr) {
+        uint256 depositAmount = 1 ether;
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount);
+        vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
+        uint256 dappPaymasterBalanceBefore = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceBefore = BOB_ADDRESS.balance;
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);  
+        uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceAfter = BOB_ADDRESS.balance;
+        assertEq(dappPaymasterBalanceAfter, dappPaymasterBalanceBefore - depositAmount);
+        assertEq(bobBalanceAfter, bobBalanceBefore + depositAmount);
+        // can not withdraw again
+        vm.expectRevert(abi.encodeWithSelector(NoRequestSubmitted.selector));
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
+    }
+
+   // try to use balance while request is cleared 
+
+
+
     // test minimal deposit
     function test_depositFor_RevertsIf_DepositIsLessThanMinDeposit() external {
         vm.expectRevert(abi.encodeWithSelector(LowDeposit.selector));
-        bicoPaymaster.depositFor{ value: 1e15 - 1 }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.depositFor{ value: MIN_DEPOSIT - 1 }(DAPP_ACCOUNT.addr);
     }
 
     function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external {
