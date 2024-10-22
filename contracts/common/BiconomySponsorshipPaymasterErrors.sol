@@ -106,4 +106,9 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Thrown when trying to directly withdraw instead of submitting a request
      */
     error SubmitRequestInstead();
+
+    /**
+     * @notice Thrown when the array lengths are not equal
+     */
+    error InvalidArrayLengths();
 }
