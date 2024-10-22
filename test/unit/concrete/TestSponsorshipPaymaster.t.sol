@@ -221,7 +221,10 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     // test canceling the request
 
     // test minimal deposit
-    
+    function test_depositFor_RevertsIf_DepositIsLessThanMinDeposit() external {
+        vm.expectRevert(abi.encodeWithSelector(LowDeposit.selector));
+        bicoPaymaster.depositFor{ value: 1e15 - 1 }(DAPP_ACCOUNT.addr);
+    }
 
     function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
