@@ -96,4 +96,9 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Thrown when trying to execute withdrawal request before delay has passed
      */
     error RequestNotClearedYet(uint256 clearanceTime);
+
+    /**
+     * @notice Thrown when trying to directly withdraw instead of submitting a request
+     */
+    error SubmitRequestInstead();
 }

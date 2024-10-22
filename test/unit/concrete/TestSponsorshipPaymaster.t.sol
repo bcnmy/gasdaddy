@@ -183,6 +183,24 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.deposit{ value: 1 ether }();
     }
 
+
+    function test_RevertIf_TriesWithdrawToWithoutRequest() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(SubmitRequestInstead.selector));
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
+    }
+
+    /*
+
+    function test_RevertIf_WithdrawToZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
+        bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
+    }
+
+    function test_RevertIf_WithdrawZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
+        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
+        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 0 ether);
+    }
+
     function test_WithdrawTo() external prankModifier(DAPP_ACCOUNT.addr) {
         uint256 depositAmount = 10 ether;
         bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
@@ -196,22 +214,14 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(dappPaymasterBalance, 0 ether);
         uint256 expectedDanBalance = danInitialBalance + depositAmount;
         assertEq(BOB_ADDRESS.balance, expectedDanBalance);
-    }
+    } */
 
-    function test_RevertIf_WithdrawToZeroAddress() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawToZeroAddress.selector));
-        bicoPaymaster.withdrawTo(payable(address(0)), 0 ether);
-    }
+    // Test submitting and executing the request with different scenarios (see above )
 
-    function test_RevertIf_WithdrawZeroAmount() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(CanNotWithdrawZeroAmount.selector));
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 0 ether);
-    }
+    // test canceling the request
 
-    function test_RevertIf_WithdrawToExceedsBalance() external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.expectRevert(abi.encodeWithSelector(InsufficientFunds.selector));
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
-    }
+    // test minimal deposit
+    
 
     function test_ValidatePaymasterAndPostOpWithoutPriceMarkup() external {
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);

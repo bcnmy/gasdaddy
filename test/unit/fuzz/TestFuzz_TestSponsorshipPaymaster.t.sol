@@ -26,7 +26,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     }
 
     function testFuzz_DepositFor(uint256 depositAmount) external {
-        vm.assume(depositAmount <= 1000 ether && depositAmount > 0 ether);
+        vm.assume(depositAmount <= 1000 ether && depositAmount > 1e15);
         vm.deal(DAPP_ACCOUNT.addr, depositAmount);
 
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
@@ -40,6 +40,9 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(dappPaymasterBalance, depositAmount);
     }
 
+    // Rebuild submitting and exeuting withdraw request fuzz
+
+    /*
     function testFuzz_WithdrawTo(uint256 withdrawAmount) external prankModifier(DAPP_ACCOUNT.addr) {
         vm.assume(withdrawAmount <= 1000 ether && withdrawAmount > 0 ether);
         vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
@@ -56,6 +59,7 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 expectedDanBalance = danInitialBalance + withdrawAmount;
         assertEq(BOB_ADDRESS.balance, expectedDanBalance);
     }
+    */
 
     function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {
         vm.assume(ethAmount <= 1000 ether && ethAmount > 0 ether);

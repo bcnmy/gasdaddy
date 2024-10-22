@@ -169,6 +169,7 @@ contract BiconomySponsorshipPaymaster is
      */
     function submitWithdrawalRequest(address withdrawAddress, uint256 amount) external {
         if (withdrawAddress == address(0)) revert CanNotWithdrawToZeroAddress();
+        if (amount == 0) revert CanNotWithdrawZeroAmount();
         uint256 currentBalance = paymasterIdBalances[msg.sender];
         if (amount > currentBalance)
             revert InsufficientFundsInGasTank();
@@ -207,6 +208,10 @@ contract BiconomySponsorshipPaymaster is
         if (!success) {
             revert WithdrawalFailed();
         }
+    }
+
+    function withdrawTo(address payable withdrawAddress, uint256 amount) external virtual override {
+        revert SubmitRequestInstead();
     }
 
     /**
