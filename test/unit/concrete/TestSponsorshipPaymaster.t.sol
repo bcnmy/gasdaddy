@@ -9,23 +9,21 @@ import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
-    uint256 public constant WITHDRAWAL_DELAY = 3600;   
+    uint256 public constant WITHDRAWAL_DELAY = 3600;
     uint256 public constant MIN_DEPOSIT = 1e15;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
-        bicoPaymaster = new BiconomySponsorshipPaymaster(
-            {
-                owner: PAYMASTER_OWNER.addr, 
-                entryPointArg: ENTRYPOINT, 
-                verifyingSignerArg: PAYMASTER_SIGNER.addr, 
-                feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr, 
-                unaccountedGasArg: 7e3,
-                _paymasterIdWithdrawalDelay: WITHDRAWAL_DELAY,
-                _minDeposit: MIN_DEPOSIT
-            }
-        );
+        bicoPaymaster = new BiconomySponsorshipPaymaster({
+            owner: PAYMASTER_OWNER.addr,
+            entryPointArg: ENTRYPOINT,
+            verifyingSignerArg: PAYMASTER_SIGNER.addr,
+            feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr,
+            unaccountedGasArg: 7e3,
+            paymasterIdWithdrawalDelayArg: WITHDRAWAL_DELAY,
+            minDepositArg: MIN_DEPOSIT
+        });
     }
 
     function test_Deploy() external {
@@ -55,7 +53,9 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
     function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
-        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3, 3600, 1e15);
+        new BiconomySponsorshipPaymaster(
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3, 3600, 1e15
+        );
     }
 
     function test_RevertIf_DeployWithFeeCollectorAsContract() external {
@@ -186,7 +186,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.deposit{ value: 1 ether }();
     }
 
-
     function test_RevertIf_TriesWithdrawToWithoutRequest() external prankModifier(DAPP_ACCOUNT.addr) {
         vm.expectRevert(abi.encodeWithSelector(SubmitRequestInstead.selector));
         bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), 1 ether);
@@ -242,7 +241,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         uint256 dappPaymasterBalanceBefore = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 bobBalanceBefore = BOB_ADDRESS.balance;
-        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);  
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
         uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 bobBalanceAfter = BOB_ADDRESS.balance;
         assertEq(dappPaymasterBalanceAfter, dappPaymasterBalanceBefore - depositAmount);
@@ -252,9 +251,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
     }
 
-   // try to use balance while request is cleared 
-
-
+    // try to use balance while request is cleared
 
     // test minimal deposit
     function test_depositFor_RevertsIf_DepositIsLessThanMinDeposit() external {
