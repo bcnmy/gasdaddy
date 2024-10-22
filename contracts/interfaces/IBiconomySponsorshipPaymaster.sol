@@ -5,12 +5,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PackedUserOperation } from "account-abstraction/core/UserOperationLib.sol";
 
 interface IBiconomySponsorshipPaymaster {
-
     struct WithdrawalRequest {
         uint256 amount;
         address to;
         uint256 requestSubmittedTimestamp;
-    } 
+    }
 
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FixedPriceMarkupChanged(uint256 indexed oldValue, uint256 indexed newValue);

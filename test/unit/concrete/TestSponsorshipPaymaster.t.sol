@@ -10,23 +10,21 @@ import "@ERC4337/account-abstraction/contracts/interfaces/IStakeManager.sol";
 contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
 
-    uint256 public constant WITHDRAWAL_DELAY = 3600;   
+    uint256 public constant WITHDRAWAL_DELAY = 3600;
     uint256 public constant MIN_DEPOSIT = 1e15;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
-        bicoPaymaster = new BiconomySponsorshipPaymaster(
-            {
-                owner: PAYMASTER_OWNER.addr, 
-                entryPointArg: ENTRYPOINT, 
-                verifyingSignerArg: PAYMASTER_SIGNER.addr, 
-                feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr, 
-                unaccountedGasArg: 7e3,
-                _paymasterIdWithdrawalDelay: WITHDRAWAL_DELAY,
-                _minDeposit: MIN_DEPOSIT
-            }
-        );
+        bicoPaymaster = new BiconomySponsorshipPaymaster({
+            owner: PAYMASTER_OWNER.addr,
+            entryPointArg: ENTRYPOINT,
+            verifyingSignerArg: PAYMASTER_SIGNER.addr,
+            feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr,
+            unaccountedGasArg: 7e3,
+            paymasterIdWithdrawalDelayArg: WITHDRAWAL_DELAY,
+            minDepositArg: MIN_DEPOSIT
+        });
     }
 
     function test_Deploy() external {
@@ -56,7 +54,9 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
     function test_RevertIf_DeployWithFeeCollectorSetToZero() external {
         vm.expectRevert(abi.encodeWithSelector(FeeCollectorCanNotBeZero.selector));
-        new BiconomySponsorshipPaymaster(PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3, 3600, 1e15);
+        new BiconomySponsorshipPaymaster(
+            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, address(0), 7e3, 3600, 1e15
+        );
     }
 
     function test_RevertIf_DeployWithFeeCollectorAsContract() external {
@@ -230,7 +230,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         uint256 dappPaymasterBalanceBefore = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 bobBalanceBefore = BOB_ADDRESS.balance;
-        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);  
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
         uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         uint256 bobBalanceAfter = BOB_ADDRESS.balance;
         assertEq(dappPaymasterBalanceAfter, dappPaymasterBalanceBefore - depositAmount);
