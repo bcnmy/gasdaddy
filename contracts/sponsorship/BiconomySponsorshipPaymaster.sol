@@ -282,14 +282,12 @@ contract BiconomySponsorshipPaymaster is
             if (prechargedAmount > adjustedGasCost) {
                 // If overcharged refund the excess
                 paymasterIdBalances[paymasterId] += (prechargedAmount - adjustedGasCost);
-                // here adjustedGasCost does not account for gasPenalty
-                emit GasBalanceDeducted(paymasterId, adjustedGasCost, premium);
             } else {
                 // deduct what needs to be deducted from paymasterId
-                paymasterIdBalances[paymasterId] -= (adjustedGasCost - prechargedAmount);
-                // here chargedAmount accounts for penalty with maxGasPenalty
-                emit GasBalanceDeducted(paymasterId, prechargedAmount, premium);
+                paymasterIdBalances[paymasterId] -= (adjustedGasCost - prechargedAmount);                
             }
+            // here adjustedGasCost does not account for gasPenalty. prechargedAmount accounts for penalty with maxGasPenalty
+            emit GasBalanceDeducted(paymasterId, adjustedGasCost, premium);
         }
     }
 
