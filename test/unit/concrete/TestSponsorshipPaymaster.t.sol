@@ -21,7 +21,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             entryPointArg: ENTRYPOINT,
             verifyingSignerArg: PAYMASTER_SIGNER.addr,
             feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr,
-            unaccountedGasArg: 7e3,
+            unaccountedGasArg: 15e3, //if set too low, PM will lose money
             paymasterIdWithdrawalDelayArg: WITHDRAWAL_DELAY,
             minDepositArg: MIN_DEPOSIT
         });
@@ -265,10 +265,10 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         IStakeManager.DepositInfo memory depositInfo = ENTRYPOINT.getDepositInfo(address(bicoPaymaster));
         uint256 PAYMASTER_POSTOP_GAS_OFFSET = 36;
         uint256 PAYMASTER_DATA_OFFSET = 52;
-        console2.log("deposit in EP ", depositInfo.deposit);
-        console2.log("payId Bal Aft ", dappPaymasterBalanceAfter);
+       // console2.log("deposit in EP ", depositInfo.deposit);
+       // console2.log("payId Bal Aft ", dappPaymasterBalanceAfter);
         console2.log("max gas fee ",  uint128(uint256(userOp.gasFees)));
-        console2.log("max gas ", this.getGasLimit(userOp));
+        //console2.log("max gas ", this.getGasLimit(userOp));
 
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);

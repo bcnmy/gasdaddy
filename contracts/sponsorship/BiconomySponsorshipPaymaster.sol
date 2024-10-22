@@ -332,6 +332,8 @@ contract BiconomySponsorshipPaymaster is
         // Include unaccountedGas since EP doesn't include this in actualGasCost
         // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
         actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
+        console2.log("gas at pm.postOp sent by EP + unaccountedGas ", actualGasCost);
+        console2.log("actual unaccountedGas (postOp overload) units at pm.postOp ", unaccountedGas);
         // Apply the price markup
         uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
 
