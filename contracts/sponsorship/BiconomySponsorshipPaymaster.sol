@@ -138,7 +138,10 @@ contract BiconomySponsorshipPaymaster is
      */
     function setTrustedPaymasterId(address paymasterId, bool isTrusted) external payable onlyOwner {
         if (paymasterId == address(0)) revert PaymasterIdCanNotBeZero();
-        _trustedPaymasterIds[paymasterId] = isTrusted;
+        if (_trustedPaymasterIds[paymasterId] != isTrusted) {
+            _trustedPaymasterIds[paymasterId] = isTrusted;
+            emit TrustedPaymasterIdSet(paymasterId, isTrusted);
+        }
     }
 
     /**
@@ -148,6 +151,7 @@ contract BiconomySponsorshipPaymaster is
      */
     function setMinDeposit(uint256 newMinDeposit) external payable onlyOwner {
         minDeposit = newMinDeposit;
+        emit MinDepositChanged(minDeposit, newMinDeposit);
     }
 
     /**
@@ -243,6 +247,7 @@ contract BiconomySponsorshipPaymaster is
         if (!success) {
             revert WithdrawalFailed();
         }
+        emit EthWithdrawn(recipient, amount);
     }
 
     function withdrawTo(address payable withdrawAddress, uint256 amount) external virtual override {
