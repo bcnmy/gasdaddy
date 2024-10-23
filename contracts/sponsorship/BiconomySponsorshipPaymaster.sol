@@ -147,8 +147,8 @@ contract BiconomySponsorshipPaymaster is
      * @param newMinDeposit The new minimum deposit value to be set.
      */
     function setMinDeposit(uint256 newMinDeposit) external payable onlyOwner {
-        minDeposit = newMinDeposit;
         emit MinDepositChanged(minDeposit, newMinDeposit);
+        minDeposit = newMinDeposit;
     }
 
     /**
