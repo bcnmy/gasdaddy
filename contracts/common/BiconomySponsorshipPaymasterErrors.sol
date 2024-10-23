@@ -73,6 +73,11 @@ contract BiconomySponsorshipPaymasterErrors {
     error CanNotWithdrawZeroAmount();
 
     /**
+     * @notice Throws when no request has been submitted
+     */
+    error NoRequestSubmitted();
+
+    /**
      * @notice Throws when trying unaccountedGas is too high
      */
     error UnaccountedGasTooHigh();
@@ -81,4 +86,29 @@ contract BiconomySponsorshipPaymasterErrors {
      * @notice Throws when postOp gas limit is too low
      */
     error PostOpGasLimitTooLow();
+
+    /**
+     * @notice Thrown when deposit is too low to reach minDeposit
+     */
+    error LowDeposit();
+
+    /**
+     * @notice Thrown when trying to withdraw more than the balance
+     */
+    error InsufficientFundsInGasTank();
+
+    /**
+     * @notice Thrown when trying to execute withdrawal request before delay has passed
+     */
+    error RequestNotClearedYet(uint256 clearanceTime);
+
+    /**
+     * @notice Thrown when trying to directly withdraw instead of submitting a request
+     */
+    error SubmitRequestInstead();
+
+    /**
+     * @notice Thrown when the array lengths are not equal
+     */
+    error InvalidArrayLengths();
 }

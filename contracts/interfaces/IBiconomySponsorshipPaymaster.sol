@@ -5,6 +5,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { PackedUserOperation } from "account-abstraction/core/UserOperationLib.sol";
 
 interface IBiconomySponsorshipPaymaster {
+    struct WithdrawalRequest {
+        uint256 amount;
+        address to;
+        uint256 requestSubmittedTimestamp;
+    }
+
     event UnaccountedGasChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event FixedPriceMarkupChanged(uint256 indexed oldValue, uint256 indexed newValue);
     event VerifyingSignerChanged(address indexed oldSigner, address indexed newSigner, address indexed actor);
@@ -14,6 +20,11 @@ interface IBiconomySponsorshipPaymaster {
     event GasBalanceDeducted(address indexed _paymasterId, uint256 indexed _charge, uint256 indexed _premium);
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
+    event WithdrawalRequestSubmitted(address withdrawAddress, uint256 amount);
+    event WithdrawalRequestCancelledFor(address paymasterId);
+    event TrustedPaymasterIdSet(address indexed paymasterId, bool isTrusted);
+    event EthWithdrawn(address indexed recipient, uint256 indexed amount);
+    event MinDepositChanged(uint256 indexed oldValue, uint256 indexed newValue);
 
     function depositFor(address paymasterId) external payable;
 

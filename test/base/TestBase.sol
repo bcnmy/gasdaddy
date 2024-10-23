@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
+
 import { Test } from "forge-std/Test.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -26,7 +27,6 @@ import {
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
 
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
-
     using UserOperationLib for PackedUserOperation;
 
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
@@ -212,14 +212,14 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             pmData.priceMarkup,
             new bytes(65) // Zero signature
         );
-        
-        {
-        // Generate hash to be signed
-        bytes32 paymasterHash =
-            paymaster.getHash(userOp, pmData.paymasterId, pmData.validUntil, pmData.validAfter, pmData.priceMarkup);
 
-        // Sign the hash
-        signature = signMessage(signer, paymasterHash);
+        {
+            // Generate hash to be signed
+            bytes32 paymasterHash =
+                paymaster.getHash(userOp, pmData.paymasterId, pmData.validUntil, pmData.validAfter, pmData.priceMarkup);
+
+            // Sign the hash
+            signature = signMessage(signer, paymasterHash);
         }
 
         // Final paymaster data with the actual signature
@@ -333,8 +333,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
     function getMaxPenalty(PackedUserOperation calldata userOp) public view returns (uint256) {
         return (
-            uint128(uint256(userOp.accountGasLimits)) + 
-            uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET : _PAYMASTER_DATA_OFFSET]))
+            uint128(uint256(userOp.accountGasLimits))
+                + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
         ) * 10 * userOp.unpackMaxFeePerGas() / 100;
     }
 
@@ -351,25 +351,19 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         internal
         view
     {
-        (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) =
-            getPriceMarkups(bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup, maxPenalty);
+        (uint256 expectedPriceMarkup, uint256 actualPriceMarkup) = getPriceMarkups(
+            bicoPaymaster, initialDappPaymasterBalance, initialFeeCollectorBalance, priceMarkup, maxPenalty
+        );
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
         uint256 gasPaidByDapp = initialDappPaymasterBalance - bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
 
-        console2.log("1");
         // Assert that what paymaster paid is the same as what the bundler received
         assertEq(totalGasFeePaid, initialPaymasterEpBalance - bicoPaymaster.getDeposit());
-
-        console2.log("2");
         // Assert that adjustment collected (if any) is correct
         assertEq(expectedPriceMarkup, actualPriceMarkup);
-
-        console2.log("3");
         // Gas paid by dapp is higher than paymaster
         // Guarantees that EP always has sufficient deposit to pay back dapps
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
-
-        console2.log("4");
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
         assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);

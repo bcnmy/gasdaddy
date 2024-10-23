@@ -8,17 +8,25 @@ import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 
 contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     BiconomySponsorshipPaymaster public bicoPaymaster;
+    uint256 public constant WITHDRAWAL_DELAY = 3600;
+    uint256 public constant MIN_DEPOSIT = 1e15;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
         // Deploy Sponsorship Paymaster
-        bicoPaymaster = new BiconomySponsorshipPaymaster(
-            PAYMASTER_OWNER.addr, ENTRYPOINT, PAYMASTER_SIGNER.addr, PAYMASTER_FEE_COLLECTOR.addr, 7e3
-        );
+        bicoPaymaster = new BiconomySponsorshipPaymaster({
+            owner: PAYMASTER_OWNER.addr,
+            entryPointArg: ENTRYPOINT,
+            verifyingSignerArg: PAYMASTER_SIGNER.addr,
+            feeCollectorArg: PAYMASTER_FEE_COLLECTOR.addr,
+            unaccountedGasArg: 7e3,
+            paymasterIdWithdrawalDelayArg: 3600,
+            minDepositArg: 1e15
+        });
     }
 
     function testFuzz_DepositFor(uint256 depositAmount) external {
-        vm.assume(depositAmount <= 1000 ether && depositAmount > 0 ether);
+        vm.assume(depositAmount <= 1000 ether && depositAmount > 1e15);
         vm.deal(DAPP_ACCOUNT.addr, depositAmount);
 
         uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
@@ -32,21 +40,27 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(dappPaymasterBalance, depositAmount);
     }
 
-    function testFuzz_WithdrawTo(uint256 withdrawAmount) external prankModifier(DAPP_ACCOUNT.addr) {
-        vm.assume(withdrawAmount <= 1000 ether && withdrawAmount > 0 ether);
-        vm.deal(DAPP_ACCOUNT.addr, withdrawAmount);
-
-        bicoPaymaster.depositFor{ value: withdrawAmount }(DAPP_ACCOUNT.addr);
-        uint256 danInitialBalance = BOB_ADDRESS.balance;
-
-        vm.expectEmit(true, true, true, true, address(bicoPaymaster));
-        emit IBiconomySponsorshipPaymaster.GasWithdrawn(DAPP_ACCOUNT.addr, BOB_ADDRESS, withdrawAmount);
-        bicoPaymaster.withdrawTo(payable(BOB_ADDRESS), withdrawAmount);
-
-        uint256 dappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
-        assertEq(dappPaymasterBalance, 0 ether);
-        uint256 expectedDanBalance = danInitialBalance + withdrawAmount;
-        assertEq(BOB_ADDRESS.balance, expectedDanBalance);
+    // Rebuild submitting and exeuting withdraw request fuzz
+    function test_submitWithdrawalRequest_Happy_Scenario(
+        uint256 depositAmount
+    )
+        external
+        prankModifier(DAPP_ACCOUNT.addr)
+    {
+        vm.assume(depositAmount <= 1000 ether && depositAmount > MIN_DEPOSIT);
+        bicoPaymaster.depositFor{ value: depositAmount }(DAPP_ACCOUNT.addr);
+        bicoPaymaster.submitWithdrawalRequest(BOB_ADDRESS, depositAmount);
+        vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
+        uint256 dappPaymasterBalanceBefore = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceBefore = BOB_ADDRESS.balance;
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
+        uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 bobBalanceAfter = BOB_ADDRESS.balance;
+        assertEq(dappPaymasterBalanceAfter, dappPaymasterBalanceBefore - depositAmount);
+        assertEq(bobBalanceAfter, bobBalanceBefore + depositAmount);
+        // can not withdraw again
+        vm.expectRevert(abi.encodeWithSelector(NoRequestSubmitted.selector));
+        bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
     }
 
     function testFuzz_Receive(uint256 ethAmount) external prankModifier(ALICE_ADDRESS) {
@@ -141,13 +155,13 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
     {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         PaymasterData memory pmData = PaymasterData({
-        validationGasLimit: 3e6,
-        postOpGasLimit: 3e6,
-        paymasterId: paymasterId,
-        validUntil: validUntil,
-        validAfter: validAfter, 
-        priceMarkup: priceMarkup
-    });
+            validationGasLimit: 3e6,
+            postOpGasLimit: 3e6,
+            paymasterId: paymasterId,
+            validUntil: validUntil,
+            validAfter: validAfter,
+            priceMarkup: priceMarkup
+        });
         (bytes memory paymasterAndData, bytes memory signature) =
             generateAndSignPaymasterData(userOp, PAYMASTER_SIGNER, bicoPaymaster, pmData);
 
