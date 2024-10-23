@@ -27,8 +27,6 @@ import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshi
  * and Manages it's own deposit on the EntryPoint.
  */
 
-// @Todo: Add more methods in interface
-
 contract BiconomySponsorshipPaymaster is
     BasePaymaster,
     ReentrancyGuardTransient,
@@ -50,7 +48,6 @@ contract BiconomySponsorshipPaymaster is
     // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant _PAYMASTER_ID_OFFSET = _PAYMASTER_DATA_OFFSET;
     // Limit for unaccounted gas cost
-    // Review cap
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 100_000;
 
     mapping(address => uint256) public paymasterIdBalances;
@@ -348,7 +345,7 @@ contract BiconomySponsorshipPaymaster is
             abi.decode(context, (address, uint32, uint256));
 
         // Include unaccountedGas since EP doesn't include this in actualGasCost
-        // unaccountedGas = postOpGas + EP overhead gas + estimated penalty
+        // unaccountedGas = postOpGas + EP overhead gas 
         actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
         // Apply the price markup
         uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
@@ -370,14 +367,20 @@ contract BiconomySponsorshipPaymaster is
     }
 
     /**
-     * verify our external signer signed this request.
-     * the "paymasterAndData" is expected to be the paymaster and a signature over the entire request params
+     * @dev verify our external signer signed this request.
+     * Adds maxPenalty to the effectiveCost to protect PM.
+     * The "paymasterAndData" is expected to be the paymaster and a signature over the entire request params.
      * paymasterAndData[:20] : address(this)
      * paymasterAndData[52:72] : paymasterId (dappDepositor)
      * paymasterAndData[72:78] : validUntil
      * paymasterAndData[78:84] : validAfter
      * paymasterAndData[84:88] : priceMarkup
      * paymasterAndData[88:] : signature
+     * @param userOp The user operation to validate.
+     * @param userOpHash The hash of the user operation.
+     * @param requiredPreFund The required pre-fund amount.
+     * @return context The context for the paymaster.
+     * @return validationData The validation data as per ERC-4337.
      */
     function _validatePaymasterUserOp(
         PackedUserOperation calldata userOp,
@@ -447,7 +450,7 @@ contract BiconomySponsorshipPaymaster is
 
         context = abi.encode(paymasterId, priceMarkup, effectiveCost);
 
-        //no need for other on-chain validation: entire UserOp should have been checked
+        // no need for other on-chain validation: entire UserOp should have been checked
         // by the external service prior to signing it.
         return (context, _packValidationData(false, validUntil, validAfter));
     }
