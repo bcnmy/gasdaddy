@@ -116,6 +116,21 @@ contract BiconomySponsorshipPaymaster is
     }
 
     /**
+     * @dev Refund balances for multiple paymasterIds
+     * PM charges more than it should to protect itself. 
+     * This function is used to refund the extra amount 
+     * when the real consumption is known.
+     * @param paymasterIds The paymasterIds to refund
+     * @param amounts The amounts to refund
+     */
+    function refundBalances(address[] calldata paymasterIds, uint256[] calldata amounts) external payable onlyOwner {
+        if (paymasterIds.length != amounts.length) revert InvalidArrayLengths();
+        for (uint256 i; i < paymasterIds.length; i++) {
+            paymasterIdBalances[paymasterIds[i]] += amounts[i];
+        }
+    }
+
+    /**
      * @dev Set a new trusted paymasterId.
      * Can only be called by the owner of the contract.
      * @param paymasterId The paymasterId to be set as trusted.
