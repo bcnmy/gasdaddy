@@ -26,8 +26,8 @@ contract TestTokenPaymaster is TestBase {
 
         // Deploy mock oracles and tokens
         swapRouter = ISwapRouter(address(SWAP_ROUTER_ADDRESS));
-        nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH
-        tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token
+        nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH // ETH/USD
+        tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token // TKN/USD
         testToken = new MockToken("Test Token", "TKN");
         testToken2 = new MockToken("Test Token 2", "TKN2");
 
@@ -389,15 +389,21 @@ contract TestTokenPaymaster is TestBase {
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
         vm.stopPrank();
 
-        uint256 aliceBalanceBefore = testToken.balanceOf(address(ALICE_ACCOUNT));
-        uint256 tokenPaymasterBalanceBefore = testToken.balanceOf(address(tokenPaymaster));
+        // Warm up the ERC20 balance slot for paymaster by making some tokens held initially
+        testToken.mint(address(tokenPaymaster), 100_000 * (10 ** testToken.decimals()));
+
+
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = tokenPaymaster.getDeposit();
+        uint256 initialUserTokenBalance = testToken.balanceOf(address(ALICE_ACCOUNT));
+        uint256 initialPaymasterTokenBalance = testToken.balanceOf(address(tokenPaymaster));
 
         // Build the user operation for external mode
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         uint48 validUntil = uint48(block.timestamp + 1 days);
         uint48 validAfter = uint48(block.timestamp);
         uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
-        uint32 externalPriceMarkup = 1e6;
+        uint32 externalPriceMarkup = 1e6; // no premium
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
             paymasterValGasLimit: 3e6,
@@ -433,8 +439,15 @@ contract TestTokenPaymaster is TestBase {
         // Execute the operation
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), aliceBalanceBefore);
-        assertGt(testToken.balanceOf(address(tokenPaymaster)), tokenPaymasterBalanceBefore);
+        calculateAndAssertAdjustmentsForTokenPaymaster(
+            tokenPaymaster,
+            testToken, 
+            initialBundlerBalance, 
+            initialPaymasterEpBalance, 
+            initialUserTokenBalance, 
+            initialPaymasterTokenBalance,
+            100000,
+            this.getMaxPenalty(ops[0]));
     }
 
     function test_Success_TokenPaymaster_IndependentMode() external {
@@ -444,8 +457,10 @@ contract TestTokenPaymaster is TestBase {
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
         vm.stopPrank();
 
-        uint256 aliceBalanceBefore = testToken.balanceOf(address(ALICE_ACCOUNT));
-        uint256 tokenPaymasterBalanceBefore = testToken.balanceOf(address(tokenPaymaster));
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = tokenPaymaster.getDeposit();
+        uint256 initialUserTokenBalance = testToken.balanceOf(address(ALICE_ACCOUNT));
+        uint256 initialPaymasterTokenBalance = testToken.balanceOf(address(tokenPaymaster));
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
 
@@ -472,7 +487,7 @@ contract TestTokenPaymaster is TestBase {
 
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
 
-        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), aliceBalanceBefore);
-        assertGt(testToken.balanceOf(address(tokenPaymaster)), tokenPaymasterBalanceBefore);
+        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), initialUserTokenBalance);
+        assertGt(testToken.balanceOf(address(tokenPaymaster)), initialPaymasterTokenBalance);
     }
 }

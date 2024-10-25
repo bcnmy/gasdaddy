@@ -16,6 +16,7 @@ import { IPaymaster } from "account-abstraction/interfaces/IPaymaster.sol";
 import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
+import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 
@@ -434,6 +435,39 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
+    }
+
+        function calculateAndAssertAdjustmentsForTokenPaymaster(
+        BiconomyTokenPaymaster tokenPaymaster,
+        MockToken token,
+        uint256 initialBundlerBalance,
+        uint256 initialPaymasterEpBalance,
+        uint256 initialUserTokenBalance,
+        uint256 initialPaymasterTokenBalance,
+        uint32 priceMarkup,
+        uint256 maxPenalty
+    )
+        internal
+        view
+    {
+        uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
+
+        // Assert that what paymaster paid is the same as what the bundler received
+        assertEq(totalGasFeePaid, initialPaymasterEpBalance - tokenPaymaster.getDeposit());
+
+        uint256 gasPaidBySAInERC20 =  initialUserTokenBalance - token.balanceOf(address(ALICE_ACCOUNT));
+
+        uint256 gasCollectedInERC20ByPaymaster = token.balanceOf(address(tokenPaymaster)) - initialPaymasterTokenBalance;
+
+        // Accounts for refund etc
+        // Revirw if it should be exact equal
+        assertApproxEqRel(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster, 0.02e18);
+
+        // assertGt(gasPaidBySAInERC20 * tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
+
+        // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by smart account (ERC20 charge * token gas price) (from
+       // Todo
+       // assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

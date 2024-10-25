@@ -483,6 +483,7 @@ contract BiconomyTokenPaymaster is
             uint192 tokenPrice = _getPrice(tokenAddress);
             uint256 tokenAmount;
 
+            // TODO: Account for penalties here
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
@@ -565,6 +566,7 @@ contract BiconomyTokenPaymaster is
     /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetToUsdOracle.
     /// @param oracle The oracle contract to fetch the price from.
     /// @return price The latest price fetched from the oracle.
+    /// Note: We could do this using oracle aggregator, so we can also use Pyth. or Twap based oracle and just not chainlink.
     function _fetchPrice(IOracle oracle) internal view returns (uint192 price) {
         (, int256 answer,, uint256 updatedAt,) = oracle.latestRoundData();
         if (answer <= 0) {
