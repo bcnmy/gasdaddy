@@ -303,18 +303,22 @@ contract TestTokenPaymaster is TestBase {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
 
+        TokenPaymasterData memory pmData = TokenPaymasterData({
+            paymasterValGasLimit: 3e6,
+            paymasterPostOpGasLimit: 3e6,
+            mode: IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT,
+            validUntil: uint48(block.timestamp + 1 days),
+            validAfter: uint48(block.timestamp),
+            tokenAddress: address(testToken),
+            tokenPrice: tokenPrice,
+            externalPriceMarkup: 1e6
+        });
+
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
             userOp,
             PAYMASTER_SIGNER,
             tokenPaymaster,
-            3e6,
-            3e6,
-            IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT,
-            uint48(block.timestamp + 1 days),
-            uint48(block.timestamp),
-            address(testToken),
-            tokenPrice,
-            1e6
+            pmData
         );
 
         userOp.paymasterAndData = paymasterAndData;
@@ -344,19 +348,23 @@ contract TestTokenPaymaster is TestBase {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         uint128 tokenPrice = 1e8;
 
+        TokenPaymasterData memory pmData = TokenPaymasterData({
+            paymasterValGasLimit: 3e6,
+            paymasterPostOpGasLimit: 3e6,
+            mode: IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
+            validUntil: uint48(block.timestamp + 1 days),
+            validAfter: uint48(block.timestamp),
+            tokenAddress: address(testToken),
+            tokenPrice: tokenPrice,
+            externalPriceMarkup: 1e6
+        });
+
         // Create a valid paymasterAndData
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
             userOp,
             PAYMASTER_SIGNER,
             tokenPaymaster,
-            3e6,
-            3e6,
-            IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
-            uint48(block.timestamp + 1 days),
-            uint48(block.timestamp),
-            address(testToken),
-            tokenPrice,
-            1e6
+            pmData
         );
 
         // Tamper the signature by altering the last byte
@@ -374,12 +382,15 @@ contract TestTokenPaymaster is TestBase {
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
 
-    function test_ValidatePaymasterUserOp_ExternalMode() external {
+    function test_Success_TokenPaymaster_ExternalMode() external {
         tokenPaymaster.deposit{ value: 10 ether }();
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
         vm.startPrank(address(ALICE_ACCOUNT));
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
         vm.stopPrank();
+
+        uint256 aliceBalanceBefore = testToken.balanceOf(address(ALICE_ACCOUNT));
+        uint256 tokenPaymasterBalanceBefore = testToken.balanceOf(address(tokenPaymaster));
 
         // Build the user operation for external mode
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
@@ -388,19 +399,23 @@ contract TestTokenPaymaster is TestBase {
         uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
         uint32 externalPriceMarkup = 1e6;
 
+        TokenPaymasterData memory pmData = TokenPaymasterData({
+            paymasterValGasLimit: 3e6,
+            paymasterPostOpGasLimit: 3e6,
+            mode: IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
+            validUntil: validUntil,
+            validAfter: validAfter,
+            tokenAddress: address(testToken),
+            tokenPrice: tokenPrice,
+            externalPriceMarkup: externalPriceMarkup
+        });
+
         // Generate and sign the token paymaster data
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
             userOp,
             PAYMASTER_SIGNER,
             tokenPaymaster,
-            3e6, // assumed gas limit for test
-            3e6, // assumed verification gas for test
-            IBiconomyTokenPaymaster.PaymasterMode.EXTERNAL,
-            validUntil,
-            validAfter,
-            address(testToken),
-            tokenPrice,
-            externalPriceMarkup
+            pmData
         );
 
         userOp.paymasterAndData = paymasterAndData;
@@ -417,14 +432,20 @@ contract TestTokenPaymaster is TestBase {
 
         // Execute the operation
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+
+        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), aliceBalanceBefore);
+        assertGt(testToken.balanceOf(address(tokenPaymaster)), tokenPaymasterBalanceBefore);
     }
 
-    function test_ValidatePaymasterUserOp_IndependentMode() external {
+    function test_Success_TokenPaymaster_IndependentMode() external {
         tokenPaymaster.deposit{ value: 10 ether }();
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
         vm.startPrank(address(ALICE_ACCOUNT));
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
         vm.stopPrank();
+
+        uint256 aliceBalanceBefore = testToken.balanceOf(address(ALICE_ACCOUNT));
+        uint256 tokenPaymasterBalanceBefore = testToken.balanceOf(address(tokenPaymaster));
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
 
@@ -450,5 +471,8 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
 
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+
+        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), aliceBalanceBefore);
+        assertGt(testToken.balanceOf(address(tokenPaymaster)), tokenPaymasterBalanceBefore);
     }
 }
