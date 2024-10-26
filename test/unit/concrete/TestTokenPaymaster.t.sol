@@ -24,6 +24,9 @@ contract TestTokenPaymaster is TestBase {
     function setUp() public {
         setupPaymasterTestEnvironment();
 
+        uint256 customGasPrice = 3e6;
+        vm.txGasPrice(customGasPrice);
+
         // Deploy mock oracles and tokens
         swapRouter = ISwapRouter(address(SWAP_ROUTER_ADDRESS));
         nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH // ETH/USD
@@ -36,7 +39,7 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_OWNER.addr,
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
-            5000, // unaccounted gas
+            50000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
             nativeAssetToUsdOracle,
@@ -301,7 +304,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
+        uint128 tokenPrice = 1e18; // Assume 1 token = 1 native token = 1 native? 
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
             paymasterValGasLimit: 3e6,
@@ -346,7 +349,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        uint128 tokenPrice = 1e8;
+        uint128 tokenPrice = 1e18;
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
             paymasterValGasLimit: 3e6,
@@ -382,11 +385,15 @@ contract TestTokenPaymaster is TestBase {
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
     }
 
-    function test_Success_TokenPaymaster_ExternalMode() external {
+    function test_Success_TokenPaymaster_ExternalMode_WithoutPremium() external {
         tokenPaymaster.deposit{ value: 10 ether }();
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
         vm.startPrank(address(ALICE_ACCOUNT));
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        vm.startPrank(PAYMASTER_OWNER.addr);
+        tokenPaymaster.setUnaccountedGas(50_000);
         vm.stopPrank();
 
         // Warm up the ERC20 balance slot for paymaster by making some tokens held initially
@@ -402,7 +409,7 @@ contract TestTokenPaymaster is TestBase {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         uint48 validUntil = uint48(block.timestamp + 1 days);
         uint48 validAfter = uint48(block.timestamp);
-        uint128 tokenPrice = 1e8; // Assume 1 token = 1 USD
+        uint128 tokenPrice = 1e18; // Assume 1 token = 1 native token = 1 USD ?
         uint32 externalPriceMarkup = 1e6; // no premium
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
@@ -437,7 +444,9 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
 
         // Execute the operation
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
             tokenPaymaster,
@@ -446,15 +455,20 @@ contract TestTokenPaymaster is TestBase {
             initialPaymasterEpBalance, 
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
+            1e18, // tokenPrice
             100000,
             this.getMaxPenalty(ops[0]));
     }
 
-    function test_Success_TokenPaymaster_IndependentMode() external {
+    function test_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
         tokenPaymaster.deposit{ value: 10 ether }();
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
         vm.startPrank(address(ALICE_ACCOUNT));
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        vm.startPrank(PAYMASTER_OWNER.addr);
+        tokenPaymaster.setUnaccountedGas(200_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -485,9 +499,19 @@ contract TestTokenPaymaster is TestBase {
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
 
+        startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
 
-        assertLt(testToken.balanceOf(address(ALICE_ACCOUNT)), initialUserTokenBalance);
-        assertGt(testToken.balanceOf(address(tokenPaymaster)), initialPaymasterTokenBalance);
+        calculateAndAssertAdjustmentsForTokenPaymaster(
+            tokenPaymaster,
+            testToken, 
+            initialBundlerBalance, 
+            initialPaymasterEpBalance, 
+            initialUserTokenBalance, 
+            initialPaymasterTokenBalance,
+            1e18, // tokenPrice
+            100000,
+            this.getMaxPenalty(ops[0]));
     }
 }

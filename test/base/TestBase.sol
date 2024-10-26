@@ -25,7 +25,7 @@ import {
     IBiconomyTokenPaymaster,
     BiconomyTokenPaymasterErrors,
     IOracle
-} from "../../../contracts/token/BiconomyTokenPaymaster.sol";
+} from "../../contracts/token/BiconomyTokenPaymaster.sol";
 
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     using UserOperationLib for PackedUserOperation;
@@ -444,6 +444,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 initialPaymasterEpBalance,
         uint256 initialUserTokenBalance,
         uint256 initialPaymasterTokenBalance,
+        uint256 tokenPrice,
         uint32 priceMarkup,
         uint256 maxPenalty
     )
@@ -459,15 +460,19 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         uint256 gasCollectedInERC20ByPaymaster = token.balanceOf(address(tokenPaymaster)) - initialPaymasterTokenBalance;
 
-        // Accounts for refund etc
-        // Revirw if it should be exact equal
-        assertApproxEqRel(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster, 0.02e18);
+        // What user paid = received by paymaster
+        // unless ofcourse there is same token transfer in calldata
+        assertEq(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster);
 
-        // assertGt(gasPaidBySAInERC20 * tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
+        // console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
+        // console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
+
+        // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
+        // assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
 
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by smart account (ERC20 charge * token gas price) (from
-       // Todo
-       // assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
+        // Todo
+        // assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

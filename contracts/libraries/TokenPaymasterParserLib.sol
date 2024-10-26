@@ -31,7 +31,7 @@ library TokenPaymasterParserLib {
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint128 tokenPrice,
+            uint128 tokenPrice, // Review: why uint128 and not uint256. in independent mode it is uint256
             uint32 externalPriceMarkup,
             bytes memory signature
         )

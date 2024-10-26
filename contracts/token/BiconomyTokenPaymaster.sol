@@ -16,6 +16,7 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import "./swaps/Uniswapper.sol";
+import "forge-std/console2.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -56,7 +57,8 @@ contract BiconomyTokenPaymaster is
     // supported in // independent mode
 
     // PAYMASTER_ID_OFFSET
-    uint256 private constant _UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
+    // Note: Temp
+    uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
     uint256 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint256 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
@@ -435,7 +437,8 @@ contract BiconomyTokenPaymaster is
                 uint48 validUntil,
                 uint48 validAfter,
                 address tokenAddress,
-                uint128 tokenPrice,
+                // Review if uint128 is enough
+                uint128 tokenPrice, // NotE: what backend should pass is token/native * 10^token decimals
                 uint32 externalPriceMarkup,
                 bytes memory signature
             ) = modeSpecificData.parseExternalModeSpecificData();
@@ -480,7 +483,7 @@ contract BiconomyTokenPaymaster is
 
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
-            uint192 tokenPrice = _getPrice(tokenAddress);
+            uint256 tokenPrice = _getPrice(tokenAddress);
             uint256 tokenAmount;
 
             // TODO: Account for penalties here
@@ -538,6 +541,7 @@ contract BiconomyTokenPaymaster is
             emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
+        // Todo: Review events and what we need to emit.
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, userOpHash
         );
@@ -545,7 +549,7 @@ contract BiconomyTokenPaymaster is
 
     /// @notice Fetches the latest token price.
     /// @return price The latest token price fetched from the oracles.
-    function _getPrice(address tokenAddress) internal view returns (uint192 price) {
+    function _getPrice(address tokenAddress) internal view returns (uint256 price) {
         // Fetch token information from directory
         TokenInfo memory tokenInfo = independentTokenDirectory[tokenAddress];
 
@@ -559,7 +563,7 @@ contract BiconomyTokenPaymaster is
         uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
 
         // Adjust to token  decimals
-        price = (nativeAssetPrice * uint192(tokenInfo.decimals)) / tokenPrice;
+        price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
     }
 
     /// @notice Fetches the latest price from the given oracle.
