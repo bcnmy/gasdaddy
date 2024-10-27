@@ -41,7 +41,7 @@ contract TestTokenPaymasterBase is TestBase {
             _toSingletonArray(address(usdc)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             _toSingletonArray(address(usdc)),
-            _toSingletonArray(uint24(500))
+            _toSingletonArray(uint24(500)) // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
         );
     }
 
@@ -59,8 +59,8 @@ contract TestTokenPaymasterBase is TestBase {
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(usdc)),
             _toSingletonArray(IOracle(address(tokenOracle))),
-            new address[](0),
-            new uint24[](0)
+            _toSingletonArray(address(usdc)),
+            _toSingletonArray(uint24(500)) // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
         );
 
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
@@ -125,4 +125,6 @@ contract TestTokenPaymasterBase is TestBase {
             100000,
             this.getMaxPenalty(ops[0]));
     }
+
+    // Todo: write a test to make a swap.
 }
