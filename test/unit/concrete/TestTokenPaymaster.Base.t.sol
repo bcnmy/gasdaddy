@@ -40,8 +40,8 @@ contract TestTokenPaymasterBase is TestBase {
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(usdc)),
             _toSingletonArray(IOracle(address(tokenOracle))),
-            new address[](0),
-            new uint24[](0)
+            _toSingletonArray(address(usdc)),
+            _toSingletonArray(uint24(500))
         );
     }
 
@@ -69,5 +69,60 @@ contract TestTokenPaymasterBase is TestBase {
         assertEq(address(testArtifact.nativeAssetToUsdOracle()), address(nativeOracle));
         assertEq(testArtifact.unaccountedGas(), 50000);
         assertEq(testArtifact.independentPriceMarkup(), 1e6);
+    }
+
+    function test_BaseFork_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
+        tokenPaymaster.deposit{ value: 10 ether }();
+        deal(address(usdc), address(ALICE_ACCOUNT), 100e6);
+        vm.startPrank(address(ALICE_ACCOUNT));
+        usdc.approve(address(tokenPaymaster), usdc.balanceOf(address(ALICE_ACCOUNT)));
+        vm.stopPrank();
+
+        vm.startPrank(PAYMASTER_OWNER.addr);
+        tokenPaymaster.setUnaccountedGas(200_000);
+        vm.stopPrank();
+
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = tokenPaymaster.getDeposit();
+        uint256 initialUserTokenBalance = usdc.balanceOf(address(ALICE_ACCOUNT));
+        uint256 initialPaymasterTokenBalance = usdc.balanceOf(address(tokenPaymaster));
+
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+
+        // Encode paymasterAndData for independent mode
+        bytes memory paymasterAndData = abi.encodePacked(
+            address(tokenPaymaster),
+            uint128(3e6), // assumed gas limit for test
+            uint128(3e6), // assumed verification gas for test
+            uint8(IBiconomyTokenPaymaster.PaymasterMode.INDEPENDENT),
+            address(usdc)
+        );
+
+        userOp.paymasterAndData = paymasterAndData;
+        userOp.signature = signUserOp(ALICE, userOp);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(usdc), 0, bytes32(0));
+
+        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, bytes32(0));
+
+        startPrank(BUNDLER.addr);
+        ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        stopPrank();
+
+        calculateAndAssertAdjustmentsForTokenPaymaster(
+            tokenPaymaster,
+            usdc, 
+            initialBundlerBalance, 
+            initialPaymasterEpBalance, 
+            initialUserTokenBalance, 
+            initialPaymasterTokenBalance,
+            401606430000000, // tokenPrice
+            100000,
+            this.getMaxPenalty(ops[0]));
     }
 }

@@ -17,6 +17,7 @@ import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 
@@ -439,7 +440,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         function calculateAndAssertAdjustmentsForTokenPaymaster(
         BiconomyTokenPaymaster tokenPaymaster,
-        MockToken token,
+        IERC20 token,
         uint256 initialBundlerBalance,
         uint256 initialPaymasterEpBalance,
         uint256 initialUserTokenBalance,
@@ -467,6 +468,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
         // console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
 
+        // Note: yet to figure out why we're charging too low in tokens vs bundler is paying high gas fees!
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
         // assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
 
@@ -478,6 +480,12 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
         address[] memory array = new address[](1);
         array[0] = addr;
+        return array;
+    }
+
+    function _toSingletonArray(uint24 element) internal pure returns (uint24[] memory) {
+    uint24[] memory array = new uint24[](1);
+    array[0] = element;
         return array;
     }
 
