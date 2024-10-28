@@ -58,7 +58,7 @@ abstract contract Uniswapper {
             tokenOut: wrappedNative,
             fee: tokenToPools[tokenIn],
             recipient: address(this),
-            deadline: block.timestamp,
+            deadline: block.timestamp + 3600,
             amountIn: amountIn,
             amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0

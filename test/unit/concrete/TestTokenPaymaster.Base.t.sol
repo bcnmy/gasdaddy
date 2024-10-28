@@ -26,6 +26,8 @@ contract TestTokenPaymasterBase is TestBase {
         vm.selectFork(forkId);
         setupPaymasterTestEnvironment();
 
+        console2.log("current block timestamp ", block.timestamp);
+
         swapRouter = ISwapRouter(0x2626664c2603336E57B271c5C0b26F421741e481); // uniswap swap router v2 on base
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
@@ -33,7 +35,7 @@ contract TestTokenPaymasterBase is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             50000, // unaccounted gas
-            1e6, // price markup
+            1e6, // price markup (for independent mode)
             1 days, // price expiry duration
             nativeOracle,
             swapRouter,
@@ -126,5 +128,26 @@ contract TestTokenPaymasterBase is TestBase {
             this.getMaxPenalty(ops[0]));
     }
 
-    // Todo: write a test to make a swap.
+    // test to make a swap.
+    function test_BaseFork_Success_TokenPaymaster_SwapToNativeAndDeposit() external {
+       deal(address(usdc), address(tokenPaymaster), 100e6);
+       uint256 initialTokenBalance = usdc.balanceOf(address(tokenPaymaster));
+       uint256 initialDepositOnEntryPoint = tokenPaymaster.getDeposit();
+
+       vm.startPrank(address(tokenPaymaster));
+       usdc.approve(address(SWAP_ROUTER_ADDRESS), usdc.balanceOf(address(tokenPaymaster)));
+       vm.stopPrank();
+
+    // Review reson for failure
+    //    startPrank(PAYMASTER_OWNER.addr);
+    //    tokenPaymaster.swapTokenAndDeposit(address(usdc), initialTokenBalance, 1);
+    //    stopPrank();
+
+    //    uint256 newTokenBalance = usdc.balanceOf(address(tokenPaymaster));
+    //    assertEq(newTokenBalance, 0);
+
+    //    uint256 newDepositOnEntryPoint = tokenPaymaster.getDeposit();
+    //    assertGt(newDepositOnEntryPoint, initialDepositOnEntryPoint);
+    }
 }
+

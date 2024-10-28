@@ -32,8 +32,10 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     using UserOperationLib for PackedUserOperation;
 
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-    address constant WRAPPED_NATIVE_ADDRESS = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    address constant SWAP_ROUTER_ADDRESS = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+    // NotE: updating below to WETH on Base.
+    address constant WRAPPED_NATIVE_ADDRESS = address(0x4200000000000000000000000000000000000006);
+    // Review address kept
+    address constant SWAP_ROUTER_ADDRESS = address(0x2626664c2603336E57B271c5C0b26F421741e481);
 
     Vm.Wallet internal PAYMASTER_OWNER;
     Vm.Wallet internal PAYMASTER_SIGNER;
@@ -400,7 +402,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
     }
 
-    function getMaxPenalty(PackedUserOperation calldata userOp) public view returns (uint256) {
+    function getMaxPenalty(PackedUserOperation calldata userOp) public pure returns (uint256) {
         return (
             uint128(uint256(userOp.accountGasLimits))
                 + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
@@ -465,8 +467,10 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // unless ofcourse there is same token transfer in calldata
         assertEq(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster);
 
-        // console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
-        // console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
+        console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
+        console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
+        console2.log("maxPenalty", maxPenalty);
+        console2.log("totalGasFeePaid", totalGasFeePaid);
 
         // Note: yet to figure out why we're charging too low in tokens vs bundler is paying high gas fees!
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
