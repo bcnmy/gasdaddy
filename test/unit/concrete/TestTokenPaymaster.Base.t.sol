@@ -138,16 +138,16 @@ contract TestTokenPaymasterBase is TestBase {
        usdc.approve(address(SWAP_ROUTER_ADDRESS), usdc.balanceOf(address(tokenPaymaster)));
        vm.stopPrank();
 
-    //    Review reson for failure
-    //    startPrank(PAYMASTER_OWNER.addr);
-    //    tokenPaymaster.swapTokenAndDeposit(address(usdc), initialTokenBalance, 1);
-    //    stopPrank();
+       // Review reason for failure
+       startPrank(PAYMASTER_OWNER.addr);
+       tokenPaymaster.swapTokenAndDeposit(address(usdc), initialTokenBalance, 1);
+       stopPrank();
 
-    //    uint256 newTokenBalance = usdc.balanceOf(address(tokenPaymaster));
-    //    assertEq(newTokenBalance, 0);
+       uint256 newTokenBalance = usdc.balanceOf(address(tokenPaymaster));
+       assertEq(newTokenBalance, 0);
 
-    //    uint256 newDepositOnEntryPoint = tokenPaymaster.getDeposit();
-    //    assertGt(newDepositOnEntryPoint, initialDepositOnEntryPoint);
+       uint256 newDepositOnEntryPoint = tokenPaymaster.getDeposit();
+       assertGt(newDepositOnEntryPoint, initialDepositOnEntryPoint);
     }
 }
 
