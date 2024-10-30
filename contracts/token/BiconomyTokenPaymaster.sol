@@ -125,6 +125,10 @@ contract BiconomyTokenPaymaster is
             independentTokenDirectory[independentTokensArg[i]] =
                 TokenInfo(oraclesArg[i], 10 ** IERC20Metadata(independentTokensArg[i]).decimals());
         }
+        // Approve swappable tokens for max amount
+        for (uint256 i = 0; i < swappableTokens.length; i++) {
+            IERC20(swappableTokens[i]).approve(address(uniswapRouterArg), type(uint256).max);
+        }
     }
 
     /**
@@ -340,10 +344,12 @@ contract BiconomyTokenPaymaster is
     {
         // Swap tokens for WETH
         uint256 amountOut = _swapTokenToWeth(tokenAddress, tokenAmount, minEthAmountRecevied);
-        // Unwrap WETH to ETH
-        _unwrapWeth(amountOut);
-        // Deposit ETH into EP
-        entryPoint.depositTo{ value: amountOut }(address(this));
+        if(amountOut > 0) {
+            // Unwrap WETH to ETH
+            _unwrapWeth(amountOut);
+            // Deposit ETH into EP
+            entryPoint.depositTo{ value: amountOut }(address(this));
+        }
     }
 
     /**
