@@ -474,7 +474,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         // Note: yet to figure out why we're charging too low in tokens vs bundler is paying high gas fees!
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
-        // assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
+        assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
 
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by smart account (ERC20 charge * token gas price) (from
         // Todo

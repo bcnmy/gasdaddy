@@ -16,6 +16,7 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import "./swaps/Uniswapper.sol";
+// Todo: marked for removal
 import "forge-std/console2.sol";
 
 /**
@@ -435,6 +436,14 @@ contract BiconomyTokenPaymaster is
             revert InvalidPaymasterMode();
         }
 
+        // callGasLimit + paymasterPostOpGas
+        uint256 maxPenalty = (
+            (
+                uint128(uint256(userOp.accountGasLimits))
+                    + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
+            ) * 10 * userOp.unpackMaxFeePerGas()
+        ) / 100;
+
         if (mode == PaymasterMode.EXTERNAL) {
             // Use the price and other params specified in modeSpecificData by the verifyingSigner
             // Useful for supporting tokens which don't have oracle support
@@ -469,10 +478,12 @@ contract BiconomyTokenPaymaster is
                 revert InvalidPriceMarkup();
             }
 
+
             uint256 tokenAmount;
+            // Review
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalPriceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
                     / (1e18 * _PRICE_DENOMINATOR);
             }
 
@@ -496,7 +507,7 @@ contract BiconomyTokenPaymaster is
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * independentPriceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * independentPriceMarkup * tokenPrice)
                     / (1e18 * _PRICE_DENOMINATOR);
             }
 
@@ -539,6 +550,12 @@ contract BiconomyTokenPaymaster is
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * _PRICE_DENOMINATOR);
+        console2.log("tokenPrice", tokenPrice);
+        console2.log("appliedPriceMarkup", appliedPriceMarkup);
+        console2.log("actualGasCost", actualGasCost);
+        console2.log("actualUserOpFeePerGas", actualUserOpFeePerGas);
+        console2.log("actualTokenAmount", actualTokenAmount);
+        console2.log("prechargedAmount", prechargedAmount);
 
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
