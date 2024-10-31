@@ -25,6 +25,10 @@ contract TestTokenPaymasterBase is TestBase {
     function setUp() public {
         uint256 forkId = vm.createFork("https://developer-access-mainnet.base.org");
         vm.selectFork(forkId);
+
+        // Set block to latest block
+        // vm.rollFork(21744650);
+        // assertEq(block.number, 21744650);
         setupPaymasterTestEnvironment();
 
         console2.log("current block timestamp ", block.timestamp);
@@ -82,7 +86,7 @@ contract TestTokenPaymasterBase is TestBase {
         vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(200_000);
+        tokenPaymaster.setUnaccountedGas(40_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -124,7 +128,7 @@ contract TestTokenPaymasterBase is TestBase {
             initialPaymasterEpBalance, 
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
-            401606430000000, // tokenPrice
+            2672598177,
             100000,
             this.getMaxPenalty(ops[0]));
     }

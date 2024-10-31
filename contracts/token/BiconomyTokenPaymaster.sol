@@ -584,9 +584,12 @@ contract BiconomyTokenPaymaster is
         // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
         uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
+        console2.log("tokenPrice oracle", tokenPrice);
+        console2.log("nativeAssetPrice oracle", nativeAssetPrice);
 
         // Adjust to token  decimals
         price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
+        console2.log("derived & used price", price);
     }
 
     /// @notice Fetches the latest price from the given oracle.
