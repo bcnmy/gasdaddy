@@ -127,7 +127,8 @@ contract BiconomyTokenPaymaster is
                 TokenInfo(oraclesArg[i], 10 ** IERC20Metadata(independentTokensArg[i]).decimals());
         }
         // Approve swappable tokens for max amount
-        for (uint256 i = 0; i < swappableTokens.length; i++) {
+        uint256 length = swappableTokens.length;
+        for (uint256 i; i < length; i++) {
             IERC20(swappableTokens[i]).approve(address(uniswapRouterArg), type(uint256).max);
         }
     }
