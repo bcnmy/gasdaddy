@@ -491,7 +491,9 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalPriceMarkup, userOpHash);
+            console2.log("max pnalty in validatePaymasterUserOp", maxPenalty);
+
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-maxPenalty, tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData

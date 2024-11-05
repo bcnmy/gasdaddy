@@ -471,6 +471,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
         console2.log("maxPenalty", maxPenalty);
         console2.log("totalGasFeePaid", totalGasFeePaid);
+        console2.log(uint256(1226028000000) + uint256(1794876000000));
 
         // Note: yet to figure out why we're charging too low in tokens vs bundler is paying high gas fees!
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
@@ -499,3 +500,13 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         return array;
     }
 }
+/* 
+1226028000000
+1794876000000
+
+2921664000000
+3020904000000
+
+1800000000000 max penalty 
+
+*/
