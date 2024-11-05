@@ -491,8 +491,10 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            console2.log("max pnalty in validatePaymasterUserOp", maxPenalty);
-
+            // deduct max penalty from the token amount we pass to the postOp
+            // so we don't refund it at postOp
+            // other way to do it is not adding it to the tokenAmount and just charge
+            // tokenAmount + maxPenalty on line 492
             context = abi.encode(userOp.sender, tokenAddress, tokenAmount-maxPenalty, tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
