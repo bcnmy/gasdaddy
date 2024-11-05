@@ -249,7 +249,7 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
 
         //use balance of the paymaster
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        (PackedUserOperation memory userOp, bytes32 userOpHash) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
+        (PackedUserOperation memory userOp, ) = createUserOp(ALICE, bicoPaymaster, 1e6, 55_000);
         ops[0] = userOp;
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
@@ -258,10 +258,6 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
         uint256 dappPaymasterBalanceAfter = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
         assertLt(dappPaymasterBalanceAfter, depositAmount);
         uint256 bobBalanceBeforeWithdrawal = BOB_ADDRESS.balance;
-
-        IStakeManager.DepositInfo memory depositInfo = ENTRYPOINT.getDepositInfo(address(bicoPaymaster));
-        uint256 PAYMASTER_POSTOP_GAS_OFFSET = 36;
-        uint256 PAYMASTER_DATA_OFFSET = 52;
 
         vm.warp(block.timestamp + WITHDRAWAL_DELAY + 1);
         bicoPaymaster.executeWithdrawalRequest(DAPP_ACCOUNT.addr);
@@ -353,6 +349,60 @@ contract TestSponsorshipPaymasterWithPriceMarkup is TestBase {
             initialPaymasterEpBalance,
             1_100_000, //price markup, +10% paymaster fee
             this.getMaxPenalty(userOp)
+        );
+    }
+
+    function test_ValidatePaymasterAndPostOpWithPriceMarkup_NonEmptyCalldata() external {
+        bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
+
+        startPrank(PAYMASTER_OWNER.addr);
+        bicoPaymaster.setUnaccountedGas(37_000);
+        stopPrank();
+
+        MockToken token = new MockToken("Token", "TKN");
+        uint256 mintAmount = 100000 * (10 ** token.decimals());
+        token.mint(address(ALICE_ACCOUNT), mintAmount);
+        uint256 transferAmount = 100 * (10 ** token.decimals());
+
+        Execution[] memory execution = new Execution[](1);
+        execution[0] = Execution(address(token), 0, abi.encodeWithSelector(token.transfer.selector, CHARLIE.addr, transferAmount));
+
+        // Prepare and execute the UserOperation
+        PackedUserOperation[] memory userOps = buildPackedUserOperationWithSponsorPaymaster(
+            ALICE, // Sender of the operation
+            ALICE_ACCOUNT, // Nexus executing the operation
+            EXECTYPE_TRY,
+            execution,
+            address(VALIDATOR_MODULE),
+            bicoPaymaster,
+            1_100_000,
+            100_000
+        );
+
+        uint256 initialBundlerBalance = BUNDLER.addr.balance;
+        uint256 initialPaymasterEpBalance = bicoPaymaster.getDeposit();
+        uint256 initialDappPaymasterBalance = bicoPaymaster.getBalance(DAPP_ACCOUNT.addr);
+        uint256 initialFeeCollectorBalance = bicoPaymaster.getBalance(PAYMASTER_FEE_COLLECTOR.addr);
+
+        // submit userops
+        vm.expectEmit(true, false, false, false, address(bicoPaymaster));
+        emit IBiconomySponsorshipPaymaster.GasBalanceDeducted(DAPP_ACCOUNT.addr, 0, 0);
+
+        startPrank(BUNDLER.addr);
+        ENTRYPOINT.handleOps(userOps, payable(BUNDLER.addr));
+        stopPrank();
+
+        assertEq(token.balanceOf(CHARLIE.addr), transferAmount);
+
+        // Calculate and assert price markups and gas payments
+        calculateAndAssertAdjustments(
+            bicoPaymaster,
+            initialDappPaymasterBalance,
+            initialFeeCollectorBalance,
+            initialBundlerBalance,
+            initialPaymasterEpBalance,
+            1_100_000, //price markup, +10% paymaster fee
+            this.getMaxPenalty(userOps[0])
         );
     }
 

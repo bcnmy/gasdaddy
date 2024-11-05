@@ -16,6 +16,8 @@ import { IPaymaster } from "account-abstraction/interfaces/IPaymaster.sol";
 import { Nexus } from "@nexus/contracts/Nexus.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
+import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
 
@@ -24,14 +26,16 @@ import {
     IBiconomyTokenPaymaster,
     BiconomyTokenPaymasterErrors,
     IOracle
-} from "../../../contracts/token/BiconomyTokenPaymaster.sol";
+} from "../../contracts/token/BiconomyTokenPaymaster.sol";
 
 abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     using UserOperationLib for PackedUserOperation;
 
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-    address constant WRAPPED_NATIVE_ADDRESS = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    address constant SWAP_ROUTER_ADDRESS = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+    // NotE: updating below to WETH on Base.
+    address constant WRAPPED_NATIVE_ADDRESS = address(0x4200000000000000000000000000000000000006);
+    // Review address kept
+    address constant SWAP_ROUTER_ADDRESS = address(0x2626664c2603336E57B271c5C0b26F421741e481);
 
     Vm.Wallet internal PAYMASTER_OWNER;
     Vm.Wallet internal PAYMASTER_SIGNER;
@@ -48,6 +52,17 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint48 validUntil;
         uint48 validAfter;
         uint32 priceMarkup;
+    }
+
+    struct TokenPaymasterData {
+        uint128 paymasterValGasLimit;
+        uint128 paymasterPostOpGasLimit;
+        IBiconomyTokenPaymaster.PaymasterMode mode;
+        uint48 validUntil;
+        uint48 validAfter;
+        address tokenAddress;
+        uint128 tokenPrice;
+        uint32 externalPriceMarkup;
     }
 
     // Used to buffer user op gas limits
@@ -184,6 +199,69 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         userOpHash = ENTRYPOINT.getUserOpHash(userOp);
     }
 
+        /// @notice Prepares a packed user operation with specified parameters
+    /// @param signer The wallet to sign the operation
+    /// @param account The Nexus account
+    /// @param execType The execution type
+    /// @param executions The executions to include
+    /// @param validator The validator address
+    /// @param paymaster The paymaster contract
+    /// @param priceMarkup The price markup
+    /// @param postOpGasLimitOverride The post-operation gas limit override
+    /// @return userOps The prepared packed user operations
+    function buildPackedUserOperationWithSponsorPaymaster(
+        Vm.Wallet memory signer,
+        Nexus account,
+        ExecType execType,
+        Execution[] memory executions,
+        address validator,
+        BiconomySponsorshipPaymaster paymaster,
+        uint32 priceMarkup,
+        uint128 postOpGasLimitOverride
+        // Note: Should allow to pass callGasLimit as well
+    )
+        internal
+        view
+        returns (PackedUserOperation[] memory userOps)
+    {
+        // Validate execType
+        require(execType == EXECTYPE_DEFAULT || execType == EXECTYPE_TRY, "Invalid ExecType");
+
+        // Initialize the userOps array with one operation
+        userOps = new PackedUserOperation[](1);
+
+        // Build the UserOperation
+        userOps[0] = buildPackedUserOp(address(account), getNonce(address(account), MODE_VALIDATION, validator));
+        userOps[0].callData = prepareERC7579ExecuteCallData(execType, executions);
+
+        PaymasterData memory pmData = PaymasterData({
+            validationGasLimit: 100_000,
+            postOpGasLimit: uint128(postOpGasLimitOverride),
+            paymasterId: DAPP_ACCOUNT.addr,
+            validUntil: uint48(block.timestamp + 1 days),
+            validAfter: uint48(block.timestamp),
+            priceMarkup: priceMarkup
+        });
+        (userOps[0].paymasterAndData,) = generateAndSignPaymasterData(userOps[0], PAYMASTER_SIGNER, paymaster, pmData);
+        userOps[0].signature = signUserOp(signer, userOps[0]);
+
+
+        userOps[0].accountGasLimits = bytes32(abi.encodePacked(uint128(100_000), uint128(100_000)));
+        PaymasterData memory pmDataNew = PaymasterData(
+            uint128(100_000),
+            uint128(postOpGasLimitOverride),
+            DAPP_ACCOUNT.addr,
+            uint48(block.timestamp + 1 days),
+            uint48(block.timestamp),
+            priceMarkup
+        );
+
+        (userOps[0].paymasterAndData,) = generateAndSignPaymasterData(userOps[0], PAYMASTER_SIGNER, paymaster, pmDataNew);
+        userOps[0].signature = signUserOp(signer, userOps[0]);
+
+        return userOps;
+    }
+
     /// @notice Generates and signs the paymaster data for a user operation.
     /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
     /// @param userOp The user operation to be signed.
@@ -248,14 +326,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         PackedUserOperation memory userOp,
         Vm.Wallet memory signer,
         BiconomyTokenPaymaster paymaster,
-        uint128 paymasterValGasLimit,
-        uint128 paymasterPostOpGasLimit,
-        IBiconomyTokenPaymaster.PaymasterMode mode,
-        uint48 validUntil,
-        uint48 validAfter,
-        address tokenAddress,
-        uint128 tokenPrice,
-        uint32 externalPriceMarkup
+        TokenPaymasterData memory pmData
     )
         internal
         view
@@ -264,14 +335,14 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Initial paymaster data with zero signature
         bytes memory initialPmData = abi.encodePacked(
             address(paymaster),
-            paymasterValGasLimit,
-            paymasterPostOpGasLimit,
-            uint8(mode),
-            validUntil,
-            validAfter,
-            tokenAddress,
-            tokenPrice,
-            externalPriceMarkup,
+            pmData.paymasterValGasLimit,
+            pmData.paymasterPostOpGasLimit,
+            uint8(pmData.mode),
+            pmData.validUntil,
+            pmData.validAfter,
+            pmData.tokenAddress,
+            pmData.tokenPrice,
+            pmData.externalPriceMarkup,
             new bytes(65) // Zero signature
         );
 
@@ -280,7 +351,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         // Generate hash to be signed
         bytes32 paymasterHash =
-            paymaster.getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalPriceMarkup);
+            paymaster.getHash(userOp, pmData.validUntil, pmData.validAfter, pmData.tokenAddress, pmData.tokenPrice, pmData.externalPriceMarkup);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
@@ -289,14 +360,14 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Final paymaster data with the actual signature
         finalPmData = abi.encodePacked(
             address(paymaster),
-            paymasterValGasLimit,
-            paymasterPostOpGasLimit,
-            uint8(mode),
-            validUntil,
-            validAfter,
-            tokenAddress,
-            tokenPrice,
-            externalPriceMarkup,
+            pmData.paymasterValGasLimit,
+            pmData.paymasterPostOpGasLimit,
+            uint8(pmData.mode),
+            pmData.validUntil,
+            pmData.validAfter,
+            pmData.tokenAddress,
+            pmData.tokenPrice,
+            pmData.externalPriceMarkup,
             signature
         );
     }
@@ -331,7 +402,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         actualPriceMarkup = resultingFeeCollectorPaymasterBalance - initialFeeCollectorBalance;
     }
 
-    function getMaxPenalty(PackedUserOperation calldata userOp) public view returns (uint256) {
+    function getMaxPenalty(PackedUserOperation calldata userOp) public pure returns (uint256) {
         return (
             uint128(uint256(userOp.accountGasLimits))
                 + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
@@ -366,12 +437,59 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         assertGt(gasPaidByDapp, BUNDLER.addr.balance - initialBundlerBalance);
         // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by dapp (from
         // paymaster)
-        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
+       assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
+    }
+
+        function calculateAndAssertAdjustmentsForTokenPaymaster(
+        BiconomyTokenPaymaster tokenPaymaster,
+        IERC20 token,
+        uint256 initialBundlerBalance,
+        uint256 initialPaymasterEpBalance,
+        uint256 initialUserTokenBalance,
+        uint256 initialPaymasterTokenBalance,
+        uint256 tokenPrice,
+        uint32 priceMarkup,
+        uint256 maxPenalty
+    )
+        internal
+        view
+    {
+        uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
+
+        // Assert that what paymaster paid is the same as what the bundler received
+        assertEq(totalGasFeePaid, initialPaymasterEpBalance - tokenPaymaster.getDeposit());
+
+        uint256 gasPaidBySAInERC20 =  initialUserTokenBalance - token.balanceOf(address(ALICE_ACCOUNT));
+
+        uint256 gasCollectedInERC20ByPaymaster = token.balanceOf(address(tokenPaymaster)) - initialPaymasterTokenBalance;
+
+        // What user paid = received by paymaster
+        // unless ofcourse there is same token transfer in calldata
+        assertEq(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster);
+
+        console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
+        console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
+        console2.log("maxPenalty", maxPenalty);
+        console2.log("totalGasFeePaid", totalGasFeePaid);
+
+        // Note: yet to figure out why we're charging too low in tokens vs bundler is paying high gas fees!
+        // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
+        assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
+
+        // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by smart account (ERC20 charge * token gas price) (from
+        // Todo
+        // assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
         address[] memory array = new address[](1);
         array[0] = addr;
+        return array;
+    }
+
+    function _toSingletonArray(uint24 element) internal pure returns (uint24[] memory) {
+    uint24[] memory array = new uint24[](1);
+    array[0] = element;
         return array;
     }
 

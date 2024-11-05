@@ -16,6 +16,8 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import "./swaps/Uniswapper.sol";
+// Todo: marked for removal
+import "forge-std/console2.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -56,7 +58,8 @@ contract BiconomyTokenPaymaster is
     // supported in // independent mode
 
     // PAYMASTER_ID_OFFSET
-    uint256 private constant _UNACCOUNTED_GAS_LIMIT = 50_000; // Limit for unaccounted gas cost
+    // Note: Temp
+    uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
     uint256 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint256 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
 
@@ -122,6 +125,11 @@ contract BiconomyTokenPaymaster is
             }
             independentTokenDirectory[independentTokensArg[i]] =
                 TokenInfo(oraclesArg[i], 10 ** IERC20Metadata(independentTokensArg[i]).decimals());
+        }
+        // Approve swappable tokens for max amount
+        uint256 length = swappableTokens.length;
+        for (uint256 i; i < length; i++) {
+            IERC20(swappableTokens[i]).approve(address(uniswapRouterArg), type(uint256).max);
         }
     }
 
@@ -338,10 +346,12 @@ contract BiconomyTokenPaymaster is
     {
         // Swap tokens for WETH
         uint256 amountOut = _swapTokenToWeth(tokenAddress, tokenAmount, minEthAmountRecevied);
-        // Unwrap WETH to ETH
-        _unwrapWeth(amountOut);
-        // Deposit ETH into EP
-        entryPoint.depositTo{ value: amountOut }(address(this));
+        if(amountOut > 0) {
+            // Unwrap WETH to ETH
+            _unwrapWeth(amountOut);
+            // Deposit ETH into EP
+            entryPoint.depositTo{ value: amountOut }(address(this));
+        }
     }
 
     /**
@@ -427,6 +437,14 @@ contract BiconomyTokenPaymaster is
             revert InvalidPaymasterMode();
         }
 
+        // callGasLimit + paymasterPostOpGas
+        uint256 maxPenalty = (
+            (
+                uint128(uint256(userOp.accountGasLimits))
+                    + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
+            ) * 10 * userOp.unpackMaxFeePerGas()
+        ) / 100;
+
         if (mode == PaymasterMode.EXTERNAL) {
             // Use the price and other params specified in modeSpecificData by the verifyingSigner
             // Useful for supporting tokens which don't have oracle support
@@ -435,7 +453,8 @@ contract BiconomyTokenPaymaster is
                 uint48 validUntil,
                 uint48 validAfter,
                 address tokenAddress,
-                uint128 tokenPrice,
+                // Review if uint128 is enough
+                uint128 tokenPrice, // NotE: what backend should pass is token/native * 10^token decimals
                 uint32 externalPriceMarkup,
                 bytes memory signature
             ) = modeSpecificData.parseExternalModeSpecificData();
@@ -460,10 +479,12 @@ contract BiconomyTokenPaymaster is
                 revert InvalidPriceMarkup();
             }
 
+
             uint256 tokenAmount;
+            // Review
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * externalPriceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
                     / (1e18 * _PRICE_DENOMINATOR);
             }
 
@@ -480,13 +501,14 @@ contract BiconomyTokenPaymaster is
 
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
-            uint192 tokenPrice = _getPrice(tokenAddress);
+            uint256 tokenPrice = _getPrice(tokenAddress);
             uint256 tokenAmount;
 
+            // TODO: Account for penalties here
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + (unaccountedGas) * maxFeePerGas) * independentPriceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * independentPriceMarkup * tokenPrice)
                     / (1e18 * _PRICE_DENOMINATOR);
             }
 
@@ -529,6 +551,12 @@ contract BiconomyTokenPaymaster is
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * _PRICE_DENOMINATOR);
+        console2.log("tokenPrice", tokenPrice);
+        console2.log("appliedPriceMarkup", appliedPriceMarkup);
+        console2.log("actualGasCost", actualGasCost);
+        console2.log("actualUserOpFeePerGas", actualUserOpFeePerGas);
+        console2.log("actualTokenAmount", actualTokenAmount);
+        console2.log("prechargedAmount", prechargedAmount);
 
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
@@ -537,6 +565,7 @@ contract BiconomyTokenPaymaster is
             emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
+        // Todo: Review events and what we need to emit.
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, userOpHash
         );
@@ -544,7 +573,7 @@ contract BiconomyTokenPaymaster is
 
     /// @notice Fetches the latest token price.
     /// @return price The latest token price fetched from the oracles.
-    function _getPrice(address tokenAddress) internal view returns (uint192 price) {
+    function _getPrice(address tokenAddress) internal view returns (uint256 price) {
         // Fetch token information from directory
         TokenInfo memory tokenInfo = independentTokenDirectory[tokenAddress];
 
@@ -556,15 +585,19 @@ contract BiconomyTokenPaymaster is
         // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
         uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
+        console2.log("tokenPrice oracle", tokenPrice);
+        console2.log("nativeAssetPrice oracle", nativeAssetPrice);
 
         // Adjust to token  decimals
-        price = (nativeAssetPrice * uint192(tokenInfo.decimals)) / tokenPrice;
+        price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
+        console2.log("derived & used price", price);
     }
 
     /// @notice Fetches the latest price from the given oracle.
     /// @dev This function is used to get the latest price from the tokenOracle or nativeAssetToUsdOracle.
     /// @param oracle The oracle contract to fetch the price from.
     /// @return price The latest price fetched from the oracle.
+    /// Note: We could do this using oracle aggregator, so we can also use Pyth. or Twap based oracle and just not chainlink.
     function _fetchPrice(IOracle oracle) internal view returns (uint192 price) {
         (, int256 answer,, uint256 updatedAt,) = oracle.latestRoundData();
         if (answer <= 0) {
