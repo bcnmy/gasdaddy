@@ -12,7 +12,7 @@
     "@uniswap/v3-core": "https://github.com/Uniswap/v3-core#0.8",
     "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
     "accountabstraction": "https://github.com/eth-infinitism/account-abstraction#develop",
-    "nexus": "https://github.com/bcnmy/nexus#dev"
+    "nexus": "https://github.com/bcnmy/nexus#773943fb7bf6cd14a0dc6dcb9f513db53213d1d5"
   },
   "devDependencies": {
     "@bonadocs/docgen": "^1.0.1-alpha.1",
