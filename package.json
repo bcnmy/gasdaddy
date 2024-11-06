@@ -62,7 +62,7 @@
     "test:gas": "pnpm test:gas:forge",
     "coverage:forge": "forge coverage --ir-minimum --gas-limit 50000000 --gas-price 1000000000",
     "coverage": "pnpm run coverage:forge",
-    "coverage:report": "forge coverage --ir-minimum --gas-limit 50000000 --gas-price 1000000000 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage/foundry && mv lcov.info coverage/foundry",
+    "coverage:report": "forge coverage --ir-minimum --gas-limit 50000000 --gas-price 1000000000 --report lcov && genhtml --ignore-errors inconsistent lcov.info --branch-coverage --output-dir coverage/foundry && mv lcov.info coverage/foundry",
     "deploy:forge": "forge script scripts/solidity/Deploy.s.sol --broadcast --rpc-url http://localhost:8545",
     "lint:sol": "pnpm solhint 'contracts/**/*.sol'",
     "format:check": "forge fmt --check",
