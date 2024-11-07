@@ -491,7 +491,9 @@ contract BiconomyTokenPaymaster is
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, externalPriceMarkup, userOpHash);
+            // deduct max penalty from the token amount we pass to the postOp
+            // so we don't refund it at postOp
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/1e18), tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -516,7 +518,7 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount, tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/1e18), tokenPrice, independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -551,13 +553,6 @@ contract BiconomyTokenPaymaster is
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (1e18 * _PRICE_DENOMINATOR);
-        console2.log("tokenPrice", tokenPrice);
-        console2.log("appliedPriceMarkup", appliedPriceMarkup);
-        console2.log("actualGasCost", actualGasCost);
-        console2.log("actualUserOpFeePerGas", actualUserOpFeePerGas);
-        console2.log("actualTokenAmount", actualTokenAmount);
-        console2.log("prechargedAmount", prechargedAmount);
-
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
             uint256 refundAmount = prechargedAmount - actualTokenAmount;
@@ -585,12 +580,9 @@ contract BiconomyTokenPaymaster is
         // Calculate price by using token and native oracle
         uint192 tokenPrice = _fetchPrice(tokenInfo.oracle);
         uint192 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
-        console2.log("tokenPrice oracle", tokenPrice);
-        console2.log("nativeAssetPrice oracle", nativeAssetPrice);
 
         // Adjust to token  decimals
         price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
-        console2.log("derived & used price", price);
     }
 
     /// @notice Fetches the latest price from the given oracle.
