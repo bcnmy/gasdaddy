@@ -493,7 +493,7 @@ contract BiconomyTokenPaymaster is
 
             // deduct max penalty from the token amount we pass to the postOp
             // so we don't refund it at postOp
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/1e18), tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(1e18*_PRICE_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -518,7 +518,7 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/1e18), tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(1e18*_PRICE_DENOMINATOR)), tokenPrice, independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
