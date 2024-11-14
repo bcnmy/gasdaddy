@@ -133,6 +133,10 @@ contract BiconomyTokenPaymaster is
         }
     }
 
+    receive() external payable {
+        // no need to emit an event here
+    }
+
     /**
      * @dev pull tokens out of paymaster in case they were sent to the paymaster at any point.
      * @param token the token deposit to withdraw
@@ -141,6 +145,19 @@ contract BiconomyTokenPaymaster is
      */
     function withdrawERC20(IERC20 token, address target, uint256 amount) external payable onlyOwner nonReentrant {
         _withdrawERC20(token, target, amount);
+    }
+
+    /**
+     * @dev Withdraw ETH from the paymaster
+     * @param recipient The address to send the ETH to
+     * @param amount The amount of ETH to withdraw
+     */
+    function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {
+        (bool success,) = recipient.call{ value: amount }("");
+        if (!success) {
+            revert WithdrawalFailed();
+        }
+        emit EthWithdrawn(recipient, amount);
     }
 
     /**
