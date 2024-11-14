@@ -7,7 +7,7 @@
     "url": "https://github.com/bcnmy"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "5.0.2",
+    "@openzeppelin/contracts": "5.1.0",
     "@rhinestone/modulekit": "^0.4.10",
     "@uniswap/v3-core": "https://github.com/Uniswap/v3-core#0.8",
     "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
