@@ -5,6 +5,7 @@ import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/Reentran
 import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import { PackedUserOperation, UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
@@ -125,6 +126,10 @@ contract BiconomyTokenPaymaster is
         }
     }
 
+    receive() external payable {
+        // no need to emit an event here
+    }
+
     /**
      * @dev pull tokens out of paymaster in case they were sent to the paymaster at any point.
      * @param token the token deposit to withdraw
@@ -133,6 +138,19 @@ contract BiconomyTokenPaymaster is
      */
     function withdrawERC20(IERC20 token, address target, uint256 amount) external payable onlyOwner nonReentrant {
         _withdrawERC20(token, target, amount);
+    }
+
+    /**
+     * @dev Withdraw ETH from the paymaster
+     * @param recipient The address to send the ETH to
+     * @param amount The amount of ETH to withdraw
+     */
+    function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {
+        (bool success,) = recipient.call{ value: amount }("");
+        if (!success) {
+            revert WithdrawalFailed();
+        }
+        emit EthWithdrawn(recipient, amount);
     }
 
     /**
@@ -497,7 +515,7 @@ contract BiconomyTokenPaymaster is
 
             // deduct max penalty from the token amount we pass to the postOp
             // so we don't refund it at postOp
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/_NATIVE_TOKEN_DECIMALS), tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(1e18*_PRICE_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -525,7 +543,7 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice)/_NATIVE_TOKEN_DECIMALS), tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(1e18*_PRICE_DENOMINATOR)), tokenPrice, independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
