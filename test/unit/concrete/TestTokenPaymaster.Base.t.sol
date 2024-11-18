@@ -49,8 +49,12 @@ contract TestTokenPaymasterBase is TestBase {
             _toSingletonArray(address(usdc)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             _toSingletonArray(address(usdc)),
-            _toSingletonArray(uint24(500)) // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
+            _toSingletonArray(uint24(500)), // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
+
+        // tokenPaymaster.updateCachedPrice(address(usdc), true);
     }
 
     function test_Deploy_BaseFork() external {
@@ -69,7 +73,9 @@ contract TestTokenPaymasterBase is TestBase {
             _toSingletonArray(address(usdc)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             _toSingletonArray(address(usdc)),
-            _toSingletonArray(uint24(500)) // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
+            _toSingletonArray(uint24(500)), // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
 
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
@@ -82,6 +88,7 @@ contract TestTokenPaymasterBase is TestBase {
 
     function test_BaseFork_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
         tokenPaymaster.deposit{ value: 10 ether }();
+        tokenPaymaster.updateCachedPrice(address(usdc), true);
         deal(address(usdc), address(ALICE_ACCOUNT), 100e6);
         vm.startPrank(address(ALICE_ACCOUNT));
         usdc.approve(address(tokenPaymaster), usdc.balanceOf(address(ALICE_ACCOUNT)));

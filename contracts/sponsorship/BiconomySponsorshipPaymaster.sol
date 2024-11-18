@@ -44,7 +44,7 @@ contract BiconomySponsorshipPaymaster is
     uint256 public minDeposit;
 
     // Denominator to prevent precision errors when applying price markup
-    uint256 private constant _PRICE_DENOMINATOR = 1e6;
+    uint256 private constant _MARKUP_DENOMINATOR = 1e6;
     // Offset in PaymasterAndData to get to PAYMASTER_ID_OFFSET
     uint256 private constant _PAYMASTER_ID_OFFSET = _PAYMASTER_DATA_OFFSET;
     // Limit for unaccounted gas cost
@@ -348,7 +348,7 @@ contract BiconomySponsorshipPaymaster is
         // unaccountedGas = postOpGas + EP overhead gas 
         actualGasCost = actualGasCost + (unaccountedGas * actualUserOpFeePerGas);
         // Apply the price markup
-        uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _PRICE_DENOMINATOR;
+        uint256 adjustedGasCost = (actualGasCost * priceMarkup) / _MARKUP_DENOMINATOR;
 
         uint256 premium = adjustedGasCost - actualGasCost;
 
@@ -440,7 +440,7 @@ contract BiconomySponsorshipPaymaster is
 
         // Deduct the max gas cost.
         uint256 effectiveCost =
-            (((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup) / _PRICE_DENOMINATOR);
+            (((requiredPreFund + unaccountedGas * userOp.unpackMaxFeePerGas()) * priceMarkup) / _MARKUP_DENOMINATOR);
 
         if (effectiveCost + maxPenalty > paymasterIdBalances[paymasterId]) {
             revert InsufficientFundsForPaymasterId();

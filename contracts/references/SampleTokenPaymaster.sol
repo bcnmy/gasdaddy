@@ -39,7 +39,7 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     }
 
     /// @notice All 'price' variables are multiplied by this value to avoid rounding up
-    uint256 private constant _PRICE_DENOMINATOR = 1e26;
+    uint256 private constant _MARKUP_DENOMINATOR = 1e26;
 
     TokenPaymasterConfig public tokenPaymasterConfig;
 
@@ -101,8 +101,8 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     /// @notice Updates the configuration for the Token Paymaster.
     /// @param paymasterConfig The new configuration struct.
     function setTokenPaymasterConfig(TokenPaymasterConfig memory paymasterConfig) public onlyOwner {
-        require(paymasterConfig.priceMarkup <= 2 * _PRICE_DENOMINATOR, "TPM: price markup too high");
-        require(paymasterConfig.priceMarkup >= _PRICE_DENOMINATOR, "TPM: price markup too low");
+        require(paymasterConfig.priceMarkup <= 2 * _MARKUP_DENOMINATOR, "TPM: price markup too high");
+        require(paymasterConfig.priceMarkup >= _MARKUP_DENOMINATOR, "TPM: price markup too low");
         tokenPaymasterConfig = paymasterConfig;
         emit ConfigUpdated(paymasterConfig);
     }
@@ -132,7 +132,7 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
             uint256 preChargeNative = requiredPreFund + (refundPostopCost * maxFeePerGas);
             // note: as price is in native-asset-per-token and we want more tokens increasing it means dividing it by
             // markup
-            uint256 cachedPriceWithMarkup = (cachedPrice * _PRICE_DENOMINATOR) / priceMarkup;
+            uint256 cachedPriceWithMarkup = (cachedPrice * _MARKUP_DENOMINATOR) / priceMarkup;
             if (dataLength == 32) {
                 uint256 clientSuppliedPrice =
                     uint256(bytes32(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:PAYMASTER_DATA_OFFSET + 32]));
@@ -171,7 +171,7 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
             uint256 cachedPrice = updateCachedPrice(false);
             // note: as price is in native-asset-per-token and we want more tokens increasing it means dividing it by
             // markup
-            uint256 cachedPriceWithMarkup = (cachedPrice * _PRICE_DENOMINATOR) / priceMarkup;
+            uint256 cachedPriceWithMarkup = (cachedPrice * _MARKUP_DENOMINATOR) / priceMarkup;
             // Refund tokens based on actual gas cost
             uint256 actualChargeNative = actualGasCost + tokenPaymasterConfig.refundPostopCost * actualUserOpFeePerGas;
             uint256 actualTokenNeeded = weiToToken(actualChargeNative, cachedPriceWithMarkup);

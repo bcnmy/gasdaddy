@@ -17,7 +17,6 @@ import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import "./swaps/Uniswapper.sol";
-// Todo: marked for removal
 import "forge-std/console2.sol";
 
 /**
@@ -57,10 +56,16 @@ contract BiconomyTokenPaymaster is
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
     mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens
     // supported in // independent mode
+    mapping(address => uint256) public cachedPrices; // mapping of token address => cached price
+    mapping(address => uint48) public cachedPricesTimestamps; // mapping of token address => cached price timestamp
+
+    uint48 cacheTimeToLive; // time to live for cached prices
+    uint256 priceUpdateThreshold; // threshold for price update
 
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
-    uint32 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
+    uint32 private constant _MARKUP_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint32 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
+    uint256 private constant _PRICE_DENOMINATOR = 1e26;
     uint256 private immutable _NATIVE_TOKEN_DECIMALS;
 
     constructor(
@@ -78,7 +83,9 @@ contract BiconomyTokenPaymaster is
         // mode
         IOracle[] memory oraclesArg, // Array of corresponding oracle addresses for independently supported tokens
         address[] memory swappableTokens, // Array of tokens that you want swappable by the uniswapper
-        uint24[] memory swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
+        uint24[] memory swappableTokenPoolFeeTiers, // Array of uniswap pool fee tiers for each swappable token,
+        uint48 cacheTimeToLiveArg,
+        uint256 priceUpdateThresholdArg
     )
         BasePaymaster(owner, entryPoint)
         Uniswapper(uniswapRouterArg, wrappedNativeArg, swappableTokens, swappableTokenPoolFeeTiers)
@@ -93,7 +100,7 @@ contract BiconomyTokenPaymaster is
         if (unaccountedGasArg > _UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        if (independentPriceMarkupArg > _MAX_PRICE_MARKUP || independentPriceMarkupArg < _PRICE_DENOMINATOR) {
+        if (independentPriceMarkupArg > _MAX_PRICE_MARKUP || independentPriceMarkupArg < _MARKUP_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
@@ -107,6 +114,8 @@ contract BiconomyTokenPaymaster is
         if (block.timestamp < priceExpiryDurationArg) {
             revert InvalidPriceExpiryDuration();
         }
+        cacheTimeToLive = cacheTimeToLiveArg;
+        priceUpdateThreshold = priceUpdateThresholdArg;
 
         // Set state variables
         assembly ("memory-safe") {
@@ -256,7 +265,7 @@ contract BiconomyTokenPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function setPriceMarkup(uint32 newIndependentPriceMarkup) external payable onlyOwner {
-        if (newIndependentPriceMarkup > _MAX_PRICE_MARKUP || newIndependentPriceMarkup < _PRICE_DENOMINATOR) {
+        if (newIndependentPriceMarkup > _MAX_PRICE_MARKUP || newIndependentPriceMarkup < _MARKUP_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
@@ -398,6 +407,32 @@ contract BiconomyTokenPaymaster is
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
+    function updateCachedPrice(address tokenAddress, bool force) public returns (uint256 price) {
+        uint256 cacheAge = block.timestamp - cachedPricesTimestamps[tokenAddress];
+        if (!force && cacheAge <= cacheTimeToLive) {
+            return cachedPrices[tokenAddress];
+        }
+
+        uint256 _cachedPrice = cachedPrices[tokenAddress];
+        uint256 newPrice = _getPrice(tokenAddress);
+        if(_cachedPrice == 0) {
+            _cachedPrice = newPrice;
+        }
+        uint256 priceRatio = _PRICE_DENOMINATOR * newPrice / _cachedPrice;
+
+        // Review: Note markup can be used any value.
+        bool updateRequired = force ||
+            priceRatio > _PRICE_DENOMINATOR + priceUpdateThreshold ||
+            priceRatio < _PRICE_DENOMINATOR - priceUpdateThreshold;
+        if (!updateRequired) {
+            return _cachedPrice;
+        }    
+        cachedPrices[tokenAddress] = newPrice;
+        cachedPricesTimestamps[tokenAddress] = uint48(block.timestamp);
+        emit TokenPriceUpdated(newPrice, _cachedPrice, cachedPricesTimestamps[tokenAddress]);
+        return newPrice;
+    }
+
     /**
      * return the hash we're going to sign off-chain (and validate on-chain)
      * this method is called by the off-chain service, to sign the request.
@@ -473,7 +508,6 @@ contract BiconomyTokenPaymaster is
         if (mode == PaymasterMode.EXTERNAL) {
             // Use the price and other params specified in modeSpecificData by the verifyingSigner
             // Useful for supporting tokens which don't have oracle support
-
             (
                 uint48 validUntil,
                 uint48 validAfter,
@@ -499,7 +533,7 @@ contract BiconomyTokenPaymaster is
                 return ("", _packValidationData(true, validUntil, validAfter));
             }
 
-            if (externalPriceMarkup > _MAX_PRICE_MARKUP || externalPriceMarkup < _PRICE_DENOMINATOR) {
+            if (externalPriceMarkup > _MAX_PRICE_MARKUP || externalPriceMarkup < _MARKUP_DENOMINATOR) {
                 revert InvalidPriceMarkup();
             }
 
@@ -509,7 +543,7 @@ contract BiconomyTokenPaymaster is
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
-                    / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+                    / (_NATIVE_TOKEN_DECIMALS * _MARKUP_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
@@ -517,7 +551,7 @@ contract BiconomyTokenPaymaster is
 
             // deduct max penalty from the token amount we pass to the postOp
             // so we don't refund it at postOp
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_MARKUP_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -527,25 +561,23 @@ contract BiconomyTokenPaymaster is
 
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
-            uint256 tokenPrice = _getPrice(tokenAddress);
+            uint256 tokenPrice = cachedPrices[tokenAddress];
             if(tokenPrice == 0) {
                 revert TokenNotSupported();
             }
             uint256 tokenAmount;
-
-            // TODO: Account for penalties here
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * independentPriceMarkup * tokenPrice)
-                    / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+                    / (_NATIVE_TOKEN_DECIMALS * _MARKUP_DENOMINATOR);
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_MARKUP_DENOMINATOR)), independentPriceMarkup, userOpHash);
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -576,10 +608,12 @@ contract BiconomyTokenPaymaster is
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
 
+        tokenPrice = updateCachedPrice(tokenAddress, false);
+
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
-        ) / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+        ) / (_NATIVE_TOKEN_DECIMALS * _MARKUP_DENOMINATOR);
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
             uint256 refundAmount = prechargedAmount - actualTokenAmount;

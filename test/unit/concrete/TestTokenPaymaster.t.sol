@@ -49,8 +49,13 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
+
+        // Review: fails with [FAIL. Reason: setup failed: panic: division or modulo by zero (0x12)] setUp()
+        // tokenPaymaster.updateCachedPrice(address(testToken), true);
     }
 
     function test_Deploy() external {
@@ -69,7 +74,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
 
         assertEq(testArtifact.owner(), PAYMASTER_OWNER.addr);
@@ -97,7 +104,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -118,7 +127,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -138,7 +149,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -158,7 +171,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -232,7 +247,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(tokenOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -253,7 +270,9 @@ contract TestTokenPaymaster is TestBase {
             _toSingletonArray(address(testToken)),
             _toSingletonArray(IOracle(address(invalidOracle))),
             new address[](0),
-            new uint24[](0)
+            new uint24[](0),
+            1e8, // cache time to live // Review
+            1e26 * 12 / 100 // price update threshold
         );
     }
 
@@ -470,6 +489,7 @@ contract TestTokenPaymaster is TestBase {
 
     function test_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
         tokenPaymaster.deposit{ value: 10 ether }();
+        tokenPaymaster.updateCachedPrice(address(testToken), true);
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
         vm.startPrank(address(ALICE_ACCOUNT));
         testToken.approve(address(tokenPaymaster), testToken.balanceOf(address(ALICE_ACCOUNT)));
