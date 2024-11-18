@@ -75,4 +75,14 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when external signer's signature has invalid length
      */
     error InvalidSignatureLength();
+
+    /**
+     * @notice Throws when ETH withdrawal fails
+     */
+    error WithdrawalFailed();
+
+    /**
+     * @notice Emitted when ETH is withdrawn from the paymaster
+     */
+    event EthWithdrawn(address indexed recipient, uint256 indexed amount);
 }

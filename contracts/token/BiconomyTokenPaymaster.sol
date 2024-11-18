@@ -5,6 +5,7 @@ import { ReentrancyGuardTransient } from "@openzeppelin/contracts/utils/Reentran
 import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import { PackedUserOperation, UserOperationLib } from "account-abstraction/core/UserOperationLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { BasePaymaster } from "../base/BasePaymaster.sol";
@@ -129,8 +130,12 @@ contract BiconomyTokenPaymaster is
         // Approve swappable tokens for max amount
         uint256 length = swappableTokens.length;
         for (uint256 i; i < length; i++) {
-            IERC20(swappableTokens[i]).approve(address(uniswapRouterArg), type(uint256).max);
+            SafeERC20.forceApprove(IERC20(swappableTokens[i]), address(uniswapRouterArg), type(uint256).max);
         }
+    }
+
+    receive() external payable {
+        // no need to emit an event here
     }
 
     /**
@@ -141,6 +146,19 @@ contract BiconomyTokenPaymaster is
      */
     function withdrawERC20(IERC20 token, address target, uint256 amount) external payable onlyOwner nonReentrant {
         _withdrawERC20(token, target, amount);
+    }
+
+    /**
+     * @dev Withdraw ETH from the paymaster
+     * @param recipient The address to send the ETH to
+     * @param amount The amount of ETH to withdraw
+     */
+    function withdrawEth(address payable recipient, uint256 amount) external payable onlyOwner nonReentrant {
+        (bool success,) = recipient.call{ value: amount }("");
+        if (!success) {
+            revert WithdrawalFailed();
+        }
+        emit EthWithdrawn(recipient, amount);
     }
 
     /**
