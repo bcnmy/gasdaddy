@@ -39,7 +39,7 @@ interface IBiconomyTokenPaymaster {
     event RemovedFromTokenDirectory(address indexed tokenAddress);
     event UpdatedNativeAssetOracle(IOracle indexed oldOracle, IOracle indexed newOracle);
     event TokensSwappedAndRefilledEntryPoint(address indexed tokenAddress, uint256 indexed tokenAmount, uint256 indexed amountOut, address actor);
-    event TokenPriceUpdated(uint256 indexed currentPrice, uint256 indexed previousPrice, uint48 indexed cachedPriceTimestamp);
+    event TokenPriceUpdated(address indexed tokenAddress, uint256 indexed currentPrice, uint256 indexed previousPrice, uint48 cachedPriceTimestamp);
     event SwappableTokensAdded(address[] indexed tokenAddresses);
 
     function setSigner(address newVerifyingSigner) external payable;

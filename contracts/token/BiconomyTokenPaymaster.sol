@@ -429,7 +429,7 @@ contract BiconomyTokenPaymaster is
         }    
         cachedPrices[tokenAddress] = newPrice;
         cachedPricesTimestamps[tokenAddress] = uint48(block.timestamp);
-        emit TokenPriceUpdated(newPrice, _cachedPrice, cachedPricesTimestamps[tokenAddress]);
+        emit TokenPriceUpdated(tokenAddress, newPrice, _cachedPrice, cachedPricesTimestamps[tokenAddress]);
         return newPrice;
     }
 
