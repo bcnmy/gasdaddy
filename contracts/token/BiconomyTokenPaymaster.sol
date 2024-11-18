@@ -551,10 +551,10 @@ contract BiconomyTokenPaymaster is
             address userOpSender,
             address tokenAddress,
             uint256 prechargedAmount,
-            uint192 tokenPrice,
+            uint256 tokenPrice,
             uint32 appliedPriceMarkup,
             bytes32 userOpHash
-        ) = abi.decode(context, (address, address, uint256, uint192, uint32, bytes32));
+        ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
 
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
