@@ -31,7 +31,7 @@ library TokenPaymasterParserLib {
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint128 tokenPrice, // Review: why uint128 and not uint256. in independent mode it is uint256
+            uint256 tokenPrice, // Review: why uint128 and not uint256. in independent mode it is uint256
             uint32 externalPriceMarkup,
             bytes memory signature
         )
@@ -39,9 +39,9 @@ library TokenPaymasterParserLib {
         validUntil = uint48(bytes6(modeSpecificData[:6]));
         validAfter = uint48(bytes6(modeSpecificData[6:12]));
         tokenAddress = address(bytes20(modeSpecificData[12:32]));
-        tokenPrice = uint128(bytes16(modeSpecificData[32:48]));
-        externalPriceMarkup = uint32(bytes4(modeSpecificData[48:52]));
-        signature = modeSpecificData[52:];
+        tokenPrice = uint256(bytes32(modeSpecificData[32:64]));
+        externalPriceMarkup = uint32(bytes4(modeSpecificData[64:68]));
+        signature = modeSpecificData[68:];
     }
 
     function parseIndependentModeSpecificData(

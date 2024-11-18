@@ -18,7 +18,7 @@ interface IBiconomyTokenPaymaster {
     }
 
     event UpdatedUnaccountedGas(uint256 indexed oldValue, uint256 indexed newValue);
-    event UpdatedFixedPriceMarkup(uint256 indexed oldValue, uint256 indexed newValue);
+    event UpdatedFixedPriceMarkup(uint32 indexed oldValue, uint32 indexed newValue);
     event UpdatedVerifyingSigner(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
@@ -30,23 +30,27 @@ interface IBiconomyTokenPaymaster {
         address indexed token,
         uint256 nativeCharge,
         uint256 tokenCharge,
-        uint256 priceMarkup,
+        uint32 priceMarkup,
+        uint256 tokenPrice,
         bytes32 indexed userOpHash
     );
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
-    event UpdatedTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);
+    event AddedToTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);
+    event RemovedFromTokenDirectory(address indexed tokenAddress);
     event UpdatedNativeAssetOracle(IOracle indexed oldOracle, IOracle indexed newOracle);
+    event TokensSwappedAndRefilledEntryPoint(address indexed tokenAddress, uint256 indexed tokenAmount, uint256 indexed amountOut, address actor);
+    event SwappableTokensAdded(address[] indexed tokenAddresses);
 
     function setSigner(address newVerifyingSigner) external payable;
 
     function setUnaccountedGas(uint256 value) external payable;
 
-    function setPriceMarkup(uint256 newUnaccountedGas) external payable;
+    function setPriceMarkup(uint32 newPriceMarkup) external payable;
 
     function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable;
 
     function setNativeAssetToUsdOracle(IOracle oracle) external payable;
 
-    function updateTokenDirectory(address tokenAddress, IOracle oracle) external payable;
+    function addToTokenDirectory(address tokenAddress, IOracle oracle) external payable;
 }

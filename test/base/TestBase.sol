@@ -61,7 +61,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint48 validUntil;
         uint48 validAfter;
         address tokenAddress;
-        uint128 tokenPrice;
+        uint256 tokenPrice;
         uint32 externalPriceMarkup;
     }
 

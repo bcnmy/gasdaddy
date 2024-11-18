@@ -42,6 +42,7 @@ contract TestTokenPaymaster is TestBase {
             50000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -61,6 +62,7 @@ contract TestTokenPaymaster is TestBase {
             5000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -88,6 +90,7 @@ contract TestTokenPaymaster is TestBase {
             5000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -108,6 +111,7 @@ contract TestTokenPaymaster is TestBase {
             5000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -127,6 +131,7 @@ contract TestTokenPaymaster is TestBase {
             500_001, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -146,6 +151,7 @@ contract TestTokenPaymaster is TestBase {
             5000, // unaccounted gas
             2e6 + 1, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -219,6 +225,7 @@ contract TestTokenPaymaster is TestBase {
             5000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             invalidOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -239,6 +246,7 @@ contract TestTokenPaymaster is TestBase {
             50_000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeAssetToUsdOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -409,7 +417,7 @@ contract TestTokenPaymaster is TestBase {
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
         uint48 validUntil = uint48(block.timestamp + 1 days);
         uint48 validAfter = uint48(block.timestamp);
-        uint128 tokenPrice = 1e18; // Assume 1 token = 1 native token = 1 USD ?
+        uint256 tokenPrice = 1e18; // Assume 1 token = 1 native token = 1 USD ?
         uint32 externalPriceMarkup = 1e6; // no premium
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
@@ -441,7 +449,7 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         // Execute the operation
         startPrank(BUNDLER.addr);
@@ -497,7 +505,7 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
