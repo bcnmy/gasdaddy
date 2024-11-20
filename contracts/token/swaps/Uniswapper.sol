@@ -13,8 +13,6 @@ import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
  * @notice Based on Infinitism's Uniswap Helper contract
  */
 abstract contract Uniswapper {
-    uint256 private constant _SWAP_PRICE_DENOMINATOR = 1e26;
-
     /// @notice The Uniswap V3 SwapRouter contract
     ISwapRouter public immutable uniswapRouter;
 

@@ -72,6 +72,11 @@ contract BiconomyTokenPaymasterErrors {
     error InvalidOracleDecimals();
 
     /**
+     * @notice Throws when price expiry duration is in the past
+     */
+    error InvalidPriceExpiryDuration();
+
+    /**
      * @notice Throws when external signer's signature has invalid length
      */
     error InvalidSignatureLength();

@@ -42,6 +42,7 @@ contract TestTokenPaymasterBase is TestBase {
             50000, // unaccounted gas
             1e6, // price markup (for independent mode)
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -61,6 +62,7 @@ contract TestTokenPaymasterBase is TestBase {
             50000, // unaccounted gas
             1e6, // price markup
             1 days, // price expiry duration
+            1e18, // native token decimals
             nativeOracle,
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
@@ -115,7 +117,7 @@ contract TestTokenPaymasterBase is TestBase {
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(usdc), 0, bytes32(0));
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, 0, bytes32(0));
 
         startPrank(BUNDLER.addr);
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));

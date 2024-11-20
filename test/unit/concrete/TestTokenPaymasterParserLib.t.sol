@@ -65,7 +65,7 @@ contract TestTokenPaymasterParserLib is Test {
         uint48 expectedValidUntil = uint48(block.timestamp + 1 days);
         uint48 expectedValidAfter = uint48(block.timestamp);
         address expectedTokenAddress = address(0x1234567890AbcdEF1234567890aBcdef12345678);
-        uint128 expectedTokenPrice = 1e8;
+        uint256 expectedTokenPrice = 1e8;
         uint32 expectedExternalPriceMarkup = 1e6;
         bytes memory expectedSignature = hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef";
 
@@ -74,7 +74,7 @@ contract TestTokenPaymasterParserLib is Test {
             bytes6(abi.encodePacked(expectedValidUntil)),
             bytes6(abi.encodePacked(expectedValidAfter)),
             bytes20(expectedTokenAddress),
-            bytes16(abi.encodePacked(expectedTokenPrice)),
+            bytes32(abi.encodePacked(expectedTokenPrice)),
             bytes4(abi.encodePacked(expectedExternalPriceMarkup)),
             expectedSignature
         );
@@ -84,7 +84,7 @@ contract TestTokenPaymasterParserLib is Test {
             uint48 parsedValidUntil,
             uint48 parsedValidAfter,
             address parsedTokenAddress,
-            uint128 parsedTokenPrice,
+            uint256 parsedTokenPrice,
             uint32 parsedExternalPriceMarkup,
             bytes memory parsedSignature
         ) = externalModeSpecificData.parseExternalModeSpecificData();
