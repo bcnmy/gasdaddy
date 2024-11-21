@@ -119,8 +119,12 @@ contract TestTokenPaymasterBase is TestBase {
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, 0, bytes32(0));
 
+        uint256 customGasPrice = 3e6;
         startPrank(BUNDLER.addr);
+        vm.txGasPrice(customGasPrice);
+        uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        gasValue = gasValue - gasleft();
         stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
@@ -132,7 +136,8 @@ contract TestTokenPaymasterBase is TestBase {
             initialPaymasterTokenBalance,
             2624042830,
             100000,
-            this.getMaxPenalty(ops[0]));
+            this.getMaxPenalty(ops[0]),
+            this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
 
     // test to make a swap.

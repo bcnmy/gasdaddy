@@ -517,7 +517,14 @@ contract BiconomyTokenPaymaster is
 
             // deduct max penalty from the token amount we pass to the postOp
             // so we don't refund it at postOp
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(
+                userOp.sender,
+                tokenAddress,
+                tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                tokenPrice,
+                externalPriceMarkup,
+                userOpHash
+            );
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -528,12 +535,14 @@ contract BiconomyTokenPaymaster is
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
             uint256 tokenPrice = _getPrice(tokenAddress);
+
+            console2.log("tokenPrice in validation phase", tokenPrice);
+
             if(tokenPrice == 0) {
                 revert TokenNotSupported();
             }
             uint256 tokenAmount;
 
-            // TODO: Account for penalties here
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
@@ -545,7 +554,14 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(
+                    userOp.sender,
+                    tokenAddress,
+                    tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                    tokenPrice,
+                    independentPriceMarkup,
+                    userOpHash
+                );
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -576,6 +592,8 @@ contract BiconomyTokenPaymaster is
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
 
+        console2.log("unaccountedGas", unaccountedGas);
+
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
@@ -587,7 +605,6 @@ contract BiconomyTokenPaymaster is
             emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
-        // Todo: Review events and what we need to emit.
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, tokenPrice, userOpHash
         );

@@ -314,7 +314,6 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     }
 
     // Note: Token paymaster could also get into stack deep issues.
-    // TODO: Refactor to reduce stack depth
     /// @notice Generates and signs the paymaster data for a user operation.
     /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
     /// @param userOp The user operation to be signed.
@@ -409,6 +408,15 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         ) * 10 * userOp.unpackMaxFeePerGas() / 100;
     }
 
+    function getRealPenalty(PackedUserOperation calldata userOp, uint256 gasValue, uint256 gasPrice) public pure returns (uint256) {
+        uint256 gasLimit = uint128(uint256(userOp.accountGasLimits))
+                + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]));
+
+        uint256 penalty = (gasLimit - gasValue) * 10 * gasPrice / 100;
+        console2.log("penalty in tests", penalty);
+        return penalty;
+    }
+
     // Note: can pack values into one struct
     function calculateAndAssertAdjustments(
         BiconomySponsorshipPaymaster bicoPaymaster,
@@ -449,7 +457,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 initialPaymasterTokenBalance,
         uint256 tokenPrice,
         uint32 priceMarkup,
-        uint256 maxPenalty
+        uint256 maxPenalty,
+        uint256 realPenalty
     )
         internal
         view
@@ -471,14 +480,16 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
         console2.log("maxPenalty", maxPenalty);
         console2.log("totalGasFeePaid", totalGasFeePaid);
-        console2.log(uint256(1226028000000) + uint256(1794876000000));
+
+        uint256 gasPaidBySAInNativeTokens = gasPaidBySAInERC20 * 1e18 / tokenPrice;
 
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
-        assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
+        assertGt(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
 
-        // Ensure that max 2% difference between total gas paid + the adjustment premium and gas paid by smart account (ERC20 charge * token gas price) (from
-        // Todo
-        // assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
+        // Ensure that max 4% difference between what is should have been charged and what was charged
+        // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
+        // and from estimation of real penalty which is not emitted by EP :(
+        assertApproxEqRel(totalGasFeePaid + maxPenalty - realPenalty, gasPaidBySAInNativeTokens, 0.04e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

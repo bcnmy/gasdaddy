@@ -20,11 +20,12 @@ contract TestTokenPaymaster is TestBase {
     MockToken public testToken;
     MockToken public testToken2;
     MockOracle public tokenOracle;
+    uint256 public customGasPrice;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
 
-        uint256 customGasPrice = 3e6;
+        customGasPrice = 3e6;
         vm.txGasPrice(customGasPrice);
 
         // Deploy mock oracles and tokens
@@ -453,7 +454,9 @@ contract TestTokenPaymaster is TestBase {
 
         // Execute the operation
         startPrank(BUNDLER.addr);
+        uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        gasValue = gasValue - gasleft();
         stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
@@ -465,7 +468,8 @@ contract TestTokenPaymaster is TestBase {
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
             100000,
-            this.getMaxPenalty(ops[0]));
+            this.getMaxPenalty(ops[0]),
+            this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
 
     function test_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
@@ -508,7 +512,9 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         startPrank(BUNDLER.addr);
+        uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        gasValue = gasValue - gasleft();
         stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
@@ -520,6 +526,7 @@ contract TestTokenPaymaster is TestBase {
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
             100000,
-            this.getMaxPenalty(ops[0]));
+            this.getMaxPenalty(ops[0]),
+            this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
 }
