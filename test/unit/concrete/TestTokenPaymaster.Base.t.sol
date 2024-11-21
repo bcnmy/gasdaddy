@@ -134,8 +134,9 @@ contract TestTokenPaymasterBase is TestBase {
             initialPaymasterEpBalance, 
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
-            2624042830,
-            100000,
+            // IF THIS CASE FAILS ON 2% TOLERANCE => PUT THE FRESH PRICE FROM ORACLE HERE
+            3344583445,
+            _PRICE_MARKUP_DENOMINATOR,
             this.getMaxPenalty(ops[0]),
             this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }

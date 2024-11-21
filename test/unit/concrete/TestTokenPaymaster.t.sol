@@ -467,7 +467,7 @@ contract TestTokenPaymaster is TestBase {
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
-            100000,
+            _PRICE_MARKUP_DENOMINATOR,
             this.getMaxPenalty(ops[0]),
             this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
@@ -525,7 +525,7 @@ contract TestTokenPaymaster is TestBase {
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
-            100000,
+            _PRICE_MARKUP_DENOMINATOR,
             this.getMaxPenalty(ops[0]),
             this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }

@@ -37,6 +37,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     // Review address kept
     address constant SWAP_ROUTER_ADDRESS = address(0x2626664c2603336E57B271c5C0b26F421741e481);
 
+    uint32 internal constant _PRICE_MARKUP_DENOMINATOR = 1e6;
+
     Vm.Wallet internal PAYMASTER_OWNER;
     Vm.Wallet internal PAYMASTER_SIGNER;
     Vm.Wallet internal PAYMASTER_FEE_COLLECTOR;
@@ -489,7 +491,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Ensure that max 2% difference between what is should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
         // and from estimation of real penalty which is not emitted by EP :(
-        assertApproxEqRel(totalGasFeePaid + maxPenalty - realPenalty, gasPaidBySAInNativeTokens, 0.02e18);
+        assertApproxEqRel((totalGasFeePaid + maxPenalty - realPenalty) * priceMarkup / _PRICE_MARKUP_DENOMINATOR, gasPaidBySAInNativeTokens, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
