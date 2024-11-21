@@ -486,10 +486,10 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
         assertGt(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
 
-        // Ensure that max 4% difference between what is should have been charged and what was charged
+        // Ensure that max 2% difference between what is should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
         // and from estimation of real penalty which is not emitted by EP :(
-        assertApproxEqRel(totalGasFeePaid + maxPenalty - realPenalty, gasPaidBySAInNativeTokens, 0.04e18);
+        assertApproxEqRel(totalGasFeePaid + maxPenalty - realPenalty, gasPaidBySAInNativeTokens, 0.02e18);
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

@@ -402,7 +402,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(50_000);
+        tokenPaymaster.setUnaccountedGas(22_000);
         vm.stopPrank();
 
         // Warm up the ERC20 balance slot for paymaster by making some tokens held initially
@@ -480,7 +480,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(200_000);
+        tokenPaymaster.setUnaccountedGas(20_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
