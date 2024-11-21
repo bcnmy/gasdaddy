@@ -59,7 +59,6 @@ contract TestTokenPaymasterParserLib is Test {
         assertEq(parsedModeSpecificData, modeSpecificData, "Mode specific data should match");
     }
 
-    // TODO: review prices added inline with MockOracle
     function test_ParseExternalModeSpecificData() public view {
         // Simulate valid external mode specific data
         uint48 expectedValidUntil = uint48(block.timestamp + 1 days);

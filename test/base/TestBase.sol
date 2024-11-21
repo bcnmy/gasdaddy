@@ -314,7 +314,6 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     }
 
     // Note: Token paymaster could also get into stack deep issues.
-    // TODO: Refactor to reduce stack depth
     /// @notice Generates and signs the paymaster data for a user operation.
     /// @dev This function prepares the `paymasterAndData` field for a `PackedUserOperation` with the correct signature.
     /// @param userOp The user operation to be signed.
@@ -440,7 +439,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
        assertApproxEqRel(totalGasFeePaid + actualPriceMarkup + maxPenalty, gasPaidByDapp, 0.02e18);
     }
 
-        function calculateAndAssertAdjustmentsForTokenPaymaster(
+    function calculateAndAssertAdjustmentsForTokenPaymaster(
         BiconomyTokenPaymaster tokenPaymaster,
         IERC20 token,
         uint256 initialBundlerBalance,
@@ -455,10 +454,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         view
     {
         uint256 totalGasFeePaid = BUNDLER.addr.balance - initialBundlerBalance;
-
         // Assert that what paymaster paid is the same as what the bundler received
         assertEq(totalGasFeePaid, initialPaymasterEpBalance - tokenPaymaster.getDeposit());
-
         uint256 gasPaidBySAInERC20 =  initialUserTokenBalance - token.balanceOf(address(ALICE_ACCOUNT));
 
         uint256 gasCollectedInERC20ByPaymaster = token.balanceOf(address(tokenPaymaster)) - initialPaymasterTokenBalance;
@@ -466,12 +463,6 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // What user paid = received by paymaster
         // unless ofcourse there is same token transfer in calldata
         assertEq(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster);
-
-        console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
-        console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
-        console2.log("maxPenalty", maxPenalty);
-        console2.log("totalGasFeePaid", totalGasFeePaid);
-        console2.log(uint256(1226028000000) + uint256(1794876000000));
 
         // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
         assertGt(gasPaidBySAInERC20 * 1e18 / tokenPrice, BUNDLER.addr.balance - initialBundlerBalance);
