@@ -148,17 +148,17 @@ contract TestTokenPaymasterBase is TestBase {
        console2.log("initialTokenBalance", initialTokenBalance);
        uint256 initialDepositOnEntryPoint = tokenPaymaster.getDeposit();
 
-    //    vm.startPrank(address(tokenPaymaster));
-    //    usdc.approve(address(SWAP_ROUTER_ADDRESS), usdc.balanceOf(address(tokenPaymaster)));
-    //    vm.stopPrank();
+        vm.startPrank(address(tokenPaymaster));
+        //usdc.approve(address(SWAP_ROUTER_ADDRESS), usdc.balanceOf(address(tokenPaymaster)));
+        vm.stopPrank();
 
        // Review reason for failure
        startPrank(PAYMASTER_OWNER.addr);
-       tokenPaymaster.swapTokenAndDeposit(address(usdc), 1e6, 0);
+       tokenPaymaster.swapTokenAndDeposit(address(usdc), 99e6, 0);
        stopPrank();
 
-       // uint256 newTokenBalance = usdc.balanceOf(address(tokenPaymaster));
-       // assertEq(newTokenBalance, 0);
+       uint256 newTokenBalance = usdc.balanceOf(address(tokenPaymaster));
+       assertEq(newTokenBalance, 0);
 
        // uint256 newDepositOnEntryPoint = tokenPaymaster.getDeposit();
        // assertGt(newDepositOnEntryPoint, initialDepositOnEntryPoint);

@@ -485,7 +485,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint256 gasPaidBySAInNativeTokens = gasPaidBySAInERC20 * 1e18 / tokenPrice;
 
         // Assert we never undercharge
-        assertGte(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
+        assertGe(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
 
         // Ensure that max 2% difference between what is should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
@@ -511,13 +511,3 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         return array;
     }
 }
-/* 
-1226028000000
-1794876000000
-
-2921664000000
-3020904000000
-
-1800000000000 max penalty 
-
-*/

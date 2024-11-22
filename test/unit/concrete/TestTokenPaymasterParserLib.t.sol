@@ -4,10 +4,16 @@ pragma solidity ^0.8.27;
 import "forge-std/Test.sol";
 import "../../../contracts/libraries/TokenPaymasterParserLib.sol";
 import { IBiconomyTokenPaymaster } from "../../../contracts/interfaces/IBiconomyTokenPaymaster.sol";
+import { PaymasterParserLibWrapper } from "../../mocks/PaymasterParserLibWrapper.sol";
 
 // Mock contract to test the TokenPaymasterParserLib
 contract TestTokenPaymasterParserLib is Test {
-    using TokenPaymasterParserLib for bytes;
+
+    PaymasterParserLibWrapper public parser;
+
+    function setUp() public {
+        parser = new PaymasterParserLibWrapper();
+    }
 
     function test_ParsePaymasterAndData_ExternalMode() public {
         // Simulate an example paymasterAndData for External Mode
@@ -27,7 +33,7 @@ contract TestTokenPaymasterParserLib is Test {
 
         // Parse the paymasterAndData
         (IBiconomyTokenPaymaster.PaymasterMode parsedMode, bytes memory parsedModeSpecificData) =
-            paymasterAndData.parsePaymasterAndData();
+            parser.parsePaymasterAndData(paymasterAndData);
 
         // Validate the mode and modeSpecificData
         assertEq(uint8(parsedMode), uint8(expectedMode), "Mode should match External");
@@ -52,7 +58,7 @@ contract TestTokenPaymasterParserLib is Test {
 
         // Parse the paymasterAndData
         (IBiconomyTokenPaymaster.PaymasterMode parsedMode, bytes memory parsedModeSpecificData) =
-            paymasterAndData.parsePaymasterAndData();
+            parser.parsePaymasterAndData(paymasterAndData);
 
         // Validate the mode and modeSpecificData
         assertEq(uint8(parsedMode), uint8(expectedMode), "Mode should match Independent");
@@ -87,7 +93,7 @@ contract TestTokenPaymasterParserLib is Test {
             uint256 parsedTokenPrice,
             uint32 parsedExternalPriceMarkup,
             bytes memory parsedSignature
-        ) = externalModeSpecificData.parseExternalModeSpecificData();
+        ) = parser.parseExternalModeSpecificData(externalModeSpecificData);
 
         // Validate the parsed values
         assertEq(parsedValidUntil, expectedValidUntil, "ValidUntil should match");
@@ -98,13 +104,13 @@ contract TestTokenPaymasterParserLib is Test {
         assertEq(parsedSignature, expectedSignature, "Signature should match");
     }
 
-    function test_ParseIndependentModeSpecificData() public pure {
+    function test_ParseIndependentModeSpecificData() public view {
         // Simulate valid independent mode specific data
         address expectedTokenAddress = address(0x9876543210AbCDef9876543210ABCdEf98765432);
         bytes memory independentModeSpecificData = abi.encodePacked(bytes20(expectedTokenAddress));
 
         // Parse the mode specific data
-        address parsedTokenAddress = independentModeSpecificData.parseIndependentModeSpecificData();
+        address parsedTokenAddress = parser.parseIndependentModeSpecificData(independentModeSpecificData);
 
         // Validate the parsed token address
         assertEq(parsedTokenAddress, expectedTokenAddress, "Token address should match");
@@ -116,7 +122,7 @@ contract TestTokenPaymasterParserLib is Test {
 
         // Expect the test to revert due to invalid data length
         vm.expectRevert();
-        invalidExternalModeSpecificData.parseExternalModeSpecificData();
+        parser.parseExternalModeSpecificData(invalidExternalModeSpecificData);
     }
 
     function test_RevertIf_InvalidIndependentModeSpecificDataLength() public {
@@ -125,6 +131,6 @@ contract TestTokenPaymasterParserLib is Test {
 
         // Expect the test to revert due to invalid data length
         vm.expectRevert();
-        invalidIndependentModeSpecificData.parseIndependentModeSpecificData();
+        parser.parseIndependentModeSpecificData(invalidIndependentModeSpecificData);
     }
 }

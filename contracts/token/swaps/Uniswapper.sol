@@ -13,6 +13,8 @@ import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
  * @notice Based on Infinitism's Uniswap Helper contract
  */
 abstract contract Uniswapper {
+
+    event SwappingReverted(address tokenIn, uint256 amountIn, bytes reason);
     /// @notice The Uniswap V3 SwapRouter contract
     ISwapRouter public immutable uniswapRouter;
 
@@ -65,9 +67,8 @@ abstract contract Uniswapper {
 
         try uniswapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
             amountOut = _amountOut;
-        } catch {
-            // Review could emit an event here
-            // Uniswap Reverted
+        } catch (bytes memory reason) {
+            emit SwappingReverted(tokenIn, amountIn, reason);
             amountOut = 0;
         }
     }

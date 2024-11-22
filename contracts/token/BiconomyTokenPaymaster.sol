@@ -474,7 +474,7 @@ contract BiconomyTokenPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (PaymasterMode mode, bytes memory modeSpecificData) = userOp.paymasterAndData.parsePaymasterAndData();
+        (PaymasterMode mode, bytes calldata modeSpecificData) = userOp.paymasterAndData.parsePaymasterAndData();
 
         if (uint8(mode) > 1) {
             revert InvalidPaymasterMode();
