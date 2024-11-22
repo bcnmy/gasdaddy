@@ -32,9 +32,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     using UserOperationLib for PackedUserOperation;
 
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-    // NotE: updating below to WETH on Base.
+    // Note: review addresses if testing on other chains
     address constant WRAPPED_NATIVE_ADDRESS = address(0x4200000000000000000000000000000000000006);
-    // Review address kept
     address constant SWAP_ROUTER_ADDRESS = address(0x2626664c2603336E57B271c5C0b26F421741e481);
 
     uint32 internal constant _PRICE_MARKUP_DENOMINATOR = 1e6;
@@ -485,8 +484,8 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         uint256 gasPaidBySAInNativeTokens = gasPaidBySAInERC20 * 1e18 / tokenPrice;
 
-        // Review we will also need to update premium numbers in below if there is premium: multiply by 1e6 / premium
-        assertGt(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
+        // Assert we never undercharge
+        assertGte(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
 
         // Ensure that max 2% difference between what is should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)

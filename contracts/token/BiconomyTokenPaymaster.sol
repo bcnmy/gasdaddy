@@ -523,7 +523,6 @@ contract BiconomyTokenPaymaster is
 
 
             uint256 tokenAmount;
-            // Review
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
