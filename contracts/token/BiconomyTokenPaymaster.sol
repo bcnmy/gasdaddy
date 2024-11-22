@@ -441,6 +441,24 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
+     * @dev Get the price of a token in USD
+     * @param tokenAddress The address of the token to get the price of
+     * @return price The price of the token in USD
+     */
+    function getPrice(address tokenAddress) public view returns (uint256) {
+        return _getPrice(tokenAddress);
+    }
+
+    /**
+     * @dev Check if a token is supported
+     * @param tokenAddress The address of the token to check
+     * @return bool True if the token is supported, false otherwise
+     */
+    function isTokenSupported(address tokenAddress) public view returns (bool) {
+        return independentTokenDirectory[tokenAddress].oracle != IOracle(address(0));
+    }
+
+    /**
      * @dev Validate a user operation.
      * This method is abstract in BasePaymaster and must be implemented in derived contracts.
      * @param userOp The user operation.
