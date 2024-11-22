@@ -3,8 +3,21 @@ pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+//import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
+
+interface ISwapRouter {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+    function exactInputSingle(ExactInputSingleParams memory params) external payable returns (uint256 amountOut);
+}
 
 /**
  * @title Uniswapper
@@ -59,7 +72,7 @@ abstract contract Uniswapper {
             tokenOut: wrappedNative,
             fee: tokenToPools[tokenIn],
             recipient: address(this),
-            deadline: block.timestamp,
+            //deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0
@@ -75,6 +88,7 @@ abstract contract Uniswapper {
 
     function _unwrapWeth(uint256 amount) internal {
         if(amount == 0) return;
+        IERC20(wrappedNative).transfer(address(uniswapRouter), amount);
         IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(amount, address(this));
     }
 }
