@@ -12,9 +12,9 @@ library TokenPaymasterParserLib {
     function parsePaymasterAndData(
         bytes calldata paymasterAndData
     )
-        external
+        internal
         pure
-        returns (IBiconomyTokenPaymaster.PaymasterMode mode, bytes memory modeSpecificData)
+        returns (IBiconomyTokenPaymaster.PaymasterMode mode, bytes calldata modeSpecificData)
     {
         unchecked {
             mode = IBiconomyTokenPaymaster.PaymasterMode(uint8(bytes1(paymasterAndData[PAYMASTER_MODE_OFFSET])));
@@ -25,15 +25,15 @@ library TokenPaymasterParserLib {
     function parseExternalModeSpecificData(
         bytes calldata modeSpecificData
     )
-        external
+        internal
         pure
         returns (
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint256 tokenPrice, // Review: why uint128 and not uint256. in independent mode it is uint256
+            uint256 tokenPrice, 
             uint32 externalPriceMarkup,
-            bytes memory signature
+            bytes calldata signature
         )
     {
         validUntil = uint48(bytes6(modeSpecificData[:6]));
@@ -47,7 +47,7 @@ library TokenPaymasterParserLib {
     function parseIndependentModeSpecificData(
         bytes calldata modeSpecificData
     )
-        external
+        internal
         pure
         returns (address tokenAddress)
     {

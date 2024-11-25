@@ -3,8 +3,8 @@ pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
+import { IV3SwapRouter } from "@uniswap/swap-router-contracts/contracts/interfaces/IV3SwapRouter.sol";
 
 /**
  * @title Uniswapper
@@ -13,8 +13,10 @@ import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
  * @notice Based on Infinitism's Uniswap Helper contract
  */
 abstract contract Uniswapper {
+
+    event SwappingReverted(address tokenIn, uint256 amountIn, bytes reason);
     /// @notice The Uniswap V3 SwapRouter contract
-    ISwapRouter public immutable uniswapRouter;
+    IV3SwapRouter public immutable uniswapRouter;
 
     /// @notice The ERC-20 token that wraps the native asset for current chain
     address public immutable wrappedNative;
@@ -27,7 +29,7 @@ abstract contract Uniswapper {
     error TokensAndPoolsLengthMismatch();
 
     constructor(
-        ISwapRouter uniswapRouterArg,
+        IV3SwapRouter uniswapRouterArg,
         address wrappedNativeArg,
         address[] memory tokens,
         uint24[] memory tokenPoolFeeTiers
@@ -52,12 +54,12 @@ abstract contract Uniswapper {
     }
 
     function _swapTokenToWeth(address tokenIn, uint256 amountIn, uint256 minAmountOut) internal returns (uint256 amountOut) {
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: wrappedNative,
             fee: tokenToPools[tokenIn],
             recipient: address(this),
-            deadline: block.timestamp,
+            //deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0
@@ -65,15 +67,15 @@ abstract contract Uniswapper {
 
         try uniswapRouter.exactInputSingle(params) returns (uint256 _amountOut) {
             amountOut = _amountOut;
-        } catch {
-            // Review could emit an event here
-            // Uniswap Reverted
+        } catch (bytes memory reason) {
+            emit SwappingReverted(tokenIn, amountIn, reason);
             amountOut = 0;
         }
     }
 
     function _unwrapWeth(uint256 amount) internal {
         if(amount == 0) return;
+        IERC20(wrappedNative).transfer(address(uniswapRouter), amount);
         IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(amount, address(this));
     }
 }

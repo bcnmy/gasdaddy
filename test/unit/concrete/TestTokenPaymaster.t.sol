@@ -15,20 +15,21 @@ import "../../../contracts/token/swaps/Uniswapper.sol";
 
 contract TestTokenPaymaster is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
-    ISwapRouter swapRouter;
+    IV3SwapRouter swapRouter;
     MockOracle public nativeAssetToUsdOracle;
     MockToken public testToken;
     MockToken public testToken2;
     MockOracle public tokenOracle;
+    uint256 public customGasPrice;
 
     function setUp() public {
         setupPaymasterTestEnvironment();
 
-        uint256 customGasPrice = 3e6;
+        customGasPrice = 3e6;
         vm.txGasPrice(customGasPrice);
 
         // Deploy mock oracles and tokens
-        swapRouter = ISwapRouter(address(SWAP_ROUTER_ADDRESS));
+        swapRouter = IV3SwapRouter(address(SWAP_ROUTER_ADDRESS));
         nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH // ETH/USD
         tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token // TKN/USD
         testToken = new MockToken("Test Token", "TKN");
@@ -401,7 +402,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(50_000);
+        tokenPaymaster.setUnaccountedGas(22_000);
         vm.stopPrank();
 
         // Warm up the ERC20 balance slot for paymaster by making some tokens held initially
@@ -453,7 +454,9 @@ contract TestTokenPaymaster is TestBase {
 
         // Execute the operation
         startPrank(BUNDLER.addr);
+        uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        gasValue = gasValue - gasleft();
         stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
@@ -464,8 +467,9 @@ contract TestTokenPaymaster is TestBase {
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
-            100000,
-            this.getMaxPenalty(ops[0]));
+            _PRICE_MARKUP_DENOMINATOR,
+            this.getMaxPenalty(ops[0]),
+            this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
 
     function test_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
@@ -476,7 +480,7 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(200_000);
+        tokenPaymaster.setUnaccountedGas(20_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -508,7 +512,9 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         startPrank(BUNDLER.addr);
+        uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
+        gasValue = gasValue - gasleft();
         stopPrank();
 
         calculateAndAssertAdjustmentsForTokenPaymaster(
@@ -519,7 +525,8 @@ contract TestTokenPaymaster is TestBase {
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
             1e18, // tokenPrice
-            100000,
-            this.getMaxPenalty(ops[0]));
+            _PRICE_MARKUP_DENOMINATOR,
+            this.getMaxPenalty(ops[0]),
+            this.getRealPenalty(ops[0], gasValue, customGasPrice));
     }
 }

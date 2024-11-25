@@ -5,6 +5,7 @@ node_modules
 out
 docs
 storageLayout
+cache_forge
 
 # files
 *.env

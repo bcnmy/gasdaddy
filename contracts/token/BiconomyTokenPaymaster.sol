@@ -16,9 +16,7 @@ import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.so
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
-import "./swaps/Uniswapper.sol";
-// Todo: marked for removal
-import "forge-std/console2.sol";
+import { Uniswapper, IV3SwapRouter } from "./swaps/Uniswapper.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -72,7 +70,7 @@ contract BiconomyTokenPaymaster is
         uint256 priceExpiryDurationArg,
         uint256 nativeAssetDecimalsArg,
         IOracle nativeAssetToUsdOracleArg,
-        ISwapRouter uniswapRouterArg,
+        IV3SwapRouter uniswapRouterArg,
         address wrappedNativeArg,
         address[] memory independentTokensArg, // Array of token addresses supported by the paymaster in independent
         // mode
@@ -441,6 +439,24 @@ contract BiconomyTokenPaymaster is
     }
 
     /**
+     * @dev Get the price of a token in USD
+     * @param tokenAddress The address of the token to get the price of
+     * @return price The price of the token in USD
+     */
+    function getPrice(address tokenAddress) public view returns (uint256) {
+        return _getPrice(tokenAddress);
+    }
+
+    /**
+     * @dev Check if a token is supported
+     * @param tokenAddress The address of the token to check
+     * @return bool True if the token is supported, false otherwise
+     */
+    function isTokenSupported(address tokenAddress) public view returns (bool) {
+        return independentTokenDirectory[tokenAddress].oracle != IOracle(address(0));
+    }
+
+    /**
      * @dev Validate a user operation.
      * This method is abstract in BasePaymaster and must be implemented in derived contracts.
      * @param userOp The user operation.
@@ -456,7 +472,7 @@ contract BiconomyTokenPaymaster is
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (PaymasterMode mode, bytes memory modeSpecificData) = userOp.paymasterAndData.parsePaymasterAndData();
+        (PaymasterMode mode, bytes calldata modeSpecificData) = userOp.paymasterAndData.parsePaymasterAndData();
 
         if (uint8(mode) > 1) {
             revert InvalidPaymasterMode();
@@ -505,7 +521,6 @@ contract BiconomyTokenPaymaster is
 
 
             uint256 tokenAmount;
-            // Review
             {
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
                 tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
@@ -517,7 +532,14 @@ contract BiconomyTokenPaymaster is
 
             // deduct max penalty from the token amount we pass to the postOp
             // so we don't refund it at postOp
-            context = abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, externalPriceMarkup, userOpHash);
+            context = abi.encode(
+                userOp.sender,
+                tokenAddress,
+                tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                tokenPrice,
+                externalPriceMarkup,
+                userOpHash
+            );
             validationData = _packValidationData(false, validUntil, validAfter);
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
@@ -528,12 +550,12 @@ contract BiconomyTokenPaymaster is
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
             uint256 tokenPrice = _getPrice(tokenAddress);
+
             if(tokenPrice == 0) {
                 revert TokenNotSupported();
             }
             uint256 tokenAmount;
 
-            // TODO: Account for penalties here
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
@@ -545,7 +567,14 @@ contract BiconomyTokenPaymaster is
             SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
 
             context =
-                abi.encode(userOp.sender, tokenAddress, tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)), tokenPrice, independentPriceMarkup, userOpHash);
+                abi.encode(
+                    userOp.sender,
+                    tokenAddress,
+                    tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                    tokenPrice,
+                    independentPriceMarkup,
+                    userOpHash
+                );
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -587,7 +616,6 @@ contract BiconomyTokenPaymaster is
             emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
         }
 
-        // Todo: Review events and what we need to emit.
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, tokenPrice, userOpHash
         );
