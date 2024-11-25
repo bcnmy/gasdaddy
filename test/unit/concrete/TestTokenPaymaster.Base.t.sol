@@ -135,7 +135,10 @@ contract TestTokenPaymasterBase is TestBase {
             initialUserTokenBalance, 
             initialPaymasterTokenBalance,
             // IF THIS CASE FAILS ON 2% TOLERANCE => PUT THE FRESH PRICE FROM ORACLE HERE
-            3344583445,
+            // https://basescan.org/address/0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70#readContract#F8
+            // and remove two last digits from the price
+            //3344583445,
+            3478381850, 
             _PRICE_MARKUP_DENOMINATOR,
             this.getMaxPenalty(ops[0]),
             this.getRealPenalty(ops[0], gasValue, customGasPrice));
