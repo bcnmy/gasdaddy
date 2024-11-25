@@ -34,6 +34,8 @@
   optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
   polygon = { key = "${API_KEY_POLYGONSCAN}" }
   sepolia = { key = "${API_KEY_ETHERSCAN}" }
+  base = { key = "${BASESCAN_API_KEY}" }
+  base-sepolia = { key = "${BASESCAN_API_KEY}" }
 
 [fmt]
   bracket_spacing = true
@@ -54,4 +56,8 @@
   optimism = "https://optimism-mainnet.infura.io/v3/${API_KEY_INFURA}"
   polygon = "https://polygon-mainnet.infura.io/v3/${API_KEY_INFURA}"
   sepolia = "https://sepolia.infura.io/v3/${API_KEY_INFURA}"
+  base = "${BASE_RPC_URL}"
+  base-sepolia = "${BASE_SEPOLIA_RPC_URL}"
 
+# sepolia base
+# forge script DeployTokenPMTest --rpc-url base-sepolia --broadcast --sender 0x531b827c1221EC7CE13266e8F5CB1ec6Ae470be5 --private-key $PRIVATE_KEY_BASE --verify --verifier-url https://api-sepolia.basescan.org/api --etherscan-api-key T3F3Z7T992V5BVN3TSU5KBD7NNK6P4A5D2
