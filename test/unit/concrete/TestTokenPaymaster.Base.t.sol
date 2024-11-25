@@ -15,7 +15,7 @@ import "../../../contracts/token/swaps/Uniswapper.sol";
 
 contract TestTokenPaymasterBase is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
-    ISwapRouter public swapRouter;
+    IV3SwapRouter public swapRouter;
     // base addresses
     IOracle public nativeOracle = IOracle(0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70); // base ETH/USD chainlink feed
     IOracle public tokenOracle = IOracle(0x7e860098F58bBFC8648a4311b374B1D669a2bc6B); // base USDC/USD chainlink feed
@@ -33,7 +33,7 @@ contract TestTokenPaymasterBase is TestBase {
 
         console2.log("current block timestamp ", block.timestamp);
 
-        swapRouter = ISwapRouter(SWAP_ROUTER_ADDRESS); // uniswap swap router v2 on base
+        swapRouter = IV3SwapRouter(SWAP_ROUTER_ADDRESS); // uniswap swap router v2 on base
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,

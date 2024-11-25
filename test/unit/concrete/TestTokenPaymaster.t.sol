@@ -15,7 +15,7 @@ import "../../../contracts/token/swaps/Uniswapper.sol";
 
 contract TestTokenPaymaster is TestBase {
     BiconomyTokenPaymaster public tokenPaymaster;
-    ISwapRouter swapRouter;
+    IV3SwapRouter swapRouter;
     MockOracle public nativeAssetToUsdOracle;
     MockToken public testToken;
     MockToken public testToken2;
@@ -29,7 +29,7 @@ contract TestTokenPaymaster is TestBase {
         vm.txGasPrice(customGasPrice);
 
         // Deploy mock oracles and tokens
-        swapRouter = ISwapRouter(address(SWAP_ROUTER_ADDRESS));
+        swapRouter = IV3SwapRouter(address(SWAP_ROUTER_ADDRESS));
         nativeAssetToUsdOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ETH // ETH/USD
         tokenOracle = new MockOracle(100_000_000, 8); // Oracle with 8 decimals for ERC20 token // TKN/USD
         testToken = new MockToken("Test Token", "TKN");

@@ -13,6 +13,7 @@
     "solady": "github:vectorized/solady",
     "@uniswap/v3-core": "https://github.com/Uniswap/v3-core#0.8",
     "@uniswap/v3-periphery": "https://github.com/Uniswap/v3-periphery#0.8",
+    "@uniswap/swap-router-contracts": "https://github.com/Uniswap/swap-router-contracts",
     "@prb/test": "^0.6.4"
   },
   "devDependencies": {

@@ -32,7 +32,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
     using UserOperationLib for PackedUserOperation;
 
     address constant ENTRYPOINT_ADDRESS = address(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-    // Note: review addresses if testing on other chains
+    // Note: addresses valid for Base, can be different for other chains
     address constant WRAPPED_NATIVE_ADDRESS = address(0x4200000000000000000000000000000000000006);
     address constant SWAP_ROUTER_ADDRESS = address(0x2626664c2603336E57B271c5C0b26F421741e481);
 

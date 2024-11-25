@@ -16,9 +16,7 @@ import { TokenPaymasterParserLib } from "../libraries/TokenPaymasterParserLib.so
 import { SignatureCheckerLib } from "solady/utils/SignatureCheckerLib.sol";
 import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
-import "./swaps/Uniswapper.sol";
-// Todo: marked for removal
-import "forge-std/console2.sol";
+import { Uniswapper, IV3SwapRouter } from "./swaps/Uniswapper.sol";
 
 /**
  * @title BiconomyTokenPaymaster
@@ -72,7 +70,7 @@ contract BiconomyTokenPaymaster is
         uint256 priceExpiryDurationArg,
         uint256 nativeAssetDecimalsArg,
         IOracle nativeAssetToUsdOracleArg,
-        ISwapRouter uniswapRouterArg,
+        IV3SwapRouter uniswapRouterArg,
         address wrappedNativeArg,
         address[] memory independentTokensArg, // Array of token addresses supported by the paymaster in independent
         // mode
@@ -553,8 +551,6 @@ contract BiconomyTokenPaymaster is
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
             uint256 tokenPrice = _getPrice(tokenAddress);
 
-            console2.log("tokenPrice in validation phase", tokenPrice);
-
             if(tokenPrice == 0) {
                 revert TokenNotSupported();
             }
@@ -608,8 +604,6 @@ contract BiconomyTokenPaymaster is
             uint32 appliedPriceMarkup,
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
-
-        console2.log("unaccountedGas", unaccountedGas);
 
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (

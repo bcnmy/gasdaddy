@@ -4,19 +4,7 @@ pragma solidity ^0.8.27;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
-
-interface ISwapRouter {
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-    function exactInputSingle(ExactInputSingleParams memory params) external payable returns (uint256 amountOut);
-}
+import { IV3SwapRouter } from "@uniswap/swap-router-contracts/contracts/interfaces/IV3SwapRouter.sol";
 
 /**
  * @title Uniswapper
@@ -28,7 +16,7 @@ abstract contract Uniswapper {
 
     event SwappingReverted(address tokenIn, uint256 amountIn, bytes reason);
     /// @notice The Uniswap V3 SwapRouter contract
-    ISwapRouter public immutable uniswapRouter;
+    IV3SwapRouter public immutable uniswapRouter;
 
     /// @notice The ERC-20 token that wraps the native asset for current chain
     address public immutable wrappedNative;
@@ -41,7 +29,7 @@ abstract contract Uniswapper {
     error TokensAndPoolsLengthMismatch();
 
     constructor(
-        ISwapRouter uniswapRouterArg,
+        IV3SwapRouter uniswapRouterArg,
         address wrappedNativeArg,
         address[] memory tokens,
         uint24[] memory tokenPoolFeeTiers
@@ -66,7 +54,7 @@ abstract contract Uniswapper {
     }
 
     function _swapTokenToWeth(address tokenIn, uint256 amountIn, uint256 minAmountOut) internal returns (uint256 amountOut) {
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: wrappedNative,
             fee: tokenToPools[tokenIn],

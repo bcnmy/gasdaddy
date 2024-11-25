@@ -106,7 +106,6 @@ contract TestFuzz_SponsorshipPaymasterWithPriceMarkup is TestBase {
         assertEq(token.balanceOf(ALICE_ADDRESS), mintAmount);
     }
 
-    // Review: fuzz with high markeup and current set values.
     function testFuzz_ValidatePaymasterAndPostOpWithPriceMarkup(uint32 priceMarkup) external {
         vm.assume(priceMarkup <= 2e6 && priceMarkup > 1e6);
         bicoPaymaster.depositFor{ value: 10 ether }(DAPP_ACCOUNT.addr);
