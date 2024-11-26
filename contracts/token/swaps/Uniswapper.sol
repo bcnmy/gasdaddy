@@ -15,6 +15,8 @@ import { IV3SwapRouter } from "@uniswap/swap-router-contracts/contracts/interfac
 abstract contract Uniswapper {
 
     event SwappingReverted(address tokenIn, uint256 amountIn, bytes reason);
+    error UnwrappingReverted(uint256 amount);
+
     /// @notice The Uniswap V3 SwapRouter contract
     IV3SwapRouter public immutable uniswapRouter;
 
@@ -75,7 +77,7 @@ abstract contract Uniswapper {
 
     function _unwrapWeth(uint256 amount) internal {
         if(amount == 0) return;
-        IERC20(wrappedNative).transfer(address(uniswapRouter), amount);
-        IPeripheryPayments(address(uniswapRouter)).unwrapWETH9(amount, address(this));
+        (bool success, ) = address(wrappedNative).call(abi.encodeWithSignature("withdraw(uint256)", amount));
+        if (!success) revert UnwrappingReverted(amount);
     }
 }
