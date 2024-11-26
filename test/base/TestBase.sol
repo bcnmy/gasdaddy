@@ -414,7 +414,6 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
                 + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]));
 
         uint256 penalty = (gasLimit - gasValue) * 10 * gasPrice / 100;
-        console2.log("penalty in tests", penalty);
         return penalty;
     }
 
@@ -477,11 +476,6 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // unless ofcourse there is same token transfer in calldata
         assertEq(gasPaidBySAInERC20, gasCollectedInERC20ByPaymaster);
 
-        console2.log("gasPaidBySAInERC20", gasPaidBySAInERC20);
-        console2.log("gasCollectedInERC20ByPaymaster", gasCollectedInERC20ByPaymaster);
-        console2.log("maxPenalty", maxPenalty);
-        console2.log("totalGasFeePaid", totalGasFeePaid);
-
         uint256 gasPaidBySAInNativeTokens = gasPaidBySAInERC20 * 1e18 / tokenPrice;
 
         // Assert we never undercharge
@@ -490,7 +484,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Ensure that max 2% difference between what is should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
         // and from estimation of real penalty which is not emitted by EP :(
-        assertApproxEqRel((totalGasFeePaid + maxPenalty - realPenalty) * priceMarkup / _PRICE_MARKUP_DENOMINATOR, gasPaidBySAInNativeTokens, 0.02e18);
+        assertApproxEqRel((totalGasFeePaid + maxPenalty - realPenalty) * priceMarkup / _PRICE_MARKUP_DENOMINATOR, gasPaidBySAInNativeTokens, 0.02e18, "If this fails, check the test case inline comments");
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {

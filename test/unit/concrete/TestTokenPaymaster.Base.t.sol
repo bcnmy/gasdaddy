@@ -31,8 +31,6 @@ contract TestTokenPaymasterBase is TestBase {
         // assertEq(block.number, 21744650);
         setupPaymasterTestEnvironment();
 
-        console2.log("current block timestamp ", block.timestamp);
-
         swapRouter = IV3SwapRouter(SWAP_ROUTER_ADDRESS); // uniswap swap router v2 on base
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
@@ -148,7 +146,6 @@ contract TestTokenPaymasterBase is TestBase {
         // deposit 100 USDC to the paymaster    
         deal(address(usdc), address(tokenPaymaster), 100e6);
         uint256 initialTokenBalance = usdc.balanceOf(address(tokenPaymaster));
-        console2.log("initialTokenBalance", initialTokenBalance);
         uint256 initialDepositOnEntryPoint = tokenPaymaster.getDeposit();
 
         vm.startPrank(address(tokenPaymaster));
