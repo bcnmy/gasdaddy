@@ -62,11 +62,6 @@ contract BiconomyTokenPaymasterErrors {
     error InvalidTokenAddress();
 
     /**
-     * @notice Throws when user tries to pay with an unsupported token
-     */
-    error TokenNotSupported();
-
-    /**
      * @notice Throws when oracle decimals aren't equal to 8
      */
     error InvalidOracleDecimals();

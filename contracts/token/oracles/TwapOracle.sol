@@ -74,6 +74,10 @@ contract TwapOracle is IOracle {
         return _buildLatestRoundData(normalizedPrice);
     }
 
+    function latestAnswer() external view override returns (int256) {
+        return int256(_fetchTwap());
+    }
+
     function decimals() external pure override returns (uint8) {
         return 8;
     }

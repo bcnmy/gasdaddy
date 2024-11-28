@@ -74,4 +74,8 @@ contract MockOracle is IOracle {
             73_786_976_294_838_215_802 // Mock round ID for answeredInRound
         );
     }
+
+    function latestAnswer() external view override returns (int256) {
+        return price;
+    }
 }

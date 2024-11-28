@@ -29,6 +29,7 @@ abstract contract Uniswapper {
     // Errors
     error UniswapReverted(address tokenIn, address tokenOut, uint256 amountIn);
     error TokensAndPoolsLengthMismatch();
+    error TokenNotSupported();
 
     constructor(
         IV3SwapRouter uniswapRouterArg,
@@ -56,6 +57,7 @@ abstract contract Uniswapper {
     }
 
     function _swapTokenToWeth(address tokenIn, uint256 amountIn, uint256 minAmountOut) internal returns (uint256 amountOut) {
+        require(tokenToPools[tokenIn] != 0, TokenNotSupported());
         IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: wrappedNative,
