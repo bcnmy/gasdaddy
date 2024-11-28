@@ -14,7 +14,8 @@ interface IBiconomyTokenPaymaster {
     // Struct for storing information about the token
     struct TokenInfo {
         IOracle oracle;
-        uint256 decimals;
+        uint32 priceMarkup;
+        uint256 priceExpiryDuration;
     }
 
     event UpdatedUnaccountedGas(uint256 indexed oldValue, uint256 indexed newValue);

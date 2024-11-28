@@ -38,14 +38,13 @@ contract TestTokenPaymasterBase is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             50000, // unaccounted gas
-            1e6, // price markup (for independent mode)
-            1 days, // price expiry duration
-            1e18, // native token decimals
+            1e18, // native asset decimals
             nativeOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(usdc)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             _toSingletonArray(address(usdc)),
             _toSingletonArray(uint24(500)) // from here: https://basescan.org/address/0xd0b53D9277642d899DF5C87A3966A349A798F224#readContract
         );

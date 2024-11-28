@@ -50,8 +50,8 @@ contract BiconomyTokenPaymaster is
     // State variables
     address public verifyingSigner; // entity used to provide external token price and markup
     uint256 public unaccountedGas;
-    uint32 public independentPriceMarkup; // price markup used for independent mode
-    uint256 public priceExpiryDuration; // oracle price expiry duration
+    //uint32 public independentPriceMarkup; // price markup used for independent mode
+    //uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
     mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens
     // supported in // independent mode
@@ -59,22 +59,23 @@ contract BiconomyTokenPaymaster is
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
     uint32 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint32 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
-    uint256 private immutable _NATIVE_TOKEN_DECIMALS;
+    uint256 private immutable _NATIVE_TOKEN_DECIMALS;  // gas savings
+    uint256 private immutable _NATIVE_ASSET_PRICE_EXPIRY_DURATION; // gas savings
 
     constructor(
         address owner,
         address verifyingSignerArg,
         IEntryPoint entryPoint,
         uint256 unaccountedGasArg,
-        uint32 independentPriceMarkupArg, // price markup used for independent mode
-        uint256 priceExpiryDurationArg,
+        //uint32 independentPriceMarkupArg, // price markup used for independent mode
+        //uint256 priceExpiryDurationArg,
         uint256 nativeAssetDecimalsArg,
         IOracle nativeAssetToUsdOracleArg,
+        uint256 nativeAssetPriceExpiryDurationArg,
         IV3SwapRouter uniswapRouterArg,
         address wrappedNativeArg,
-        address[] memory independentTokensArg, // Array of token addresses supported by the paymaster in independent
-        // mode
-        IOracle[] memory oraclesArg, // Array of corresponding oracle addresses for independently supported tokens
+        address[] memory independentTokensArg, // Array of tokens supported in independent mode
+        TokenInfo[] memory tokenInfosArg, // Array of corresponding tokenInfo objects
         address[] memory swappableTokens, // Array of tokens that you want swappable by the uniswapper
         uint24[] memory swappableTokenPoolFeeTiers // Array of uniswap pool fee tiers for each swappable token
     )
@@ -82,6 +83,8 @@ contract BiconomyTokenPaymaster is
         Uniswapper(uniswapRouterArg, wrappedNativeArg, swappableTokens, swappableTokenPoolFeeTiers)
     {
         _NATIVE_TOKEN_DECIMALS = nativeAssetDecimalsArg;
+        _NATIVE_ASSET_PRICE_EXPIRY_DURATION = nativeAssetPriceExpiryDurationArg;
+
         if (_isContract(verifyingSignerArg)) {
             revert VerifyingSignerCanNotBeContract();
         }
@@ -122,7 +125,12 @@ contract BiconomyTokenPaymaster is
                 revert InvalidOracleDecimals();
             }
             independentTokenDirectory[independentTokensArg[i]] =
-                TokenInfo(oraclesArg[i], 10 ** IERC20Metadata(independentTokensArg[i]).decimals());
+                TokenInfo(
+                    tokenInfosArg[i].oracle,
+                    tokenInfosArg[i].priceMarkup,
+                    tokenInfosArg[i].priceExpiryDuration
+                ); 
+                    //10 ** IERC20Metadata(independentTokensArg[i]).decimals());
         }
     }
 
@@ -304,16 +312,15 @@ contract BiconomyTokenPaymaster is
      * @param oracle The oracle to use for the specified token
      * @notice only to be called by the owner of the contract.
      */
-    function addToTokenDirectory(address tokenAddress, IOracle oracle) external payable onlyOwner {
-        if (oracle.decimals() != 8) {
+    function addToTokenDirectory(address tokenAddress, TokenInfo tokenInfo) external payable onlyOwner {
+        if (tokenInfo.oracle.decimals() != 8) {
             // Token -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
         }
 
-        uint8 decimals = IERC20Metadata(tokenAddress).decimals();
-        independentTokenDirectory[tokenAddress] = TokenInfo(oracle, 10 ** decimals);
+        independentTokenDirectory[tokenAddress] = tokenInfo;
 
-        emit AddedToTokenDirectory(tokenAddress, oracle, decimals);
+        emit AddedToTokenDirectory(tokenAddress, tokenInfo.oracle, tokenInfo.oracle.decimals());
     }
 
     /**
@@ -555,11 +562,12 @@ contract BiconomyTokenPaymaster is
                 revert TokenNotSupported();
             }
             uint256 tokenAmount;
+            uint32 priceMarkup = independentTokenDirectory[tokenAddress].priceMarkup;
 
             {
                 // Calculate token amount to precharge
                 uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * independentPriceMarkup * tokenPrice)
+                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * priceMarkup * tokenPrice)
                     / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
             }
 
@@ -570,9 +578,9 @@ contract BiconomyTokenPaymaster is
                 abi.encode(
                     userOp.sender,
                     tokenAddress,
-                    tokenAmount-((maxPenalty*tokenPrice*independentPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                    tokenAmount-((maxPenalty*tokenPrice*priceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
                     tokenPrice,
-                    independentPriceMarkup,
+                    priceMarkup,
                     userOpHash
                 );
             validationData = 0; // Validation success and price is valid indefinetly
@@ -633,8 +641,8 @@ contract BiconomyTokenPaymaster is
         }
 
         // Calculate price by using token and native oracle
-        uint256 tokenPrice = _fetchPrice(tokenInfo.oracle);
-        uint256 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle);
+        uint256 tokenPrice = _fetchPrice(tokenInfo.oracle, tokenInfo.priceExpiryDuration);
+        uint256 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle, _NATIVE_ASSET_PRICE_EXPIRY_DURATION);
 
         // Adjust to token  decimals
         price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
@@ -645,7 +653,7 @@ contract BiconomyTokenPaymaster is
     /// @param oracle The oracle contract to fetch the price from.
     /// @return price The latest price fetched from the oracle.
     /// Note: We could do this using oracle aggregator, so we can also use Pyth. or Twap based oracle and just not chainlink.
-    function _fetchPrice(IOracle oracle) internal view returns (uint256 price) {
+    function _fetchPrice(IOracle oracle, uint256 priceExpiryDuration) internal view returns (uint256 price) {
         (, int256 answer,, uint256 updatedAt,) = oracle.latestRoundData();
         if (answer <= 0) {
             revert OraclePriceNotPositive();

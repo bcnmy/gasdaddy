@@ -6,7 +6,8 @@ import {
     BiconomyTokenPaymaster,
     IBiconomyTokenPaymaster,
     BiconomyTokenPaymasterErrors,
-    IOracle
+    IOracle,
+    TokenInfo
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
 import { MockOracle } from "../../mocks/MockOracle.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
@@ -41,14 +42,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             50000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
-            1e18, // native token decimals
+            1e18, // native asset decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
