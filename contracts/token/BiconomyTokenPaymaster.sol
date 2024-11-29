@@ -58,6 +58,13 @@ contract BiconomyTokenPaymaster is
     uint256 private immutable _NATIVE_TOKEN_DECIMALS;  // gas savings
     uint256 private immutable _NATIVE_ASSET_PRICE_EXPIRY_DURATION; // gas savings
 
+    /**
+     * @dev markup and expiry duration are provided for each token.
+     * Price expiry duration should be set to the heartbeat value of the token. 
+     * Additionally, priceMarkup must be higher than Chainlink’s deviation threshold value.
+     * More: https://docs.chain.link/architecture-overview/architecture-decentralized-model 
+     */
+
     constructor(
         address owner,
         address verifyingSignerArg,
