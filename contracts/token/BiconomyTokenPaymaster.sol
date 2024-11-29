@@ -18,6 +18,8 @@ import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import { Uniswapper, IV3SwapRouter } from "./swaps/Uniswapper.sol";
 
+import "forge-std/console2.sol";
+
 /**
  * @title BiconomyTokenPaymaster
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
@@ -94,35 +96,36 @@ contract BiconomyTokenPaymaster is
         if (unaccountedGasArg > _UNACCOUNTED_GAS_LIMIT) {
             revert UnaccountedGasTooHigh();
         }
-        if (independentPriceMarkupArg > _MAX_PRICE_MARKUP || independentPriceMarkupArg < _PRICE_DENOMINATOR) {
-            // Not between 0% and 100% markup
-            revert InvalidPriceMarkup();
-        }
-        if (independentTokensArg.length != oraclesArg.length) {
+
+        if (independentTokensArg.length != tokenInfosArg.length) {
             revert TokensAndInfoLengthMismatch();
         }
         if (nativeAssetToUsdOracleArg.decimals() != 8) {
             // ETH -> USD will always have 8 decimals for Chainlink and TWAP
             revert InvalidOracleDecimals();
         }
-        if (block.timestamp < priceExpiryDurationArg) {
-            revert InvalidPriceExpiryDuration();
-        }
 
         // Set state variables
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, verifyingSignerArg)
             sstore(unaccountedGas.slot, unaccountedGasArg)
-            sstore(independentPriceMarkup.slot, independentPriceMarkupArg)
-            sstore(priceExpiryDuration.slot, priceExpiryDurationArg)
+            //sstore(independentPriceMarkup.slot, independentPriceMarkupArg)
+            //sstore(priceExpiryDuration.slot, priceExpiryDurationArg)
             sstore(nativeAssetToUsdOracle.slot, nativeAssetToUsdOracleArg)
         }
 
         // Populate the tokenToOracle mapping
         for (uint256 i = 0; i < independentTokensArg.length; i++) {
-            if (oraclesArg[i].decimals() != 8) {
+            if (tokenInfosArg[i].oracle.decimals() != 8) {
                 // Token -> USD will always have 8 decimals
                 revert InvalidOracleDecimals();
+            }
+            if (tokenInfosArg[i].priceMarkup > _MAX_PRICE_MARKUP || tokenInfosArg[i].priceMarkup < _PRICE_DENOMINATOR) {
+                // Not between 0% and 100% markup
+                revert InvalidPriceMarkup();
+            }
+            if (block.timestamp < tokenInfosArg[i].priceExpiryDuration) {
+                revert InvalidPriceExpiryDuration();
             }
             independentTokenDirectory[independentTokensArg[i]] =
                 TokenInfo(
@@ -261,15 +264,13 @@ contract BiconomyTokenPaymaster is
      * @param newIndependentPriceMarkup The new value to be set as the price markup
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceMarkup(uint32 newIndependentPriceMarkup) external payable onlyOwner {
+    function setPriceMarkupForToken(address tokenAddress, uint32 newIndependentPriceMarkup) external payable onlyOwner {
         if (newIndependentPriceMarkup > _MAX_PRICE_MARKUP || newIndependentPriceMarkup < _PRICE_DENOMINATOR) {
             // Not between 0% and 100% markup
             revert InvalidPriceMarkup();
         }
-        uint32 oldIndependentPriceMarkup = independentPriceMarkup;
-        assembly ("memory-safe") {
-            sstore(independentPriceMarkup.slot, newIndependentPriceMarkup)
-        }
+        uint32 oldIndependentPriceMarkup = independentTokenDirectory[tokenAddress].priceMarkup;
+        independentTokenDirectory[tokenAddress].priceMarkup = newIndependentPriceMarkup;
         emit UpdatedFixedPriceMarkup(oldIndependentPriceMarkup, newIndependentPriceMarkup);
     }
 
@@ -278,12 +279,10 @@ contract BiconomyTokenPaymaster is
      * @param newPriceExpiryDuration The new value to be set as the price expiry duration
      * @notice only to be called by the owner of the contract.
      */
-    function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable onlyOwner {
+    function setPriceExpiryDurationForToken(address tokenAddress, uint256 newPriceExpiryDuration) external payable onlyOwner {
         if(block.timestamp < newPriceExpiryDuration) revert InvalidPriceExpiryDuration();
-        uint256 oldPriceExpiryDuration = priceExpiryDuration;
-        assembly ("memory-safe") {
-            sstore(priceExpiryDuration.slot, newPriceExpiryDuration)
-        }
+        uint256 oldPriceExpiryDuration = independentTokenDirectory[tokenAddress].priceExpiryDuration;
+        independentTokenDirectory[tokenAddress].priceExpiryDuration = newPriceExpiryDuration;
         emit UpdatedPriceExpiryDuration(oldPriceExpiryDuration, newPriceExpiryDuration);
     }
 
@@ -309,10 +308,10 @@ contract BiconomyTokenPaymaster is
     /**
      * @dev Set or update a TokenInfo entry in the independentTokenDirectory mapping.
      * @param tokenAddress The token address to add or update in directory
-     * @param oracle The oracle to use for the specified token
+     * @param tokenInfo The TokenInfo struct to add or update
      * @notice only to be called by the owner of the contract.
      */
-    function addToTokenDirectory(address tokenAddress, TokenInfo tokenInfo) external payable onlyOwner {
+    function addToTokenDirectory(address tokenAddress, TokenInfo memory tokenInfo) external payable onlyOwner {
         if (tokenInfo.oracle.decimals() != 8) {
             // Token -> USD will always have 8 decimals
             revert InvalidOracleDecimals();
@@ -330,7 +329,7 @@ contract BiconomyTokenPaymaster is
      */
     function removeFromTokenDirectory(address tokenAddress) external payable onlyOwner {
         delete independentTokenDirectory[tokenAddress];
-        emit RemovedFromTokenDirectory(tokenAddress );
+        emit RemovedFromTokenDirectory(tokenAddress);
     }
 
     /**
@@ -461,6 +460,24 @@ contract BiconomyTokenPaymaster is
      */
     function isTokenSupported(address tokenAddress) public view returns (bool) {
         return independentTokenDirectory[tokenAddress].oracle != IOracle(address(0));
+    }
+
+    /**
+     * @dev Get the price markup for a token
+     * @param tokenAddress The address of the token to get the price markup of
+     * @return priceMarkup The price markup for the token
+     */
+    function independentPriceMarkup(address tokenAddress) public view returns (uint32) {
+        return independentTokenDirectory[tokenAddress].priceMarkup;
+    }
+
+    /**
+     * @dev Get the price expiry duration for a token
+     * @param tokenAddress The address of the token to get the price expiry duration of
+     * @return priceExpiryDuration The price expiry duration for the token
+     */
+    function independentPriceExpiryDuration(address tokenAddress) public view returns (uint256) {
+        return independentTokenDirectory[tokenAddress].priceExpiryDuration;
     }
 
     /**
@@ -613,10 +630,18 @@ contract BiconomyTokenPaymaster is
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
 
+
+        console2.log("actualGasCost", actualGasCost);
+        console2.log("unaccountedGas", unaccountedGas);
+        console2.log("actualUserOpFeePerGas", actualUserOpFeePerGas);
+        console2.log("appliedPriceMarkup", appliedPriceMarkup);
+        console2.log("tokenPrice", tokenPrice);
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+        console2.log("actualTokenAmount", actualTokenAmount);
+        console2.log("prechargedAmount ", prechargedAmount);
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
             uint256 refundAmount = prechargedAmount - actualTokenAmount;
@@ -644,8 +669,12 @@ contract BiconomyTokenPaymaster is
         uint256 tokenPrice = _fetchPrice(tokenInfo.oracle, tokenInfo.priceExpiryDuration);
         uint256 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle, _NATIVE_ASSET_PRICE_EXPIRY_DURATION);
 
+        console2.log("tokenPrice", tokenPrice);
+        console2.log("nativeAssetPrice", nativeAssetPrice);
+
         // Adjust to token  decimals
-        price = (nativeAssetPrice * tokenInfo.decimals) / tokenPrice;
+        price = (nativeAssetPrice * tokenInfo.oracle.decimals()) / tokenPrice;
+        console2.log("price", price);
     }
 
     /// @notice Fetches the latest price from the given oracle.

@@ -47,11 +47,11 @@ interface IBiconomyTokenPaymaster {
 
     function setUnaccountedGas(uint256 value) external payable;
 
-    function setPriceMarkup(uint32 newPriceMarkup) external payable;
+    function setPriceMarkupForToken(address tokenAddress, uint32 newPriceMarkup) external payable;
 
-    function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable;
+    function setPriceExpiryDurationForToken(address tokenAddress, uint256 newPriceExpiryDuration) external payable;
 
     function setNativeAssetToUsdOracle(IOracle oracle) external payable;
 
-    function addToTokenDirectory(address tokenAddress, IOracle oracle) external payable;
+    function addToTokenDirectory(address tokenAddress, TokenInfo memory tokenInfo) external payable;
 }

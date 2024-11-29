@@ -20,6 +20,7 @@ import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BiconomySponsorshipPaymaster } from "../../contracts/sponsorship/BiconomySponsorshipPaymaster.sol";
+import { IBiconomyTokenPaymaster } from "../../contracts/interfaces/IBiconomyTokenPaymaster.sol";
 
 import {
     BiconomyTokenPaymaster,
@@ -499,9 +500,9 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         return array;
     }
 
-    function _toSingletonArray(IOracle oracle) internal pure returns (IOracle[] memory) {
-        IOracle[] memory array = new IOracle[](1);
-        array[0] = oracle;
+    function _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo memory tokenInfo) internal pure returns (IBiconomyTokenPaymaster.TokenInfo[] memory) {
+        IBiconomyTokenPaymaster.TokenInfo[] memory array = new IBiconomyTokenPaymaster.TokenInfo[](1);
+        array[0] = tokenInfo;
         return array;
     }
 }
