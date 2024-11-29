@@ -18,8 +18,6 @@ import { ECDSA as ECDSA_solady } from "solady/utils/ECDSA.sol";
 import "account-abstraction/core/Helpers.sol";
 import { Uniswapper, IV3SwapRouter } from "./swaps/Uniswapper.sol";
 
-import "forge-std/console2.sol";
-
 /**
  * @title BiconomyTokenPaymaster
  * @author ShivaanshK<shivaansh.kapoor@biconomy.io>
@@ -52,12 +50,8 @@ contract BiconomyTokenPaymaster is
     // State variables
     address public verifyingSigner; // entity used to provide external token price and markup
     uint256 public unaccountedGas;
-    //uint32 public independentPriceMarkup; // price markup used for independent mode
-    //uint256 public priceExpiryDuration; // oracle price expiry duration
     IOracle public nativeAssetToUsdOracle; // ETH -> USD price oracle
     mapping(address => TokenInfo) public independentTokenDirectory; // mapping of token address => info for tokens
-    // supported in // independent mode
-
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
     uint32 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint32 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
@@ -69,8 +63,6 @@ contract BiconomyTokenPaymaster is
         address verifyingSignerArg,
         IEntryPoint entryPoint,
         uint256 unaccountedGasArg,
-        //uint32 independentPriceMarkupArg, // price markup used for independent mode
-        //uint256 priceExpiryDurationArg,
         uint256 nativeAssetDecimalsArg,
         IOracle nativeAssetToUsdOracleArg,
         uint256 nativeAssetPriceExpiryDurationArg,
@@ -109,8 +101,6 @@ contract BiconomyTokenPaymaster is
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, verifyingSignerArg)
             sstore(unaccountedGas.slot, unaccountedGasArg)
-            //sstore(independentPriceMarkup.slot, independentPriceMarkupArg)
-            //sstore(priceExpiryDuration.slot, priceExpiryDurationArg)
             sstore(nativeAssetToUsdOracle.slot, nativeAssetToUsdOracleArg)
         }
 
@@ -133,7 +123,6 @@ contract BiconomyTokenPaymaster is
                     tokenInfosArg[i].priceMarkup,
                     tokenInfosArg[i].priceExpiryDuration
                 ); 
-                    //10 ** IERC20Metadata(independentTokensArg[i]).decimals());
         }
     }
 
@@ -319,7 +308,7 @@ contract BiconomyTokenPaymaster is
 
         independentTokenDirectory[tokenAddress] = tokenInfo;
 
-        emit AddedToTokenDirectory(tokenAddress, tokenInfo.oracle, tokenInfo.oracle.decimals());
+        emit AddedToTokenDirectory(tokenAddress, tokenInfo.oracle, IERC20Metadata(tokenAddress).decimals());
     }
 
     /**
@@ -630,18 +619,10 @@ contract BiconomyTokenPaymaster is
             bytes32 userOpHash
         ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
 
-
-        console2.log("actualGasCost", actualGasCost);
-        console2.log("unaccountedGas", unaccountedGas);
-        console2.log("actualUserOpFeePerGas", actualUserOpFeePerGas);
-        console2.log("appliedPriceMarkup", appliedPriceMarkup);
-        console2.log("tokenPrice", tokenPrice);
         // Calculate the actual cost in tokens based on the actual gas cost and the token price
         uint256 actualTokenAmount = (
             (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
         ) / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
-        console2.log("actualTokenAmount", actualTokenAmount);
-        console2.log("prechargedAmount ", prechargedAmount);
         if (prechargedAmount > actualTokenAmount) {
             // If the user was overcharged, refund the excess tokens
             uint256 refundAmount = prechargedAmount - actualTokenAmount;
@@ -669,12 +650,8 @@ contract BiconomyTokenPaymaster is
         uint256 tokenPrice = _fetchPrice(tokenInfo.oracle, tokenInfo.priceExpiryDuration);
         uint256 nativeAssetPrice = _fetchPrice(nativeAssetToUsdOracle, _NATIVE_ASSET_PRICE_EXPIRY_DURATION);
 
-        console2.log("tokenPrice", tokenPrice);
-        console2.log("nativeAssetPrice", nativeAssetPrice);
-
         // Adjust to token  decimals
-        price = (nativeAssetPrice * tokenInfo.oracle.decimals()) / tokenPrice;
-        console2.log("price", price);
+        price = (nativeAssetPrice * 10**IERC20Metadata(tokenAddress).decimals()) / tokenPrice;
     }
 
     /// @notice Fetches the latest price from the given oracle.
