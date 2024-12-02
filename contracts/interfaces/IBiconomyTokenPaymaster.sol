@@ -14,7 +14,8 @@ interface IBiconomyTokenPaymaster {
     // Struct for storing information about the token
     struct TokenInfo {
         IOracle oracle;
-        uint256 decimals;
+        uint32 priceMarkup;
+        uint256 priceExpiryDuration;
     }
 
     event UpdatedUnaccountedGas(uint256 indexed oldValue, uint256 indexed newValue);
@@ -46,11 +47,11 @@ interface IBiconomyTokenPaymaster {
 
     function setUnaccountedGas(uint256 value) external payable;
 
-    function setPriceMarkup(uint32 newPriceMarkup) external payable;
+    function setPriceMarkupForToken(address tokenAddress, uint32 newPriceMarkup) external payable;
 
-    function setPriceExpiryDuration(uint256 newPriceExpiryDuration) external payable;
+    function setPriceExpiryDurationForToken(address tokenAddress, uint256 newPriceExpiryDuration) external payable;
 
     function setNativeAssetToUsdOracle(IOracle oracle) external payable;
 
-    function addToTokenDirectory(address tokenAddress, IOracle oracle) external payable;
+    function addToTokenDirectory(address tokenAddress, TokenInfo memory tokenInfo) external payable;
 }

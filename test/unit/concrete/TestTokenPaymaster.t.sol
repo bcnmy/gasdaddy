@@ -8,6 +8,7 @@ import {
     BiconomyTokenPaymasterErrors,
     IOracle
 } from "../../../contracts/token/BiconomyTokenPaymaster.sol";
+import { IBiconomyTokenPaymaster } from "../../../contracts/interfaces/IBiconomyTokenPaymaster.sol";
 import { MockOracle } from "../../mocks/MockOracle.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -41,14 +42,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             50000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
-            1e18, // native token decimals
+            1e18, // native asset decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -61,14 +61,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             5000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -78,7 +77,8 @@ contract TestTokenPaymaster is TestBase {
         assertEq(testArtifact.verifyingSigner(), PAYMASTER_SIGNER.addr);
         assertEq(address(testArtifact.nativeAssetToUsdOracle()), address(nativeAssetToUsdOracle));
         assertEq(testArtifact.unaccountedGas(), 5000);
-        assertEq(testArtifact.independentPriceMarkup(), 1e6);
+        assertEq(testArtifact.independentPriceMarkup(address(testToken)), 1e6);
+        assertEq(testArtifact.independentPriceExpiryDuration(address(testToken)), 1 days);
     }
 
     function test_RevertIf_DeployWithSignerSetToZero() external {
@@ -88,15 +88,14 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_OWNER.addr,
             address(0),
             ENTRYPOINT,
-            5000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
+            5000,  // unaccounted gas
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -110,14 +109,13 @@ contract TestTokenPaymaster is TestBase {
             ENTRYPOINT_ADDRESS,
             ENTRYPOINT,
             5000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -130,14 +128,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             500_001, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -150,14 +147,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             5000, // unaccounted gas
-            2e6 + 1, // price markup
-            1 days, // price expiry duration
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 2e6 + 1, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -224,14 +220,15 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             5000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
+            //1e6, // price markup
+            //1 days, // price expiry duration
             1e18, // native token decimals
             invalidOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(tokenOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(tokenOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -245,14 +242,13 @@ contract TestTokenPaymaster is TestBase {
             PAYMASTER_SIGNER.addr,
             ENTRYPOINT,
             50_000, // unaccounted gas
-            1e6, // price markup
-            1 days, // price expiry duration
             1e18, // native token decimals
             nativeAssetToUsdOracle,
+            1 days, // native asset price expiry duration
             swapRouter,
             WRAPPED_NATIVE_ADDRESS,
             _toSingletonArray(address(testToken)),
-            _toSingletonArray(IOracle(address(invalidOracle))),
+            _toSingletonArray(IBiconomyTokenPaymaster.TokenInfo(IOracle(address(invalidOracle)), 1e6, 1 days)),
             new address[](0),
             new uint24[](0)
         );
@@ -346,7 +342,7 @@ contract TestTokenPaymaster is TestBase {
     // Test setting a high price markup
     function test_SetPriceMarkupTooHigh() external prankModifier(PAYMASTER_OWNER.addr) {
         vm.expectRevert(BiconomyTokenPaymasterErrors.InvalidPriceMarkup.selector);
-        tokenPaymaster.setPriceMarkup(2e6 + 1); // Setting too high
+        tokenPaymaster.setPriceMarkupForToken(address(testToken), 2e6 + 1); // Setting too high
     }
 
     // Test invalid signature in external mode
@@ -504,13 +500,10 @@ contract TestTokenPaymaster is TestBase {
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
-
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
-
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
-
         startPrank(BUNDLER.addr);
         uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));
