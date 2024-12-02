@@ -111,25 +111,9 @@ contract BiconomyTokenPaymaster is
             sstore(nativeAssetToUsdOracle.slot, nativeAssetToUsdOracleArg)
         }
 
-        // Populate the tokenToOracle mapping
         for (uint256 i = 0; i < independentTokensArg.length; i++) {
-            if (tokenInfosArg[i].oracle.decimals() != 8) {
-                // Token -> USD will always have 8 decimals
-                revert InvalidOracleDecimals();
-            }
-            if (tokenInfosArg[i].priceMarkup > _MAX_PRICE_MARKUP || tokenInfosArg[i].priceMarkup < _PRICE_DENOMINATOR) {
-                // Not between 0% and 100% markup
-                revert InvalidPriceMarkup();
-            }
-            if (block.timestamp < tokenInfosArg[i].priceExpiryDuration) {
-                revert InvalidPriceExpiryDuration();
-            }
-            independentTokenDirectory[independentTokensArg[i]] =
-                TokenInfo(
-                    tokenInfosArg[i].oracle,
-                    tokenInfosArg[i].priceMarkup,
-                    tokenInfosArg[i].priceExpiryDuration
-                ); 
+            _validateTokenInfo(tokenInfosArg[i]);
+            independentTokenDirectory[independentTokensArg[i]] = tokenInfosArg[i]; 
         }
     }
 
@@ -308,10 +292,7 @@ contract BiconomyTokenPaymaster is
      * @notice only to be called by the owner of the contract.
      */
     function addToTokenDirectory(address tokenAddress, TokenInfo memory tokenInfo) external payable onlyOwner {
-        if (tokenInfo.oracle.decimals() != 8) {
-            // Token -> USD will always have 8 decimals
-            revert InvalidOracleDecimals();
-        }
+        _validateTokenInfo(tokenInfo);
 
         independentTokenDirectory[tokenAddress] = tokenInfo;
 
@@ -640,6 +621,18 @@ contract BiconomyTokenPaymaster is
         emit PaidGasInTokens(
             userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, tokenPrice, userOpHash
         );
+    }
+
+    function _validateTokenInfo(TokenInfo memory tokenInfo) internal view {
+        if (tokenInfo.oracle.decimals() != 8) {
+            revert InvalidOracleDecimals();
+        }
+        if (tokenInfo.priceMarkup > _MAX_PRICE_MARKUP || tokenInfo.priceMarkup < _PRICE_DENOMINATOR) {
+            revert InvalidPriceMarkup();
+        }
+        if (block.timestamp < tokenInfo.priceExpiryDuration) {
+            revert InvalidPriceExpiryDuration();
+        }
     }
 
     /// @notice Fetches the latest token price.
