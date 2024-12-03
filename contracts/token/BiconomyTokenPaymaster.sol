@@ -495,7 +495,7 @@ contract BiconomyTokenPaymaster is
                 uint48 validUntil,
                 uint48 validAfter,
                 address tokenAddress,
-                uint256 tokenPrice, // NotE: what backend should pass is token/native * 10^token decimals
+                uint256 tokenPrice, // Note: what backend should pass is nativeTokenPriceInUsd/tokenPriceInUsd * 10^token decimals
                 uint32 externalPriceMarkup,
                 bytes memory signature
             ) = modeSpecificData.parseExternalModeSpecificData();
