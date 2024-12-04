@@ -30,13 +30,13 @@ interface IBiconomyTokenPaymaster {
         uint256 tokenCharge,
         uint32 priceMarkup,
         uint256 tokenPrice,
-        bytes32 indexed userOpHash
+        bytes32 userOpHash
     );
     event PaidGasInTokensExternal(
         address indexed userOpSender,
         address indexed token,
         uint256 tokenAmount,
-        bytes32 indexed userOpHash
+        bytes32 userOpHash
     );
 
     event EthWithdrawn(address indexed recipient, uint256 indexed amount);
