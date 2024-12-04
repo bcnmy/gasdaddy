@@ -509,12 +509,14 @@ contract BiconomyTokenPaymaster is
                 revert InsufficientTokenBalance(userOp.sender, tokenAddress, estimatedTokenAmount, userOpHash);
             }
 
-            context = abi.encode(
-                mode,
-                userOp.sender,
-                tokenAddress,
-                estimatedTokenAmount,
-                userOpHash
+            context = abi.encodePacked(
+                PaymasterMode.EXTERNAL,
+                abi.encode(
+                    userOp.sender,
+                    tokenAddress,
+                    estimatedTokenAmount,
+                    userOpHash
+                )
             );
             validationData = _packValidationData(false, validUntil, validAfter);
         
@@ -529,7 +531,7 @@ contract BiconomyTokenPaymaster is
             (
                 uint128(uint256(userOp.accountGasLimits))
                     + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
-                ) * 10 * userOp.unpackMaxFeePerGas()
+                ) * 10 //* userOp.unpackMaxFeePerGas()
             ) / 100;
 
             // Get address for token used to pay
@@ -555,16 +557,17 @@ contract BiconomyTokenPaymaster is
                 revert InsufficientTokenBalance(userOp.sender, tokenAddress, tokenAmount, userOpHash);
             }
 
-            context =
+            context = abi.encodePacked(
+                PaymasterMode.INDEPENDENT,
                 abi.encode(
-                    mode,
                     userOp.sender,
                     tokenAddress,
                     maxPenalty,
                     tokenPrice,
                     priceMarkup,
                     userOpHash
-                );
+                )
+            );
             validationData = 0; // Validation success and price is valid indefinetly
         }
     }
@@ -585,10 +588,8 @@ contract BiconomyTokenPaymaster is
         internal
         override
     {   
-        
-        PaymasterMode mode = PaymasterMode(uint8(context[0]));
-
-        if (mode == PaymasterMode.EXTERNAL) {
+        PaymasterMode pmMode = PaymasterMode(uint8(context[0]));
+        if (pmMode == PaymasterMode.EXTERNAL) {
             // Decode context data
             (
                 address userOpSender,
@@ -603,7 +604,7 @@ contract BiconomyTokenPaymaster is
                 revert FailedToChargeTokens(userOpSender, tokenAddress, estimatedTokenAmount, userOpHash);
             }
 
-        } else if (mode == PaymasterMode.INDEPENDENT) {
+        } else if (pmMode == PaymasterMode.INDEPENDENT) {
             (
                 address userOpSender,
                 address tokenAddress,

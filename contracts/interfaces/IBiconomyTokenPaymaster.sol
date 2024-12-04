@@ -22,13 +22,11 @@ interface IBiconomyTokenPaymaster {
     event UpdatedVerifyingSigner(address indexed oldSigner, address indexed newSigner, address indexed actor);
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
-    event TokensRefunded(
-        address indexed userOpSender, address indexed token, uint256 refundAmount, bytes32 indexed userOpHash
-    );
+    
     event PaidGasInTokensIndependent(
         address indexed userOpSender,
         address indexed token,
-        uint256 nativeCharge,
+        uint256 gasCostBeforePostOpAndPenalty,
         uint256 tokenCharge,
         uint32 priceMarkup,
         uint256 tokenPrice,

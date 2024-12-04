@@ -112,9 +112,6 @@ contract TestTokenPaymasterBase is TestBase {
         ops[0] = userOp;
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(usdc), 0, bytes32(0));
-
-        vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.PaidGasInTokensIndependent(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, 0, bytes32(0));
 
         uint256 customGasPrice = 3e6;

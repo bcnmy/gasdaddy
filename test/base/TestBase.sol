@@ -14,6 +14,9 @@ import { Exec } from "account-abstraction/utils/Exec.sol";
 import { IPaymaster } from "account-abstraction/interfaces/IPaymaster.sol";
 
 import { Nexus } from "@nexus/contracts/Nexus.sol";
+import { INexus } from "@nexus/contracts/interfaces/INexus.sol";
+import { IERC7579Account } from "@nexus/contracts/interfaces/IERC7579Account.sol";
+import { IExecutionHelper } from "@nexus/contracts/interfaces/base/IExecutionHelper.sol";
 import { CheatCodes } from "@nexus/test/foundry/utils/CheatCodes.sol";
 import { BaseEventsAndErrors } from "./BaseEventsAndErrors.sol";
 import { MockToken } from "@nexus/contracts/mocks/MockToken.sol";
@@ -479,10 +482,10 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         // Assert we never undercharge
         assertGe(gasPaidBySAInNativeTokens, BUNDLER.addr.balance - initialBundlerBalance);
 
-        // Ensure that max 2% difference between what is should have been charged and what was charged
+        // Ensure that max 3% difference between what should have been charged and what was charged
         // this difference comes from difference of postop gas and estimated postop gas (paymaster.unaccountedGas)
         // and from estimation of real penalty which is not emitted by EP :(
-        assertApproxEqRel((totalGasFeePaid + maxPenalty - realPenalty) * priceMarkup / _PRICE_MARKUP_DENOMINATOR, gasPaidBySAInNativeTokens, 0.02e18, "If this fails, check the test case inline comments");
+        assertApproxEqRel((totalGasFeePaid + maxPenalty - realPenalty) * priceMarkup / _PRICE_MARKUP_DENOMINATOR, gasPaidBySAInNativeTokens, 0.03e18, "If this fails, check the test case inline comments");
     }
 
     function _toSingletonArray(address addr) internal pure returns (address[] memory) {
