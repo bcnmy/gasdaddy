@@ -8,7 +8,6 @@ interface IBiconomyTokenPaymaster {
     enum PaymasterMode {
         EXTERNAL, // Price provided by external service. Authenticated using signature from verifyingSigner
         INDEPENDENT // Price queried from oracle. No signature needed from external service.
-
     }
 
     // Struct for storing information about the token
@@ -26,7 +25,7 @@ interface IBiconomyTokenPaymaster {
     event TokensRefunded(
         address indexed userOpSender, address indexed token, uint256 refundAmount, bytes32 indexed userOpHash
     );
-    event PaidGasInTokens(
+    event PaidGasInTokensIndependent(
         address indexed userOpSender,
         address indexed token,
         uint256 nativeCharge,
@@ -35,6 +34,15 @@ interface IBiconomyTokenPaymaster {
         uint256 tokenPrice,
         bytes32 indexed userOpHash
     );
+    event PaidGasInTokensExternal(
+        address indexed userOpSender,
+        address indexed token,
+        uint256 tokenAmount,
+        bytes32 indexed userOpHash
+    );
+
+    event EthWithdrawn(address indexed recipient, uint256 indexed amount);
+
     event Received(address indexed sender, uint256 value);
     event TokensWithdrawn(address indexed token, address indexed to, uint256 indexed amount, address actor);
     event AddedToTokenDirectory(address indexed tokenAddress, IOracle indexed oracle, uint8 decimals);

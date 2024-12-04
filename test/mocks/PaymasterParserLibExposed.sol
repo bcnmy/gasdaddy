@@ -15,8 +15,7 @@ library PaymasterParserLibExposed {
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint256 tokenPrice, 
-            uint32 externalPriceMarkup,
+            uint256 estimatedTokenAmount, 
             bytes calldata signature
         ) {
         return modeSpecificData.parseExternalModeSpecificData();

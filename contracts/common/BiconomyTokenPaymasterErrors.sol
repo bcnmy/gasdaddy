@@ -81,8 +81,14 @@ contract BiconomyTokenPaymasterErrors {
      */
     error WithdrawalFailed();
 
+
     /**
-     * @notice Emitted when ETH is withdrawn from the paymaster
+     * @notice Throws when PM was not able to charge user
      */
-    event EthWithdrawn(address indexed recipient, uint256 indexed amount);
+    error FailedToChargeTokens(address account, address token, uint256 amount, bytes32 userOpHash);
+
+    /**
+     * Throws when account has insufficient token balance to pay for gas
+     */
+    error InsufficientTokenBalance(address account, address token, uint256 amount, bytes32 userOpHash);
 }

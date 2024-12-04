@@ -63,8 +63,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
         uint48 validUntil;
         uint48 validAfter;
         address tokenAddress;
-        uint256 tokenPrice;
-        uint32 externalPriceMarkup;
+        uint256 estimatedTokenAmount;
     }
 
     // Used to buffer user op gas limits
@@ -342,8 +341,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             pmData.validUntil,
             pmData.validAfter,
             pmData.tokenAddress,
-            pmData.tokenPrice,
-            pmData.externalPriceMarkup,
+            pmData.estimatedTokenAmount,
             new bytes(65) // Zero signature
         );
 
@@ -352,7 +350,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
 
         // Generate hash to be signed
         bytes32 paymasterHash =
-            paymaster.getHash(userOp, pmData.validUntil, pmData.validAfter, pmData.tokenAddress, pmData.tokenPrice, pmData.externalPriceMarkup);
+            paymaster.getHash(userOp, pmData.validUntil, pmData.validAfter, pmData.tokenAddress, pmData.estimatedTokenAmount);
 
         // Sign the hash
         signature = signMessage(signer, paymasterHash);
@@ -367,8 +365,7 @@ abstract contract TestBase is CheatCodes, TestHelper, BaseEventsAndErrors {
             pmData.validUntil,
             pmData.validAfter,
             pmData.tokenAddress,
-            pmData.tokenPrice,
-            pmData.externalPriceMarkup,
+            pmData.estimatedTokenAmount,
             signature
         );
     }

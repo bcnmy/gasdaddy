@@ -309,7 +309,6 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        uint128 tokenPrice = 1e18; // Assume 1 token = 1 native token = 1 native? 
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
             paymasterValGasLimit: 3e6,
@@ -318,8 +317,7 @@ contract TestTokenPaymaster is TestBase {
             validUntil: uint48(block.timestamp + 1 days),
             validAfter: uint48(block.timestamp),
             tokenAddress: address(testToken),
-            tokenPrice: tokenPrice,
-            externalPriceMarkup: 1e6
+            estimatedTokenAmount: 999*1e18
         });
 
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
@@ -354,7 +352,6 @@ contract TestTokenPaymaster is TestBase {
         vm.stopPrank();
 
         PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
-        uint128 tokenPrice = 1e18;
 
         TokenPaymasterData memory pmData = TokenPaymasterData({
             paymasterValGasLimit: 3e6,
@@ -363,8 +360,7 @@ contract TestTokenPaymaster is TestBase {
             validUntil: uint48(block.timestamp + 1 days),
             validAfter: uint48(block.timestamp),
             tokenAddress: address(testToken),
-            tokenPrice: tokenPrice,
-            externalPriceMarkup: 1e6
+            estimatedTokenAmount: 999*1e18
         });
 
         // Create a valid paymasterAndData
@@ -424,8 +420,7 @@ contract TestTokenPaymaster is TestBase {
             validUntil: validUntil,
             validAfter: validAfter,
             tokenAddress: address(testToken),
-            tokenPrice: tokenPrice,
-            externalPriceMarkup: externalPriceMarkup
+            estimatedTokenAmount: 1e18
         });
 
         // Generate and sign the token paymaster data
@@ -446,7 +441,7 @@ contract TestTokenPaymaster is TestBase {
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokensExternal(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
 
         // Execute the operation
         startPrank(BUNDLER.addr);
@@ -503,7 +498,7 @@ contract TestTokenPaymaster is TestBase {
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
         emit IBiconomyTokenPaymaster.TokensRefunded(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokensIndependent(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
         startPrank(BUNDLER.addr);
         uint256 gasValue = gasleft();   
         ENTRYPOINT.handleOps(ops, payable(BUNDLER.addr));

@@ -391,8 +391,7 @@ contract BiconomyTokenPaymaster is
         uint48 validUntil,
         uint48 validAfter,
         address tokenAddress,
-        uint256 tokenPrice,
-        uint32 externalPriceMarkup
+        uint256 estimatedTokenAmount
     )
         public
         view
@@ -415,8 +414,7 @@ contract BiconomyTokenPaymaster is
                 validUntil,
                 validAfter,
                 tokenAddress,
-                tokenPrice,
-                externalPriceMarkup
+                estimatedTokenAmount
             )
         );
     }
@@ -479,14 +477,6 @@ contract BiconomyTokenPaymaster is
             revert InvalidPaymasterMode();
         }
 
-        // callGasLimit + paymasterPostOpGas
-        uint256 maxPenalty = (
-            (
-                uint128(uint256(userOp.accountGasLimits))
-                    + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
-            ) * 10 * userOp.unpackMaxFeePerGas()
-        ) / 100;
-
         if (mode == PaymasterMode.EXTERNAL) {
             // Use the price and other params specified in modeSpecificData by the verifyingSigner
             // Useful for supporting tokens which don't have oracle support
@@ -495,8 +485,7 @@ contract BiconomyTokenPaymaster is
                 uint48 validUntil,
                 uint48 validAfter,
                 address tokenAddress,
-                uint256 tokenPrice, // Note: what backend should pass is nativeTokenPriceInUsd/tokenPriceInUsd * 10^token decimals
-                uint32 externalPriceMarkup,
+                uint256 estimatedTokenAmount,
                 bytes memory signature
             ) = modeSpecificData.parseExternalModeSpecificData();
 
@@ -506,7 +495,7 @@ contract BiconomyTokenPaymaster is
 
             bool validSig = verifyingSigner.isValidSignatureNow(
                 ECDSA_solady.toEthSignedMessageHash(
-                    getHash(userOp, validUntil, validAfter, tokenAddress, tokenPrice, externalPriceMarkup)
+                    getHash(userOp, validUntil, validAfter, tokenAddress, estimatedTokenAmount)
                 ),
                 signature
             );
@@ -516,37 +505,32 @@ contract BiconomyTokenPaymaster is
                 return ("", _packValidationData(true, validUntil, validAfter));
             }
 
-            if (externalPriceMarkup > _MAX_PRICE_MARKUP || externalPriceMarkup < _PRICE_DENOMINATOR) {
-                revert InvalidPriceMarkup();
+            if(IERC20(tokenAddress).balanceOf(userOp.sender) < estimatedTokenAmount) {
+                revert InsufficientTokenBalance(userOp.sender, tokenAddress, estimatedTokenAmount, userOpHash);
             }
 
-
-            uint256 tokenAmount;
-            {
-                uint256 maxFeePerGas = UserOperationLib.unpackMaxFeePerGas(userOp);
-                tokenAmount = ((maxCost + maxPenalty + (unaccountedGas * maxFeePerGas)) * externalPriceMarkup * tokenPrice)
-                    / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
-            }
-
-            // Transfer full amount to this address. Unused amount will be refunded in postOP
-            SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
-
-            // deduct max penalty from the token amount we pass to the postOp
-            // so we don't refund it at postOp
             context = abi.encode(
+                mode,
                 userOp.sender,
                 tokenAddress,
-                tokenAmount-((maxPenalty*tokenPrice*externalPriceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
-                tokenPrice,
-                externalPriceMarkup,
+                estimatedTokenAmount,
                 userOpHash
             );
             validationData = _packValidationData(false, validUntil, validAfter);
+        
+        /// INDEPENDENT MODE
         } else if (mode == PaymasterMode.INDEPENDENT) {
             // Use only oracles for the token specified in modeSpecificData
             if (modeSpecificData.length != 20) {
                 revert InvalidTokenAddress();
             }
+
+            uint256 maxPenalty = (
+            (
+                uint128(uint256(userOp.accountGasLimits))
+                    + uint128(bytes16(userOp.paymasterAndData[_PAYMASTER_POSTOP_GAS_OFFSET:_PAYMASTER_DATA_OFFSET]))
+                ) * 10 * userOp.unpackMaxFeePerGas()
+            ) / 100;
 
             // Get address for token used to pay
             address tokenAddress = modeSpecificData.parseIndependentModeSpecificData();
@@ -566,13 +550,17 @@ contract BiconomyTokenPaymaster is
             }
 
             // Transfer full amount to this address. Unused amount will be refunded in postOP
-            SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
+            // SafeTransferLib.safeTransferFrom(tokenAddress, userOp.sender, address(this), tokenAmount);
+            if(IERC20(tokenAddress).balanceOf(userOp.sender) < tokenAmount) {
+                revert InsufficientTokenBalance(userOp.sender, tokenAddress, tokenAmount, userOpHash);
+            }
 
             context =
                 abi.encode(
+                    mode,
                     userOp.sender,
                     tokenAddress,
-                    tokenAmount-((maxPenalty*tokenPrice*priceMarkup)/(_NATIVE_TOKEN_DECIMALS*_PRICE_DENOMINATOR)),
+                    maxPenalty,
                     tokenPrice,
                     priceMarkup,
                     userOpHash
@@ -596,31 +584,48 @@ contract BiconomyTokenPaymaster is
     )
         internal
         override
-    {
-        // Decode context data
-        (
-            address userOpSender,
-            address tokenAddress,
-            uint256 prechargedAmount,
-            uint256 tokenPrice,
-            uint32 appliedPriceMarkup,
-            bytes32 userOpHash
-        ) = abi.decode(context, (address, address, uint256, uint256, uint32, bytes32));
+    {   
+        
+        PaymasterMode mode = PaymasterMode(uint8(context[0]));
 
-        // Calculate the actual cost in tokens based on the actual gas cost and the token price
-        uint256 actualTokenAmount = (
-            (actualGasCost + (unaccountedGas * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
-        ) / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
-        if (prechargedAmount > actualTokenAmount) {
-            // If the user was overcharged, refund the excess tokens
-            uint256 refundAmount = prechargedAmount - actualTokenAmount;
-            SafeTransferLib.safeTransfer(tokenAddress, userOpSender, refundAmount);
-            emit TokensRefunded(userOpSender, tokenAddress, refundAmount, userOpHash);
+        if (mode == PaymasterMode.EXTERNAL) {
+            // Decode context data
+            (
+                address userOpSender,
+                address tokenAddress,
+                uint256 estimatedTokenAmount,
+                bytes32 userOpHash
+            ) = abi.decode(context[1:], (address, address, uint256, bytes32));
+            
+            if (SafeTransferLib.trySafeTransferFrom(tokenAddress, userOpSender, address(this), estimatedTokenAmount)) {
+                emit PaidGasInTokensExternal(userOpSender, tokenAddress, estimatedTokenAmount, userOpHash);
+            } else {
+                revert FailedToChargeTokens(userOpSender, tokenAddress, estimatedTokenAmount, userOpHash);
+            }
+
+        } else if (mode == PaymasterMode.INDEPENDENT) {
+            (
+                address userOpSender,
+                address tokenAddress,
+                uint256 maxPenalty,
+                uint256 tokenPrice,
+                uint32 appliedPriceMarkup,
+                bytes32 userOpHash
+            ) = abi.decode(context[1:], (address, address, uint256, uint256, uint32, bytes32));
+            // Calculate the amount to charge. unaccountedGas and maxPenalty are used, as we do not know the exact gas spent for postop and actual penalty at this point
+            // this is obviously overcharge, however, the excess amount can be refunded by backend, when we know the exact gas spent (emitted by EP after executing UserOp)
+            uint256 tokenAmount = (
+                (actualGasCost + ((unaccountedGas + maxPenalty)) * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
+            / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+
+            if (SafeTransferLib.trySafeTransferFrom(tokenAddress, userOpSender, address(this), tokenAmount)) {
+                emit PaidGasInTokensIndependent(
+                    userOpSender, tokenAddress, actualGasCost, tokenAmount, appliedPriceMarkup, tokenPrice, userOpHash
+                );
+            } else {
+                revert FailedToChargeTokens(userOpSender, tokenAddress, tokenAmount, userOpHash);
+            }
         }
-
-        emit PaidGasInTokens(
-            userOpSender, tokenAddress, actualGasCost, actualTokenAmount, appliedPriceMarkup, tokenPrice, userOpHash
-        );
     }
 
     function _validateTokenInfo(TokenInfo memory tokenInfo) internal view {

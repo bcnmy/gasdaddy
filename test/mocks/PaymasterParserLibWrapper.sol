@@ -15,11 +15,10 @@ contract PaymasterParserLibWrapper {
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint256 tokenPrice, 
-            uint32 externalPriceMarkup,
+            uint256 estimatedTokenAmount, 
             bytes memory signature
         ) {
-        (validUntil, validAfter, tokenAddress, tokenPrice, externalPriceMarkup, signature) = modeSpecificData.parseExternalModeSpecificData();
+        (validUntil, validAfter, tokenAddress, estimatedTokenAmount, signature) = modeSpecificData.parseExternalModeSpecificData();
     }
 
     function parseIndependentModeSpecificData(bytes calldata modeSpecificData) external pure returns (address tokenAddress) {
