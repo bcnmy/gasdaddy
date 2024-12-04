@@ -81,9 +81,6 @@ contract TestTokenPaymasterBase is TestBase {
     function test_BaseFork_Success_TokenPaymaster_IndependentMode_WithoutPremium() external {
         tokenPaymaster.deposit{ value: 10 ether }();
         deal(address(usdc), address(ALICE_ACCOUNT), 100e6);
-        vm.startPrank(address(ALICE_ACCOUNT));
-        usdc.approve(address(tokenPaymaster), usdc.balanceOf(address(ALICE_ACCOUNT)));
-        vm.stopPrank();
 
         vm.startPrank(PAYMASTER_OWNER.addr);
         tokenPaymaster.setUnaccountedGas(40_000);
@@ -94,7 +91,11 @@ contract TestTokenPaymasterBase is TestBase {
         uint256 initialUserTokenBalance = usdc.balanceOf(address(ALICE_ACCOUNT));
         uint256 initialPaymasterTokenBalance = usdc.balanceOf(address(tokenPaymaster));
 
-        PackedUserOperation memory userOp = buildUserOpWithCalldata(ALICE, "", address(VALIDATOR_MODULE));
+        PackedUserOperation memory userOp = buildUserOpWithCalldata(
+            ALICE, 
+            abi.encodeWithSelector(IExecutionHelper.execute.selector, bytes32(0), abi.encodePacked(address(usdc), uint256(0), abi.encodeWithSelector(IERC20.approve.selector, address(tokenPaymaster), 1_000*1e18))), 
+            address(VALIDATOR_MODULE)
+        );
 
         // Encode paymasterAndData for independent mode
         bytes memory paymasterAndData = abi.encodePacked(
