@@ -23,7 +23,7 @@ interface IBiconomyTokenPaymaster {
     event UpdatedFeeCollector(address indexed oldFeeCollector, address indexed newFeeCollector, address indexed actor);
     event UpdatedPriceExpiryDuration(uint256 indexed oldValue, uint256 indexed newValue);
     
-    event PaidGasInTokensIndependent(
+    event PaidGasInTokens(
         address indexed userOpSender,
         address indexed token,
         uint256 gasCostBeforePostOpAndPenalty,
@@ -32,13 +32,7 @@ interface IBiconomyTokenPaymaster {
         uint256 tokenPrice,
         bytes32 userOpHash
     );
-    event PaidGasInTokensExternal(
-        address indexed userOpSender,
-        address indexed token,
-        uint256 tokenAmount,
-        bytes32 userOpHash
-    );
-
+    
     event EthWithdrawn(address indexed recipient, uint256 indexed amount);
 
     event Received(address indexed sender, uint256 value);

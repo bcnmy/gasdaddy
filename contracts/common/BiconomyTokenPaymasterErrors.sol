@@ -86,9 +86,4 @@ contract BiconomyTokenPaymasterErrors {
      * @notice Throws when PM was not able to charge user
      */
     error FailedToChargeTokens(address account, address token, uint256 amount, bytes32 userOpHash);
-
-    /**
-     * Throws when account has insufficient token balance to pay for gas
-     */
-    error InsufficientTokenBalance(address account, address token, uint256 amount, bytes32 userOpHash);
 }

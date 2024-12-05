@@ -83,7 +83,7 @@ contract TestTokenPaymasterBase is TestBase {
         deal(address(usdc), address(ALICE_ACCOUNT), 100e6);
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(40_000);
+        tokenPaymaster.setUnaccountedGas(80_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -113,7 +113,7 @@ contract TestTokenPaymasterBase is TestBase {
         ops[0] = userOp;
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokensIndependent(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, 0, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(usdc), 0, 0, 1e6, 0, bytes32(0));
 
         uint256 customGasPrice = 3e6;
         startPrank(BUNDLER.addr);

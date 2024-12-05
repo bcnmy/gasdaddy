@@ -31,15 +31,17 @@ library TokenPaymasterParserLib {
             uint48 validUntil,
             uint48 validAfter,
             address tokenAddress,
-            uint256 estimatedTokenAmount, 
+            uint256 tokenPrice, 
+            uint32 appliedPriceMarkup,
             bytes calldata signature
         )
     {
         validUntil = uint48(bytes6(modeSpecificData[:6]));
         validAfter = uint48(bytes6(modeSpecificData[6:12]));
         tokenAddress = address(bytes20(modeSpecificData[12:32]));
-        estimatedTokenAmount = uint256(bytes32(modeSpecificData[32:64]));
-        signature = modeSpecificData[64:];
+        tokenPrice = uint256(bytes32(modeSpecificData[32:64]));
+        appliedPriceMarkup = uint32(bytes4(modeSpecificData[64:68]));
+        signature = modeSpecificData[68:];
     }
 
     function parseIndependentModeSpecificData(

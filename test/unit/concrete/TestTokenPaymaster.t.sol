@@ -317,7 +317,8 @@ contract TestTokenPaymaster is TestBase {
             validUntil: uint48(block.timestamp + 1 days),
             validAfter: uint48(block.timestamp),
             tokenAddress: address(testToken),
-            estimatedTokenAmount: 999*1e18
+            tokenPrice: 1e18,
+            appliedPriceMarkup: 1e6
         });
 
         (bytes memory paymasterAndData,) = generateAndSignTokenPaymasterData(
@@ -360,7 +361,8 @@ contract TestTokenPaymaster is TestBase {
             validUntil: uint48(block.timestamp + 1 days),
             validAfter: uint48(block.timestamp),
             tokenAddress: address(testToken),
-            estimatedTokenAmount: 999*1e18
+            tokenPrice: 1e18,
+            appliedPriceMarkup: 1e6
         });
 
         // Create a valid paymasterAndData
@@ -421,7 +423,8 @@ contract TestTokenPaymaster is TestBase {
             validUntil: validUntil,
             validAfter: validAfter,
             tokenAddress: address(testToken),
-            estimatedTokenAmount: 3_000_000_000_000
+            tokenPrice: 1e18,
+            appliedPriceMarkup: 1e6
         });
 
         // Generate and sign the token paymaster data
@@ -439,7 +442,7 @@ contract TestTokenPaymaster is TestBase {
         ops[0] = userOp;
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokensExternal(address(ALICE_ACCOUNT), address(testToken), 0, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         // Execute the operation
         startPrank(BUNDLER.addr);
@@ -466,7 +469,7 @@ contract TestTokenPaymaster is TestBase {
         testToken.mint(address(ALICE_ACCOUNT), 100_000 * (10 ** testToken.decimals()));
 
         vm.startPrank(PAYMASTER_OWNER.addr);
-        tokenPaymaster.setUnaccountedGas(40_000);
+        tokenPaymaster.setUnaccountedGas(55_000);
         vm.stopPrank();
 
         uint256 initialBundlerBalance = BUNDLER.addr.balance;
@@ -496,7 +499,7 @@ contract TestTokenPaymaster is TestBase {
         ops[0] = userOp;
 
         vm.expectEmit(true, true, false, false, address(tokenPaymaster));
-        emit IBiconomyTokenPaymaster.PaidGasInTokensIndependent(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
+        emit IBiconomyTokenPaymaster.PaidGasInTokens(address(ALICE_ACCOUNT), address(testToken), 0, 0, 1e6, 0, bytes32(0));
 
         startPrank(BUNDLER.addr);
         uint256 gasValue = gasleft();   

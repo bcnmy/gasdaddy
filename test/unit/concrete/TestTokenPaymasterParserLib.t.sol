@@ -70,7 +70,8 @@ contract TestTokenPaymasterParserLib is Test {
         uint48 expectedValidUntil = uint48(block.timestamp + 1 days);
         uint48 expectedValidAfter = uint48(block.timestamp);
         address expectedTokenAddress = address(0x1234567890AbcdEF1234567890aBcdef12345678);
-        uint256 expectedEstimatedTokenAmount = 256*1e8;
+        uint256 expectedTokenPrice = 1e18;
+        uint32 expectedAppliedPriceMarkup = 1e6;
         bytes memory expectedSignature = hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef";
 
         // Construct external mode specific data
@@ -78,7 +79,8 @@ contract TestTokenPaymasterParserLib is Test {
             bytes6(abi.encodePacked(expectedValidUntil)),
             bytes6(abi.encodePacked(expectedValidAfter)),
             bytes20(expectedTokenAddress),
-            bytes32(abi.encodePacked(expectedEstimatedTokenAmount)),
+            bytes32(abi.encodePacked(expectedTokenPrice)),
+            bytes4(abi.encodePacked(expectedAppliedPriceMarkup)),
             expectedSignature
         );
 
@@ -87,7 +89,8 @@ contract TestTokenPaymasterParserLib is Test {
             uint48 parsedValidUntil,
             uint48 parsedValidAfter,
             address parsedTokenAddress,
-            uint256 parsedEstimatedTokenAmount,
+            uint256 parsedTokenPrice,
+            uint32 parsedAppliedPriceMarkup,
             bytes memory parsedSignature
         ) = parser.parseExternalModeSpecificData(externalModeSpecificData);
 
@@ -95,7 +98,8 @@ contract TestTokenPaymasterParserLib is Test {
         assertEq(parsedValidUntil, expectedValidUntil, "ValidUntil should match");
         assertEq(parsedValidAfter, expectedValidAfter, "ValidAfter should match");
         assertEq(parsedTokenAddress, expectedTokenAddress, "Token address should match");
-        assertEq(parsedEstimatedTokenAmount, expectedEstimatedTokenAmount, "Estimated Token amount should match");
+        assertEq(parsedTokenPrice, expectedTokenPrice, "Token price should match");
+        assertEq(parsedAppliedPriceMarkup, expectedAppliedPriceMarkup, "Applied price markup should match");
         assertEq(parsedSignature, expectedSignature, "Signature should match");
     }
 
