@@ -8,6 +8,9 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IPaymaster } from "account-abstraction/interfaces/IPaymaster.sol";
 import { IEntryPoint } from "account-abstraction/interfaces/IEntryPoint.sol";
 import "account-abstraction/core/UserOperationLib.sol";
+
+import {console} from "forge-std/console.sol";
+
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
@@ -22,6 +25,7 @@ abstract contract BasePaymaster is IPaymaster, SoladyOwnable {
     uint256 internal constant _PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
     constructor(address owner, IEntryPoint entryPointArg) SoladyOwnable(owner) {
+        console.log("0-0");
         _validateEntryPointInterface(entryPointArg);
         entryPoint = entryPointArg;
     }

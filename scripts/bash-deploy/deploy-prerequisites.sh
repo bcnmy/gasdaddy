@@ -124,7 +124,7 @@ fi
 
 ### Create3 Deployer ###
 
-CREATE3_DEPLOYER_SIZE=$(cast codesize --rpc-url $CHAIN_NAME 0x0000007EC036cf611B5877d698c62297012a097E)
+CREATE3_DEPLOYER_SIZE=$(cast codesize --rpc-url $CHAIN_NAME 0x000000aFCC4940A247A53bEa5f3f4602433fe815)
 # printf "CREATE3 DEPLOYER Codesize: $CREATE3_DEPLOYER_SIZE\n"
 
 if [ $CREATE3_DEPLOYER_SIZE -eq 0 ]; then
@@ -135,7 +135,7 @@ if [ $CREATE3_DEPLOYER_SIZE -eq 0 ]; then
     read -r -p "Do you want to rebuild create3 deployer? (y/n)" REBUILD
     if [ $REBUILD = "y" ]; then
         printf "Rebuilding create3 deployer artifacts...\n"
-        forge build
+        forge build > /dev/null
         cp ../../out/Deployer.sol/Deployer.json ./artifacts/Deployer/.
     else
         printf "Using existing create3 deployer artifacts\n"

@@ -13,15 +13,15 @@ contract Deployer is SoladyOwnable {
 
     constructor(address _owner) SoladyOwnable(_owner) {}
 
-    function deploy(bytes32 _salt, bytes calldata _creationCode, bytes calldata signature) external {
+    function deploy(bytes32 _salt, bytes calldata _creationCode, bytes calldata signature) external returns (address deployedContract) {
         bytes32 hash = keccak256(_creationCode);
         if (!_verifySignature(hash, signature)) revert InvalidBytecodeSignature();
-        address deployedContract = Create3.create3(_salt, _creationCode);
+        deployedContract = Create3.create3(_salt, _creationCode);
         emit ContractDeployed(deployedContract);
     }
 
-    function deploy(bytes32 _salt, bytes calldata _creationCode) onlyOwner external {
-        address deployedContract = Create3.create3(_salt, _creationCode);
+    function deploy(bytes32 _salt, bytes calldata _creationCode) onlyOwner external returns (address deployedContract) {   
+        deployedContract = Create3.create3(_salt, _creationCode);
         emit ContractDeployed(deployedContract);
     }
 

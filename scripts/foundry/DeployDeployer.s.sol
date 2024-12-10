@@ -6,9 +6,9 @@ import {DeterministicDeployerLib} from "./utils/DeterministicDeployerLib.sol";
 
 contract DeployDeployer is Script {
 
-    bytes32 constant CREATE3_DEPLOYER_DEPLOYMENT_SALT = 0x00000000000000000000000000000000000000005328f95dfa58cf03e311ce44;
+    bytes32 constant CREATE3_DEPLOYER_DEPLOYMENT_SALT = 0x00000000000000000000000000000000000000007d24613b61566e02484a50c5;
     address constant DEPLOYER_OWNER = 0x336A8f5251F3b0723d04FBDD25858fca02BB22E3;
-    bytes32 constant DEPLOYER_BYTECODE_HASH = 0x2b2eaf7fbe1e33745154ad0e5e3e0dc0f415dc619e233ee0a317a9c1e7d53657;
+    bytes32 constant DEPLOYER_BYTECODE_HASH = 0xb474e2c7cd2df923dc66b1fbf61eb752b66b7aecb94e055878c3c75061de219c;
 
     function setUp() public {}
 
@@ -19,7 +19,7 @@ contract DeployDeployer is Script {
         address expectedDeployer = DeterministicDeployerLib.computeAddress(bytecode, args, CREATE3_DEPLOYER_DEPLOYMENT_SALT);
 
         // initcode hash to look for the salt
-        // console.logBytes32(keccak256(abi.encodePacked(bytecode, args)));
+        console.logBytes32(keccak256(abi.encodePacked(bytecode, args)));
 
         bytes32 deployerBytecodeHash;
         uint256 codeLength;
