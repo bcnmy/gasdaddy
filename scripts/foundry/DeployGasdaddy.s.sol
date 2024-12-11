@@ -51,6 +51,10 @@ contract DeployGasdaddy is Script {
     }
 
     function checkGasDaddyAddresses(uint256 minDeposit) public {
+
+        ///
+        /// SPONSORSHIP PAYMASTER
+        ///
         bytes memory bytecode = vm.getCode("scripts/bash-deploy/artifacts/BiconomySponsorshipPaymaster/BiconomySponsorshipPaymaster.json");
         bytes memory args = abi.encode(
           VERIFYING_PAYMASTER_OWNER,
@@ -95,6 +99,10 @@ contract DeployGasdaddy is Script {
         }
         */
 
+        ///
+        /// TOKEN PAYMASTER
+        ///
+
     }   
 
     function deployGasDaddy(uint256 minDeposit) public {
@@ -126,8 +134,9 @@ contract DeployGasdaddy is Script {
             console.log("Sponsorship Paymaster deployed at", sponsorshipPM);
         }
 
-        //
-        //
-        //
+        ///
+        /// TOKEN PAYMASTER
+        ///
+
     }
 }
