@@ -82,9 +82,29 @@ else
     printf "Using precompiled artifacts\n"
 fi
 
+### Get custom min deposit
+read -r -p "Do you want to specify a custom min deposit? (y/n): " proceed
+if [ $proceed = "y" ]; then
+    printf "Choose a custom min deposit: \n 1. 0.001 native token \n 2. 0.01 native token \n 3. 0.1 native token \n 4. 1 native token \n 5. 10 native tokens \n"
+    read -r -a MIN_DEPOSIT_CHOICE
+    if [ $MIN_DEPOSIT_CHOICE = "1" ]; then
+        MIN_DEPOSIT=1000000000000000
+    elif [ $MIN_DEPOSIT_CHOICE = "2" ]; then
+        MIN_DEPOSIT=10000000000000000
+    elif [ $MIN_DEPOSIT_CHOICE = "3" ]; then
+        MIN_DEPOSIT=100000000000000000
+    elif [ $MIN_DEPOSIT_CHOICE = "4" ]; then
+        MIN_DEPOSIT=1000000000000000000
+    elif [ $MIN_DEPOSIT_CHOICE = "5" ]; then
+        MIN_DEPOSIT=10000000000000000000
+    fi
+else 
+    MIN_DEPOSIT=1000000000000000
+fi
+
 ### DEPLOY GASDADDY SCs ###
 printf "Addresses for Paymaster SCs:\n"
-forge script DeployGasdaddy true --sig "run(bool)" --rpc-url $CHAIN_NAME -vv | grep -e "address" -e "already deployed"
+forge script DeployGasdaddy true $MIN_DEPOSIT --sig "run(bool,uint256)" --rpc-url $CHAIN_NAME -vv | grep -e "address" -e "already deployed"
 printf "Do you want to proceed with the addresses above? (y/n): "
 read -r proceed
 if [ $proceed = "y" ]; then
@@ -104,7 +124,7 @@ if [ $proceed = "y" ]; then
     {   
         printf "Proceeding with deployment \n"
         mkdir -p ./logs/$CHAIN_NAME
-        forge script DeployGasdaddy false --sig "run(bool)" --rpc-url $CHAIN_NAME --etherscan-api-key $CHAIN_NAME --private-key $PRIVATE_KEY $VERIFY -vv --broadcast --slow $GAS_SUFFIX # 1> ./logs/$CHAIN_NAME/$CHAIN_NAME-deploy-gasdaddy.log 2> ./logs/$CHAIN_NAME/$CHAIN_NAME-deploy-gasdaddy-errors.log 
+        forge script DeployGasdaddy false $MIN_DEPOSIT --sig "run(bool,uint256)" --rpc-url $CHAIN_NAME --etherscan-api-key $CHAIN_NAME --private-key $PRIVATE_KEY $VERIFY -vv --broadcast --slow $GAS_SUFFIX 1> ./logs/$CHAIN_NAME/$CHAIN_NAME-deploy-gasdaddy.log 2> ./logs/$CHAIN_NAME/$CHAIN_NAME-deploy-gasdaddy-errors.log 
     } || {
         printf "Deployment failed\n See logs for more details\n"
         exit 1

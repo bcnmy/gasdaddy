@@ -14,8 +14,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 import { IBiconomySponsorshipPaymaster } from "../interfaces/IBiconomySponsorshipPaymaster.sol";
 
-import {console} from "forge-std/console.sol";
-
 /**
  * @title BiconomySponsorshipPaymaster
  * @author livingrockrises<chirag@biconomy.io>
@@ -67,19 +65,13 @@ contract BiconomySponsorshipPaymaster is
     )
         BasePaymaster(owner, entryPointArg)
     {
-        console.log("0");
         _checkConstructorArgs(verifyingSignerArg, feeCollectorArg, unaccountedGasArg);
-        console.log("1");
         assembly ("memory-safe") {
             sstore(verifyingSigner.slot, verifyingSignerArg)
         }
-        console.log("2");
         feeCollector = feeCollectorArg;
-        console.log("3");
         unaccountedGas = unaccountedGasArg;
-        console.log("4");
         paymasterIdWithdrawalDelay = paymasterIdWithdrawalDelayArg;
-        console.log("5");
         minDeposit = minDepositArg;
     }
 
