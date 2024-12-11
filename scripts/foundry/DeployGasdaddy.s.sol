@@ -5,6 +5,9 @@ import {Script, console} from "forge-std/Script.sol";
 import {DeterministicDeployerLib} from "./utils/DeterministicDeployerLib.sol";
 import {IBiconomyTokenPaymaster} from "contracts/interfaces/IBiconomyTokenPaymaster.sol";
 import {MockOracle} from "test/mocks/MockOracle.sol";
+import {WETH9} from "contracts/mocks/WETH9.sol";
+
+
 interface Create3Deployer {
     function addressOf(bytes32 salt) external view returns (address);
 
@@ -24,8 +27,8 @@ contract DeployGasdaddy is Script {
     }
 
     // SALTS
-    bytes32 constant SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT = 0xe37d270a4b697fd49a738e7a7027fe45ab32da92f60226a4fb719794c954eab3; // PM Address => 0x0000a35bb5246c53457a8a28b05b1f0b79348ce1
-    bytes32 constant TOKEN_PAYMASTER_DEPLOYMENT_SALT = 0xe4bdd8197825295233f531618643f0ce135c40a466484450d571feb6b4fa564a; // PM Address => 0x00006e5788a4d59708b14c4b6c70ec10f0280f38
+    bytes32 constant SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT = 0x3e81534a95d3368136d6c49522f8e20ada0b768931512a65c785c15a83178526; // PM Address => 0x00000028d034c96fb11b5cfc856535f84866035b
+    bytes32 constant TOKEN_PAYMASTER_DEPLOYMENT_SALT = 0xf5516e76713013dc560228c61d8ad21680be770b25fcaed28edf3071e09bbd25; // PM Address => 0x00000023f4bb8e932538360023e6d8da15fb9711
 
     // CREATE3 DEPLOYER ADDRESS
     address constant CREATE3_DEPLOYER_ADDRESS = 0x000000aFCC4940A247A53bEa5f3f4602433fe815;
@@ -200,7 +203,9 @@ contract DeployGasdaddy is Script {
     }
 
     function _fillTokenPMConfigs() internal {
-/*         address[] memory independentTokens = new address[](1);
+        // in case we want to support independent tokens
+        /*
+        address[] memory independentTokens = new address[](1);
         independentTokens[0] = address(0);
 
         IBiconomyTokenPaymaster.TokenInfo[] memory tokenInfos = new IBiconomyTokenPaymaster.TokenInfo[](1);
@@ -210,9 +215,29 @@ contract DeployGasdaddy is Script {
             0 // priceExpiryDuration
         ); */
 
-        //
+        // ETHEREUM MAINNET
+        tokenPMConfigs[1] = TokenPMConfig(
+            address(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2), // wrappedNativeAddress
+            address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // ETHEREUM SEPOLIA
+        tokenPMConfigs[11155111] = TokenPMConfig(
+            address(0x694AA1769357215DE4FAC081bf1f309aDC325306), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9), // wrappedNativeAddress
+            address(0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
         // BASE MAINNET
-        //
         tokenPMConfigs[8453] = TokenPMConfig(
             address(0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70), // nativeAssetToUsdOracle
             18, // nativeAssetDecimals
@@ -230,6 +255,54 @@ contract DeployGasdaddy is Script {
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
             address(0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // ARBITRUM ONE
+        tokenPMConfigs[42161] = TokenPMConfig(
+            address(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1), // wrappedNativeAddress
+            address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // ARBITRUM SEPOLIA
+        tokenPMConfigs[421614] = TokenPMConfig(
+            address(0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73), // wrappedNativeAddress
+            address(0x101F443B4d1b059569D643917553c771E1b9663E), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // POLYGON MAINNET
+        tokenPMConfigs[137] = TokenPMConfig(
+            address(0xF9680D99D6C9589e2a93a78A04A279e509205945), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270), // wrappedNativeAddress // Wrapped MATIC
+            address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // POLYGON AMOY
+
+        // Deploy WMATIC on Polygon Amoy
+        WETH9 wMATIC = new WETH9();
+        
+        tokenPMConfigs[80001] = TokenPMConfig(
+            address(0xF0d50568e3A7e8259E16663972b11910F89BD8e7), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(wMATIC), // wrappedNativeAddress 
+            address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
             new address[](0),
             new IBiconomyTokenPaymaster.TokenInfo[](0)
         );
