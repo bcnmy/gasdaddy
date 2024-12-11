@@ -63,7 +63,7 @@ abstract contract Uniswapper {
             tokenOut: wrappedNative,
             fee: tokenToPools[tokenIn],
             recipient: address(this),
-            //deadline: block.timestamp,
+            //deadline: block.timestamp, // legacy interface arg. Intentiaonally omitted.
             amountIn: amountIn,
             amountOutMinimum: minAmountOut,
             sqrtPriceLimitX96: 0

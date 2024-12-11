@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import {Script, console} from "forge-std/Script.sol";
 import {DeterministicDeployerLib} from "./utils/DeterministicDeployerLib.sol";
 import {IBiconomyTokenPaymaster} from "contracts/interfaces/IBiconomyTokenPaymaster.sol";
-
+import {MockOracle} from "test/mocks/MockOracle.sol";
 interface Create3Deployer {
     function addressOf(bytes32 salt) external view returns (address);
 
@@ -156,6 +156,7 @@ contract DeployGasdaddy is Script {
             console.log("Skipping token PM deployment");
             return contractsDeployedCount;
         }
+
         args = abi.encode(
             VERIFYING_PAYMASTER_OWNER,     
             VERIFYING_SIGNER,
@@ -234,8 +235,15 @@ contract DeployGasdaddy is Script {
         );
 
         // ANVIL
+        MockOracle mockNativeOracle;
+        if (block.chainid == 31337) {
+            //deploy an oracle
+            vm.startBroadcast();
+            mockNativeOracle = new MockOracle(100_000_000, 8);
+            vm.stopBroadcast();
+        }
         tokenPMConfigs[31337] = TokenPMConfig(
-            address(1), // nativeAssetToUsdOracle
+            address(mockNativeOracle), // nativeAssetToUsdOracle
             18, // nativeAssetDecimals
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
