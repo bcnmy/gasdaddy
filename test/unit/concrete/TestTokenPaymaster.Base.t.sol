@@ -33,6 +33,8 @@ contract TestTokenPaymasterBase is TestBase {
         setupPaymasterTestEnvironment();
 
         swapRouter = IV3SwapRouter(SWAP_ROUTER_ADDRESS); // uniswap swap router v2 on base
+        //swapRouter = IV3SwapRouter(address(1)); // uniswap swap router v2 on base
+
         // Deploy the token paymaster
         tokenPaymaster = new BiconomyTokenPaymaster(
             PAYMASTER_OWNER.addr,

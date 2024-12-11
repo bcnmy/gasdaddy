@@ -68,8 +68,9 @@ if [ $proceed = "y" ]; then
     }
     printf "Copying Paymasters artifacts\n"
     mkdir -p ./artifacts/BiconomySponsorshipPaymaster
-    
+    mkdir -p ./artifacts/BiconomyTokenPaymaster
     cp ../../out/BiconomySponsorshipPaymaster.sol/BiconomySponsorshipPaymaster.json ./artifacts/BiconomySponsorshipPaymaster/.
+    cp ../../out/BiconomyTokenPaymaster.sol/BiconomyTokenPaymaster.json ./artifacts/BiconomyTokenPaymaster/.
 
     printf "Artifacts copied\n"
 
