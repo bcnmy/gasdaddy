@@ -385,6 +385,8 @@ contract DeployGasdaddy is Script {
             new IBiconomyTokenPaymaster.TokenInfo[](0)
         );
 
+        // SKIP BERACHAIN AS THERE's NO ETH/USD PRICE FEED THERE
+
         // ANVIL
         MockOracle mockNativeOracle;
         if (block.chainid == 31337) {
