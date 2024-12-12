@@ -85,7 +85,7 @@ else
 fi
 
 ### Get custom min deposit
-read -r -p "Do you want to specify a custom min deposit? (y/n): " proceed
+read -r -p "Default min deposit param is 0.001 native token. Do you want to specify a custom min deposit? (y/n): " proceed
 if [ $proceed = "y" ]; then
     printf "Choose a custom min deposit: \n 1. 0.001 native token \n 2. 0.01 native token \n 3. 0.1 native token \n 4. 1 native token \n 5. 10 native tokens \n"
     read -r -a MIN_DEPOSIT_CHOICE
