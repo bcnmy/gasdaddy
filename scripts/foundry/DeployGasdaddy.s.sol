@@ -81,6 +81,18 @@ contract DeployGasdaddy is Script {
 
         console.log("Sponsorship Paymaster address: ", sponsorshipPM, " || >> Code Size: ", codeSize);
 
+        bytes memory args = abi.encode(
+          VERIFYING_PAYMASTER_OWNER,
+          ENTRY_POINT_V07,
+          VERIFYING_SIGNER,
+          FEE_COLLECTOR,
+          SPONSORSHIP_PM_UNACCOUNTED_GAS,  
+          PAYMASTER_ID_WITHDRAWAL_DELAY,
+          minDeposit
+        );
+        console.log("args abi encoded: ");
+        console.logBytes(args);
+
         // Use this block to get initcode hashes to sign
         /* 
         uint256[] memory minDeposits = new uint256[](5);
@@ -97,7 +109,7 @@ contract DeployGasdaddy is Script {
               ENTRY_POINT_V07,
               VERIFYING_SIGNER,
               FEE_COLLECTOR,
-              UNACCOUNTED_GAS,
+              SPONSORSHIP_PM_UNACCOUNTED_GAS,
               PAYMASTER_ID_WITHDRAWAL_DELAY,
               minDeposit
             );
