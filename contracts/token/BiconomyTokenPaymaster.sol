@@ -379,6 +379,10 @@ contract BiconomyTokenPaymaster is
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
+    function setUniswapRouter(IV3SwapRouter uniswapRouterArg) external onlyOwner {
+        _setUniswapRouter(uniswapRouterArg);
+    }
+
     /**
      * return the hash we're going to sign off-chain (and validate on-chain)
      * this method is called by the off-chain service, to sign the request.

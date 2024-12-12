@@ -283,7 +283,7 @@ contract DeployGasdaddy is Script {
 
         // POLYGON MAINNET
         tokenPMConfigs[137] = TokenPMConfig(
-            address(0xF9680D99D6C9589e2a93a78A04A279e509205945), // nativeAssetToUsdOracle
+            address(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0), // nativeAssetToUsdOracle (MATIC/USD)
             18, // nativeAssetDecimals
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270), // wrappedNativeAddress // Wrapped MATIC
@@ -293,16 +293,94 @@ contract DeployGasdaddy is Script {
         );
 
         // POLYGON AMOY
-
         // Deploy WMATIC on Polygon Amoy
         WETH9 wMATIC = new WETH9();
-        
         tokenPMConfigs[80001] = TokenPMConfig(
-            address(0xF0d50568e3A7e8259E16663972b11910F89BD8e7), // nativeAssetToUsdOracle
+            address(0x001382149eBa3441043c1c66972b4772963f5D43), // nativeAssetToUsdOracle // MATIC/USD
             18, // nativeAssetDecimals
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(wMATIC), // wrappedNativeAddress 
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // OPTIMISM MAINNET
+        tokenPMConfigs[10] = TokenPMConfig(
+            address(0x13e3Ee699D1909E989722E753853AE30b17e08c5), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
+            address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // OPTIMISM SEPOLIA
+        tokenPMConfigs[11155420] = TokenPMConfig(
+            address(0x61Ec26aA57019C486B10502285c5A3D4A4750AD7), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x1BDD24840e119DC2602dCC587Dd182812427A5Cc), // wrappedNativeAddress
+            address(0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // SCROLL MAINNET
+        tokenPMConfigs[534352] = TokenPMConfig(
+            address(0x6bF14CB0A831078629D993FDeBcB182b21A8774C), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x5300000000000000000000000000000000000004), // wrappedNativeAddress
+            address(0), // NO SWAP ROUTER ON SCROLL <= OWNER CAN SET IT WHEN IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // SCROLL SEPOLIA
+        tokenPMConfigs[534351] = TokenPMConfig(
+            address(0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41), // nativeAssetToUsdOracle
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x5300000000000000000000000000000000000004), // wrappedNativeAddress
+            address(0), // NO SWAP ROUTER ON SCROLL SEPOLIA <= OWNER CAN SET IT WHEN IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // GNOSIS MAINNET
+        tokenPMConfigs[100] = TokenPMConfig(
+            address(0x678df3415fc31947dA4324eC63212874be5a82f8), // nativeAssetToUsdOracle DAI/USD
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d), // wrappedNativeAddress WXDAI
+            address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON GNOSIS <= OWNER CAN SET IT WHEN IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // GNOSIS CHIADO
+        // SKIP CHIADO AS THERE's NO DAI PRICE FEED THERE
+
+        // BSC MAINNET
+        tokenPMConfigs[56] = TokenPMConfig(
+            address(0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE), // nativeAssetToUsdOracle BNB/USD
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c), // wrappedNativeAddress
+            address(0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2), // swapRouter
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // BSC TESTNET
+        tokenPMConfigs[97] = TokenPMConfig(
+            address(0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526), // nativeAssetToUsdOracle bnb/usd
+            18, // nativeAssetDecimals
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x0dE8FCAE8421fc79B29adE9ffF97854a424Cad09), // wrappedNativeAddress /WBNB
+            address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON BSC TESTNET <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
             new address[](0),
             new IBiconomyTokenPaymaster.TokenInfo[](0)
         );

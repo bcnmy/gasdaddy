@@ -17,14 +17,14 @@ abstract contract Uniswapper {
     event SwappingReverted(address tokenIn, uint256 amountIn, bytes reason);
     error UnwrappingReverted(uint256 amount);
 
-    /// @notice The Uniswap V3 SwapRouter contract
-    IV3SwapRouter public immutable uniswapRouter;
-
     /// @notice The ERC-20 token that wraps the native asset for current chain
     address public immutable wrappedNative;
 
     // Token address -> Fee tier of the pool to swap through
     mapping(address => uint24) public tokenToPools;
+
+    /// @notice The Uniswap V3 SwapRouter contract
+    IV3SwapRouter public uniswapRouter;
 
     // Errors
     error UniswapReverted(address tokenIn, address tokenOut, uint256 amountIn);
@@ -81,5 +81,9 @@ abstract contract Uniswapper {
         if(amount == 0) return;
         (bool success, ) = address(wrappedNative).call(abi.encodeWithSignature("withdraw(uint256)", amount));
         if (!success) revert UnwrappingReverted(amount);
+    }
+
+    function _setUniswapRouter(IV3SwapRouter uniswapRouterArg) internal {
+        uniswapRouter = uniswapRouterArg;
     }
 }
