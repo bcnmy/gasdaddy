@@ -78,6 +78,7 @@ if [ $proceed = "y" ]; then
     printf "Creating verification artifacts\n"
     
     forge verify-contract --show-standard-json-input $(cast address-zero) BiconomySponsorshipPaymaster > ./artifacts/BiconomySponsorshipPaymaster/verify.json
+    forge verify-contract --show-standard-json-input $(cast address-zero) BiconomyTokenPaymaster > ./artifacts/BiconomyTokenPaymaster/verify.json
     
 else 
     printf "Using precompiled artifacts\n"

@@ -124,7 +124,7 @@ fi
 
 ### Create3 Deployer ###
 
-CREATE3_DEPLOYER_SIZE=$(cast codesize --rpc-url $CHAIN_NAME 0x000000aFCC4940A247A53bEa5f3f4602433fe815)
+CREATE3_DEPLOYER_SIZE=$(cast codesize --rpc-url $CHAIN_NAME $CREATE3_DEPLOYER_ADDRESS)
 # printf "CREATE3 DEPLOYER Codesize: $CREATE3_DEPLOYER_SIZE\n"
 
 if [ $CREATE3_DEPLOYER_SIZE -eq 0 ]; then
@@ -137,6 +137,7 @@ if [ $CREATE3_DEPLOYER_SIZE -eq 0 ]; then
         printf "Rebuilding create3 deployer artifacts...\n"
         forge build > /dev/null
         cp ../../out/Deployer.sol/Deployer.json ./artifacts/Deployer/.
+        forge verify-contract --show-standard-json-input $(cast address-zero) Deployer > ./artifacts/Deployer/verify.json
     else
         printf "Using existing create3 deployer artifacts\n"
     fi
