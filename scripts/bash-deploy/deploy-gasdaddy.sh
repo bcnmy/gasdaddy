@@ -105,7 +105,8 @@ fi
 
 ### DEPLOY GASDADDY SCs ###
 printf "Addresses for Paymaster SCs:\n"
-forge script DeployGasdaddy true $MIN_DEPOSIT --sig "run(bool,uint256)" --rpc-url $CHAIN_NAME -vv | grep -e "address" -e "already deployed"
+forge script DeployGasdaddy true $MIN_DEPOSIT --sig "run(bool,uint256)" --rpc-url $CHAIN_NAME -vv > ./logs/$CHAIN_NAME/$CHAIN_NAME-gasdaddy-predeploy.log
+cat ./logs/$CHAIN_NAME/$CHAIN_NAME-gasdaddy-predeploy.log | grep -e "address" -e "already deployed"
 printf "Do you want to proceed with the addresses above? (y/n): "
 read -r proceed
 if [ $proceed = "y" ]; then
