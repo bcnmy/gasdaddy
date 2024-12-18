@@ -55,7 +55,7 @@ contract BiconomyTokenPaymaster is
     uint256 private constant _UNACCOUNTED_GAS_LIMIT = 200_000; // Limit for unaccounted gas cost
     uint32 private constant _PRICE_DENOMINATOR = 1e6; // Denominator used when calculating cost with price markup
     uint32 private constant _MAX_PRICE_MARKUP = 2e6; // 100% premium on price (2e6/PRICE_DENOMINATOR)
-    uint256 private immutable _NATIVE_TOKEN_DECIMALS;  // gas savings
+    uint256 private immutable _NATIVE_TOKEN_DECIMALS_MULTIPLIER;  // gas savings
     uint256 private immutable _NATIVE_ASSET_PRICE_EXPIRY_DURATION; // gas savings
 
     /**
@@ -70,7 +70,7 @@ contract BiconomyTokenPaymaster is
         address verifyingSignerArg,
         IEntryPoint entryPoint,
         uint256 unaccountedGasArg,
-        uint256 nativeAssetDecimalsArg,
+        uint256 nativeAssetDecimalsMultiplierArg,
         IOracle nativeAssetToUsdOracleArg,
         uint256 nativeAssetPriceExpiryDurationArg,
         IV3SwapRouter uniswapRouterArg,
@@ -83,7 +83,7 @@ contract BiconomyTokenPaymaster is
         BasePaymaster(owner, entryPoint)
         Uniswapper(uniswapRouterArg, wrappedNativeArg, swappableTokens, swappableTokenPoolFeeTiers)
     {
-        _NATIVE_TOKEN_DECIMALS = nativeAssetDecimalsArg;
+        _NATIVE_TOKEN_DECIMALS_MULTIPLIER = nativeAssetDecimalsMultiplierArg;
         _NATIVE_ASSET_PRICE_EXPIRY_DURATION = nativeAssetPriceExpiryDurationArg;
 
         if (_isContract(verifyingSignerArg)) {
@@ -590,7 +590,7 @@ contract BiconomyTokenPaymaster is
         // when we know the exact gas spent (emitted by EP after executing UserOp)
         uint256 tokenAmount = (
             (actualGasCost + ((unaccountedGas + maxPenalty)) * actualUserOpFeePerGas)) * appliedPriceMarkup * tokenPrice
-        / (_NATIVE_TOKEN_DECIMALS * _PRICE_DENOMINATOR);
+        / (_NATIVE_TOKEN_DECIMALS_MULTIPLIER * _PRICE_DENOMINATOR);
 
         if (SafeTransferLib.trySafeTransferFrom(tokenAddress, userOpSender, address(this), tokenAmount)) {
             emit PaidGasInTokens(userOpSender, tokenAddress, actualGasCost, tokenAmount, appliedPriceMarkup, tokenPrice, userOpHash);

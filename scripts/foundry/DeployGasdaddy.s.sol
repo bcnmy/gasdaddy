@@ -214,7 +214,7 @@ contract DeployGasdaddy is Script {
         // ETHEREUM MAINNET
         tokenPMConfigs[1] = TokenPMConfig(
             address(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2), // wrappedNativeAddress
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
@@ -225,7 +225,7 @@ contract DeployGasdaddy is Script {
         // ETHEREUM SEPOLIA
         tokenPMConfigs[11155111] = TokenPMConfig(
             address(0x694AA1769357215DE4FAC081bf1f309aDC325306), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier  
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9), // wrappedNativeAddress
             address(0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E), // swapRouter
@@ -236,7 +236,7 @@ contract DeployGasdaddy is Script {
         // BASE MAINNET
         tokenPMConfigs[8453] = TokenPMConfig(
             address(0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier  
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
             address(0x2626664c2603336E57B271c5C0b26F421741e481), // swapRouter
@@ -247,7 +247,7 @@ contract DeployGasdaddy is Script {
         // BASE SEPOLIA
         tokenPMConfigs[84532] = TokenPMConfig(
             address(0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier  
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
             address(0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4), // swapRouter
@@ -258,7 +258,7 @@ contract DeployGasdaddy is Script {
         // ARBITRUM ONE
         tokenPMConfigs[42161] = TokenPMConfig(
             address(0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier  
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1), // wrappedNativeAddress
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
@@ -269,7 +269,7 @@ contract DeployGasdaddy is Script {
         // ARBITRUM SEPOLIA
         tokenPMConfigs[421614] = TokenPMConfig(
             address(0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier  
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x980B62Da83eFf3D4576C647993b0c1D7faf17c73), // wrappedNativeAddress
             address(0x101F443B4d1b059569D643917553c771E1b9663E), // swapRouter
@@ -280,7 +280,7 @@ contract DeployGasdaddy is Script {
         // POLYGON MAINNET
         tokenPMConfigs[137] = TokenPMConfig(
             address(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0), // nativeAssetToUsdOracle (MATIC/USD)
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier      
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270), // wrappedNativeAddress // Wrapped MATIC
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
@@ -293,7 +293,7 @@ contract DeployGasdaddy is Script {
         WETH9 wMATIC = new WETH9();
         tokenPMConfigs[80001] = TokenPMConfig(
             address(0x001382149eBa3441043c1c66972b4772963f5D43), // nativeAssetToUsdOracle // MATIC/USD
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier      
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(wMATIC), // wrappedNativeAddress 
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
@@ -304,7 +304,7 @@ contract DeployGasdaddy is Script {
         // OPTIMISM MAINNET
         tokenPMConfigs[10] = TokenPMConfig(
             address(0x13e3Ee699D1909E989722E753853AE30b17e08c5), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier      
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
             address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45), // swapRouter
@@ -315,7 +315,7 @@ contract DeployGasdaddy is Script {
         // OPTIMISM SEPOLIA
         tokenPMConfigs[11155420] = TokenPMConfig(
             address(0x61Ec26aA57019C486B10502285c5A3D4A4750AD7), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier      
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x1BDD24840e119DC2602dCC587Dd182812427A5Cc), // wrappedNativeAddress
             address(0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4), // swapRouter
@@ -326,7 +326,7 @@ contract DeployGasdaddy is Script {
         // SCROLL MAINNET
         tokenPMConfigs[534352] = TokenPMConfig(
             address(0x6bF14CB0A831078629D993FDeBcB182b21A8774C), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier      
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x5300000000000000000000000000000000000004), // wrappedNativeAddress
             address(0), // NO SWAP ROUTER ON SCROLL <= OWNER CAN SET IT WHEN IT IS DEPLOYED
@@ -337,7 +337,7 @@ contract DeployGasdaddy is Script {
         // SCROLL SEPOLIA
         tokenPMConfigs[534351] = TokenPMConfig(
             address(0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x5300000000000000000000000000000000000004), // wrappedNativeAddress
             address(0), // NO SWAP ROUTER ON SCROLL SEPOLIA <= OWNER CAN SET IT WHEN IT IS DEPLOYED
@@ -348,7 +348,7 @@ contract DeployGasdaddy is Script {
         // GNOSIS MAINNET
         tokenPMConfigs[100] = TokenPMConfig(
             address(0x678df3415fc31947dA4324eC63212874be5a82f8), // nativeAssetToUsdOracle DAI/USD
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d), // wrappedNativeAddress WXDAI
             address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON GNOSIS <= OWNER CAN SET IT WHEN IT IS DEPLOYED
@@ -362,7 +362,7 @@ contract DeployGasdaddy is Script {
         // BSC MAINNET
         tokenPMConfigs[56] = TokenPMConfig(
             address(0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE), // nativeAssetToUsdOracle BNB/USD
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c), // wrappedNativeAddress
             address(0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2), // swapRouter
@@ -373,7 +373,7 @@ contract DeployGasdaddy is Script {
         // BSC TESTNET
         tokenPMConfigs[97] = TokenPMConfig(
             address(0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526), // nativeAssetToUsdOracle bnb/usd
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x0dE8FCAE8421fc79B29adE9ffF97854a424Cad09), // wrappedNativeAddress /WBNB
             address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON BSC TESTNET <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
@@ -393,7 +393,7 @@ contract DeployGasdaddy is Script {
         }
         tokenPMConfigs[31337] = TokenPMConfig(
             address(mockNativeOracle), // nativeAssetToUsdOracle
-            18, // nativeAssetDecimals
+            1e18, // nativeAssetDecimalsMultiplier
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4200000000000000000000000000000000000006), // wrappedNativeAddress
             address(2), // swapRouter
