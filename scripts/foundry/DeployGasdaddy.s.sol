@@ -27,11 +27,13 @@ contract DeployGasdaddy is Script {
     }
 
     // SALTS
-    bytes32 constant SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT = 0xc9ec6c618ddf6abc86e028d1ec4b5134220e43bf3077b043e67f191f9eb347e1; //  ==> 0x000000f05e956f96bbcbf39012809070da94047c
-    bytes32 constant TOKEN_PAYMASTER_DEPLOYMENT_SALT = 0xacde7b202f0f9becc0dc7d3f759f4c7f3aad958d689fc89cba2de30ac6dcb661; // 0x00000000301515a5410e0d768af4f53c416edf19
+    // bytes32 constant SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT = 0xc9ec6c618ddf6abc86e028d1ec4b5134220e43bf3077b043e67f191f9eb347e1; //  ==> 0x000000f05e956f96bbcbf39012809070da94047c
     // bytes32 constant TOKEN_PAYMASTER_DEPLOYMENT_SALT = 0x38b3bd986a7d84de00ac8e7a738bec546ee9b15bf26e12af54823d252ba868f7; // ==> 0x000000e5c375f0b44015386c338ce5ddf72d600b
     // backup salt 0x724dd9b57a6505c7389fa9ee13b55404929a38dda59f440c5f3bd8c24bf05497 ==> 0x0000008e81b7464dcc67669ea8624ab4486553b3 (not used yet)
-
+    
+    bytes32 constant SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT = 0x41433e57e9a8419e900d6e3dc45d4b3b61dda73c0ab21c74348f35a61f57123a; // ==> 0x00000072a5f551d6e80b2f6ad4fb256a27841bbc
+    bytes32 constant TOKEN_PAYMASTER_DEPLOYMENT_SALT = 0xacde7b202f0f9becc0dc7d3f759f4c7f3aad958d689fc89cba2de30ac6dcb661; // 0x00000000301515a5410e0d768af4f53c416edf19
+    
     // CONSTRUCTOR ARGS
     address constant VERIFYING_PAYMASTER_OWNER = 0x129443cA2a9Dec2020808a2868b38dDA457eaCC7;
     address constant VERIFYING_SIGNER = 0xC6dAB8652E5E9749523bA948F42d5944584E4e73;
@@ -75,7 +77,7 @@ contract DeployGasdaddy is Script {
             codeSize := extcodesize(sponsorshipPM)
         }
 
-        console.log("Sponsorship Paymaster address: ", sponsorshipPM, " || >> Code Size: ", codeSize);
+        console.log("SPM address: ", sponsorshipPM, " || >> Code Size: ", codeSize);
 
         bytes memory args = abi.encode(
           VERIFYING_PAYMASTER_OWNER,
@@ -97,7 +99,7 @@ contract DeployGasdaddy is Script {
         assembly {
             codeSize := extcodesize(tokenPM)
         }
-        console.log("Token Paymaster address: ", tokenPM, " || >> Code Size: ", codeSize);
+        console.log("TPM address: ", tokenPM, " || >> Code Size: ", codeSize);
 
         TokenPMConfig memory config = tokenPMConfigs[block.chainid];
         args = abi.encode(
@@ -151,7 +153,7 @@ contract DeployGasdaddy is Script {
             bytes memory initcode = abi.encodePacked(bytecode, args);
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(create3deployerOwnerPk, keccak256(abi.encode(initcode, SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT, block.chainid)));
             sponsorshipPM = create3Deployer.deploy(SPONSORSHIP_PAYMASTER_DEPLOYMENT_SALT, initcode, abi.encodePacked(r, s, v));
-            console.log("Sponsorship Paymaster deployed at", sponsorshipPM);
+            console.log("Spons Paymaster deployed at", sponsorshipPM);
             contractsDeployedCount++;
         }
 
