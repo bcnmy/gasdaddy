@@ -44,3 +44,7 @@ node_modules
 
 # Foundry cache
 cache_forge/solidity-files-cache.json
+
+# Bash deploy helper logs
+scripts/bash-deploy/logs/*
+!scripts/bash-deploy/logs/.gitkeep
