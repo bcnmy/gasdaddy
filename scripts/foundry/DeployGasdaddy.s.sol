@@ -387,6 +387,28 @@ contract DeployGasdaddy is Script {
 
         // SKIP BERACHAIN AS THERE's NO ETH/USD PRICE FEED THERE
 
+        // BLAST SEPOLIA
+        tokenPMConfigs[168587773] = TokenPMConfig(
+            address(0xf9A3bec11e342317DF97809201Bf394e29B6B585), // nativeAssetToUsdOracle
+            1e18, // nativeAssetDecimalsMultiplier
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x4200000000000000000000000000000000000023), // wrappedNativeAddress
+            address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON BLAST SEPOLIA <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // BLAST MAINNET
+        tokenPMConfigs[81457] = TokenPMConfig(
+            address(0xf9A3bec11e342317DF97809201Bf394e29B6B585), // nativeAssetToUsdOracle
+            1e18, // nativeAssetDecimalsMultiplier
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x4300000000000000000000000000000000000004), // wrappedNativeAddress
+            address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON BLAST <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
         // ANVIL
         MockOracle mockNativeOracle;
         if (block.chainid == 31337) {
