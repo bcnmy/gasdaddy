@@ -146,6 +146,8 @@ if [ $CREATE3_DEPLOYER_SIZE -eq 0 ]; then
     {
         forge script DeployDeployer --rpc-url $CHAIN_NAME --private-key $PRIVATE_KEY --etherscan-api-key $CHAIN_NAME --broadcast --slow $VERIFY 1> ./logs/$CHAIN_NAME/deploy-deployer.log 2> ./logs/$CHAIN_NAME/deploy-deployer-errors.log
     } || {
+        forge script DeployDeployer --legacy --rpc-url $CHAIN_NAME --private-key $PRIVATE_KEY --etherscan-api-key $CHAIN_NAME --broadcast --slow $VERIFY 1> ./logs/$CHAIN_NAME/deploy-deployer.log 2> ./logs/$CHAIN_NAME/deploy-deployer-errors.log 
+    } || {
         printf "Create3 deployer deployment failed\n"
         exit 64
     }

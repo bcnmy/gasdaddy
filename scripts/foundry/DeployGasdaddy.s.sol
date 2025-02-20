@@ -65,7 +65,7 @@ contract DeployGasdaddy is Script {
         }
     }
 
-    function checkGasDaddyAddresses(uint256 minDeposit) public {
+    function checkGasDaddyAddresses(uint256 minDeposit) public view {
 
         ///
         /// SPONSORSHIP PAYMASTER
@@ -405,6 +405,28 @@ contract DeployGasdaddy is Script {
             3600, // nativeAssetPriceExpiryDuration // 1 hour
             address(0x4300000000000000000000000000000000000004), // wrappedNativeAddress
             address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON BLAST <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // SONIC MAINNET
+        tokenPMConfigs[146] = TokenPMConfig(
+            address(0x9056114733A554680FC5a1Ab21947940051EA517), // PYTH ADAPTER nativeAssetToUsdOracle
+            1e18, // nativeAssetDecimalsMultiplier
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38), // wrappedNativeAddress
+            address(0xaa52bB8110fE38D0d2d2AF0B85C3A3eE622CA455), // swap router 
+            new address[](0),
+            new IBiconomyTokenPaymaster.TokenInfo[](0)
+        );
+
+        // IOTA MAINNET
+        tokenPMConfigs[8822] = TokenPMConfig(
+            address(0x2A0F4538e1D5341638BBba1578681d4D1622338e), // nativeAssetToUsdOracle
+            1e18, // nativeAssetDecimalsMultiplier
+            3600, // nativeAssetPriceExpiryDuration // 1 hour
+            address(0x6e47f8d48a01b44DF3fFF35d258A10A3AEdC114c), // wrappedNativeAddress
+            address(0x0000000000000000000000000000000000000000), // NO SWAP ROUTER ON IOTA <= OWNER CAN SET IT WHEN (IF) IT IS DEPLOYED
             new address[](0),
             new IBiconomyTokenPaymaster.TokenInfo[](0)
         );

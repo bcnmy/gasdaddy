@@ -61,7 +61,12 @@ contract DeployPythFeedAdapter is Script {
     function run() public {
         console.log("Deploying PythFeedAdapter");
         vm.startBroadcast();
-        PythFeedAdapter pythFeedAdapter = new PythFeedAdapter(0xA2aa501b19aff244D90cc15a4Cf739D2725B5729, "ETH/USD", 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace);
+        //Blast
+        //PythFeedAdapter pythFeedAdapter = new PythFeedAdapter(0xA2aa501b19aff244D90cc15a4Cf739D2725B5729, "ETH/USD", 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace);
+        //IOTA
+        //PythFeedAdapter pythFeedAdapter = new PythFeedAdapter(0x8D254a21b3C86D32F7179855531CE99164721933, "IOTA/USD", 0xc7b72e5d860034288c9335d4d325da4272fe50c92ab72249d58f6cbba30e4c44);
+        // SONIC
+        PythFeedAdapter pythFeedAdapter = new PythFeedAdapter(0x2880aB155794e7179c9eE2e38200202908C17B43, "S/USD", 0xf490b178d0c85683b7a0f2388b40af2e6f7c90cbe0f96b31f315f08d0e5a2d6d);
         vm.stopBroadcast();
         console.log("PythFeedAdapter deployed at", address(pythFeedAdapter));
     }
